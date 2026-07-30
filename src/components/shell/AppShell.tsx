@@ -15,7 +15,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   const config = NAV_BY_ROLE[role];
   return (
     <div className="min-h-screen bg-background-neutral">
-      <AppSidebar config={config} />
+      <AppSidebar config={config} role={role} />
       <AppMobileNav config={config} />
       <div className="lg:pl-[264px]">
         <div className="pb-20 lg:pb-0">{children}</div>
