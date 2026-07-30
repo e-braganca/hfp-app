@@ -156,16 +156,6 @@ function TopBar() {
 function Hero() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-primary-darker via-primary-dark to-primary text-white">
-      {/* faint clinical grid, an echo of the chart paper in the workbench */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-        }}
-      />
       <div className="relative mx-auto grid max-w-6xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-28 lg:pt-24">
         <div>
           <p className="lp-rise font-mono text-xs font-bold tracking-[0.25em] text-primary-lighter" style={{ "--d": "0s" } as React.CSSProperties}>
@@ -210,60 +200,43 @@ function Hero() {
           </div>
         </div>
 
-        {/* The prescriber's screen as hero art — proof, not decoration */}
-        <div className="lp-rise relative hidden lg:block" style={{ "--d": "0.3s" } as React.CSSProperties}>
-          <ClinicalCard />
+        {/* Patients as hero art, clinical proof floating alongside. self-end +
+            -mb-28 cancels the grid's bottom padding so they stand on the fold. */}
+        <div
+          className="lp-rise relative hidden self-end lg:-mb-28 lg:block"
+          style={{ "--d": "0.3s" } as React.CSSProperties}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/hero-patients.webp"
+            alt="Two Prescriptr patients, one holding a GLP-1 weekly pen"
+            className="mx-auto max-h-[600px] w-auto"
+            style={{ filter: "drop-shadow(0 24px 48px rgba(0,0,0,0.35))" }}
+          />
+          <div className="lp-drift absolute -left-8 top-[56%] w-52 rounded-xl bg-background-paper p-4 text-text-primary shadow-dialog">
+            <p className="font-mono text-[10px] font-bold tracking-widest text-text-secondary">PROTOCOL CHECK</p>
+            <ul className="mt-2 space-y-1.5 text-[12px]">
+              {["Contraindications — clear", "Weight photo verified", "ID verified"].map((t) => (
+                <li key={t} className="flex items-center gap-2">
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-success text-[10px] font-black text-white">✓</span>
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div
+            className="lp-drift absolute bottom-24 right-0 flex items-center gap-3 rounded-xl bg-primary-darker/95 px-4 py-3 shadow-dialog backdrop-blur"
+            style={{ animationDelay: "1.4s" }}
+          >
+            <div>
+              <p className="text-[13px] font-bold">Approved by Dr. Eleanor Hart</p>
+              <p className="font-mono text-[10px] tracking-widest text-white/60">GMC 7041182 · 09:41</p>
+            </div>
+            <span className="text-xl">✓</span>
+          </div>
         </div>
       </div>
     </section>
-  );
-}
-
-/** Stylised order-review card in the workbench's visual vocabulary. */
-function ClinicalCard() {
-  return (
-    <div className="lp-drift relative mx-auto w-[400px]">
-      <div className="rounded-2xl bg-background-paper p-6 text-text-primary shadow-dialog">
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] font-bold tracking-widest text-text-secondary">ORDER · WL-8046</span>
-          <span className="rounded-full bg-success-lighter px-2.5 py-1 text-[11px] font-extrabold text-success-dark">GREEN · SIMPLE REPEAT</span>
-        </div>
-        <div className="mt-5 grid grid-cols-3 gap-3">
-          {[
-            ["BMI", "31.4", "≥ 30 met"],
-            ["AGE", "42", "18–74 met"],
-            ["SAFETY", "0", "flags raised"],
-          ].map(([k, v, s]) => (
-            <div key={k} className="rounded-xl bg-background-neutral p-3">
-              <p className="font-mono text-[10px] font-bold tracking-widest text-text-secondary">{k}</p>
-              <p className="mt-1 font-mono text-2xl font-extrabold">{v}</p>
-              <p className="text-[11px] text-text-secondary">{s}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 rounded-xl border border-[var(--divider)] p-4">
-          <p className="font-mono text-[10px] font-bold tracking-widest text-text-secondary">PROTOCOL CHECK</p>
-          <ul className="mt-2 space-y-1.5 text-[13px]">
-            {["Contraindication screen — clear", "Weight photo verified · live capture", "ID verified · UK driving licence"].map((t) => (
-              <li key={t} className="flex items-center gap-2">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-success text-[10px] font-black text-white">✓</span>
-                {t}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="mt-4 flex items-center justify-between rounded-xl bg-primary-darker px-4 py-3 text-white">
-          <div>
-            <p className="text-[13px] font-bold">Approved by Dr. Eleanor Hart</p>
-            <p className="font-mono text-[10px] tracking-widest text-white/60">GMC 7041182 · 09:41</p>
-          </div>
-          <span className="text-xl">✓</span>
-        </div>
-      </div>
-      <p className="mt-3 text-center font-mono text-[11px] tracking-widest text-white/50">
-        THE ACTUAL REVIEW EVERY ORDER GETS
-      </p>
-    </div>
   );
 }
 
