@@ -8,6 +8,7 @@ import {
   ETHNIC_GROUPS,
   MEDS,
   PHASES,
+  PHONE_COUNTRIES,
   SAFETY_QUESTIONS,
   STEPS,
   TREATMENT_OPTIONS,
@@ -310,14 +311,8 @@ function renderStep(
       return (
         <div>
           <StepHeading eyebrow="About you" title="Your height and weight" sub="We use these to calculate your BMI, a key eligibility factor." />
-          {/* a two-part unit (ft/in, st/lb) needs the full width, so the row stacks */}
-          <div
-            className={
-              a.heightUnit === "ftin" || a.weightUnit === "stlb"
-                ? "flex flex-col gap-5"
-                : "flex gap-4"
-            }
-          >
+          {/* always stacked: the layout stays put when the unit switch changes */}
+          <div className="flex flex-col gap-5">
             <MeasureField
               label="Height"
               units={HEIGHT_UNITS}
@@ -528,14 +523,32 @@ function renderStep(
               />
             </Field>
             <Field label="Mobile number">
-              <input
-                type="tel"
-                autoComplete="tel"
-                value={a.mobile}
-                onChange={(e) => setA({ mobile: e.target.value })}
-                placeholder="07…"
-                className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
-              />
+              <div className="flex gap-2">
+                <div className="relative shrink-0">
+                  <select
+                    aria-label="Country code"
+                    value={a.mobileCountry}
+                    onChange={(e) => setA({ mobileCountry: e.target.value })}
+                    className="h-12 appearance-none rounded-xl border-2 border-[var(--divider)] bg-background-paper pl-3 pr-8 font-mono text-base font-semibold text-text-primary focus:border-primary focus:outline-none"
+                  >
+                    {PHONE_COUNTRIES.map((c) => (
+                      <option key={c.dial + c.label} value={c.dial}>
+                        {c.flag} {c.dial}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-text-secondary">▾</span>
+                </div>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  value={a.mobile}
+                  onChange={(e) => setA({ mobile: e.target.value.replace(/[^\d\s]/g, "") })}
+                  placeholder={a.mobileCountry === "+44" ? "07123 456789" : "Mobile number"}
+                  className="h-12 min-w-0 flex-1 rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+                />
+              </div>
             </Field>
             <Field label="Password">
               <input
@@ -546,6 +559,11 @@ function renderStep(
                 placeholder="At least 8 characters"
                 className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
               />
+              {a.password.length > 0 && a.password.length < 8 && (
+                <p className="mt-1.5 text-xs font-semibold text-warning-dark">
+                  {8 - a.password.length} more character{8 - a.password.length === 1 ? "" : "s"} needed — minimum is 8.
+                </p>
+              )}
             </Field>
             <label className="flex cursor-pointer items-start gap-3 text-sm text-text-secondary">
               <input
@@ -691,7 +709,7 @@ function renderStep(
                 label: "Treatment preference",
                 value: TREATMENT_OPTIONS.find((t) => t.key === a.treatment)?.name ?? "—",
               },
-              { label: "Contact", value: a.email },
+              { label: "Contact", value: `${a.email} · ${a.mobileCountry} ${a.mobile}` },
             ]}
           />
           <p className="mt-4 rounded-lg bg-primary-lighter px-4 py-3 text-sm text-primary-dark">

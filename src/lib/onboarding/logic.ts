@@ -56,6 +56,8 @@ export interface Answers {
   firstName: string;
   lastName: string;
   email: string;
+  /** dial code (e.g. "+44") + national number, stored separately */
+  mobileCountry: string;
   mobile: string;
   password: string;
   consent: boolean;
@@ -91,6 +93,7 @@ export const emptyAnswers = (): Answers => ({
   firstName: "",
   lastName: "",
   email: "",
+  mobileCountry: "+44",
   mobile: "",
   password: "",
   consent: false,
@@ -281,7 +284,7 @@ export function canContinue(step: string, a: Answers): boolean {
         a.firstName.trim().length > 0 &&
         a.lastName.trim().length > 0 &&
         EMAIL_RE.test(a.email) &&
-        a.mobile.replace(/\D/g, "").length >= 10 &&
+        a.mobile.replace(/\D/g, "").length >= 9 && // 9–11 national digits covers UK + the dial list
         a.password.length >= 8 &&
         a.consent
       );

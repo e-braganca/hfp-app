@@ -150,6 +150,23 @@ export const TREATMENT_OPTIONS: TreatmentOption[] = [
   },
 ];
 
+// Phone country codes — UK first (the service's market), then the diaspora
+// call-list most likely to show up in a UK clinic. Demo-sized on purpose.
+export const PHONE_COUNTRIES: { dial: string; flag: string; label: string }[] = [
+  { dial: "+44", flag: "🇬🇧", label: "United Kingdom" },
+  { dial: "+353", flag: "🇮🇪", label: "Ireland" },
+  { dial: "+1", flag: "🇺🇸", label: "United States" },
+  { dial: "+33", flag: "🇫🇷", label: "France" },
+  { dial: "+34", flag: "🇪🇸", label: "Spain" },
+  { dial: "+351", flag: "🇵🇹", label: "Portugal" },
+  { dial: "+49", flag: "🇩🇪", label: "Germany" },
+  { dial: "+55", flag: "🇧🇷", label: "Brazil" },
+  { dial: "+91", flag: "🇮🇳", label: "India" },
+  { dial: "+234", flag: "🇳🇬", label: "Nigeria" },
+  { dial: "+92", flag: "🇵🇰", label: "Pakistan" },
+  { dial: "+48", flag: "🇵🇱", label: "Poland" },
+];
+
 // Ordered step machine (15 steps). `eligible` is an interstitial after the
 // gate; the account is created right after it — the eligibility result is the
 // hook, and everything from verification on happens signed-in. Payment is
