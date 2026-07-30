@@ -1,26 +1,166 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   HFP / Prescriptr — Design tokens (Tailwind v4)
+   Ported 1:1 from HFP/design-system/tokens.css.
+   Source of truth: Figma "[HFP] Health Finder Pro" › Style Guide (node 0-10803).
+
+   @theme exposes tokens to Tailwind's utility engine, so classes like
+   `bg-primary`, `text-primary-dark`, `shadow-card`, `rounded-lg`,
+   `font-sans`, `font-mono` resolve to these values. Raw CSS variables
+   (e.g. var(--primary-main)) remain available for inline / arbitrary use.
+   ========================================================================== */
+
+@theme {
+  /* ---- Fonts (wired to next/font local faces in layout.tsx) ---- */
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+
+  /* ---- Brand — Primary (sage green) ---- */
+  --color-primary-lighter: #dee8e0;
+  --color-primary-light: #85a88c;
+  --color-primary: #52796f;
+  --color-primary-dark: #34484c;
+  --color-primary-darker: #151e1c;
+  --color-primary-contrast: #ffffff;
+
+  /* ---- Brand — Secondary (emerald) ---- */
+  --color-secondary-lighter: #c8fad6;
+  --color-secondary-light: #5be49b;
+  --color-secondary: #00a76f;
+  --color-secondary-dark: #007867;
+  --color-secondary-darker: #004b50;
+  --color-secondary-contrast: #ffffff;
+
+  /* ---- Semantic — Info ---- */
+  --color-info-lighter: #cafdf5;
+  --color-info-light: #61f3f3;
+  --color-info: #00b8d9;
+  --color-info-dark: #006c9c;
+  --color-info-darker: #003768;
+
+  /* ---- Semantic — Success ---- */
+  --color-success-lighter: #d3fcd2;
+  --color-success-light: #77ed8b;
+  --color-success: #22c55e;
+  --color-success-dark: #118d57;
+  --color-success-darker: #065e49;
+
+  /* ---- Semantic — Warning ---- */
+  --color-warning-lighter: #fff5cc;
+  --color-warning-light: #ffd666;
+  --color-warning: #ffab00;
+  --color-warning-dark: #b76e00;
+  --color-warning-darker: #7a4100;
+
+  /* ---- Semantic — Error ---- */
+  --color-error-lighter: #ffe9d5;
+  --color-error-light: #ffac82;
+  --color-error: #ff5630;
+  --color-error-dark: #b71d18;
+  --color-error-darker: #7a0916;
+
+  /* ---- Grey ---- */
+  --color-grey-0: #ffffff;
+  --color-grey-100: #f9fafb;
+  --color-grey-200: #f4f6f8;
+  --color-grey-300: #dfe3e8;
+  --color-grey-400: #c4cdd5;
+  --color-grey-500: #919eab;
+  --color-grey-600: #637381;
+  --color-grey-700: #454f5b;
+  --color-grey-800: #212b36;
+  --color-grey-900: #161c24;
+
+  /* ---- Semantic text / background ---- */
+  --color-text-primary: #212b36;
+  --color-text-secondary: #637381;
+  --color-text-disabled: #919eab;
+  --color-background: #ffffff;
+  --color-background-paper: #ffffff;
+  --color-background-neutral: #f4f6f8;
+
+  /* ---- Radius ---- */
+  --radius-sm: 4px;
+  --radius-lg: 8px;
+
+  /* ---- Shadows (elevation + component + colored) ---- */
+  --shadow-z1: 0 1px 2px 0 #919eab29;
+  --shadow-z8: 0 8px 16px 0 #919eab29;
+  --shadow-z16: 0 16px 32px -4px #919eab29;
+  --shadow-z24: 0 24px 48px 0 #919eab29;
+  --shadow-card: 0 12px 24px -4px #919eab1f, 0 0 2px 0 #919eab33;
+  --shadow-dropdown: -20px 20px 40px -4px #919eab3d, 0 0 2px 0 #919eab3d;
+  --shadow-dialog: -40px 40px 80px -8px #0000003d;
+  --shadow-primary: 0 8px 16px 0 #52796f3d;
+
+  /* ---- Breakpoints (Figma) ---- */
+  --breakpoint-sm: 600px;
+  --breakpoint-md: 900px;
+  --breakpoint-lg: 1200px;
+  --breakpoint-xl: 1536px;
+}
+
+/* --------------------------------------------------------------------------
+   Raw token variables — full set from the design system, for inline styles,
+   arbitrary values (e.g. bg-[var(--primary-main-12)]) and alpha ramps that
+   don't map to Tailwind utilities.
+   -------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --primary-lighter: #dee8e0;
+  --primary-light: #85a88c;
+  --primary-main: #52796f;
+  --primary-dark: #34484c;
+  --primary-darker: #151e1c;
+  --primary-main-8: #52796f14;
+  --primary-main-12: #52796f1f;
+  --primary-main-16: #52796f29;
+  --primary-main-24: #52796f3d;
+  --primary-main-48: #52796f7a;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --grey-500-8: #919eab14;
+  --grey-500-12: #919eab1f;
+  --grey-500-16: #919eab29;
+  --grey-500-24: #919eab3d;
+  --grey-500-48: #919eab7a;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Spacing (Figma base unit = 8px) */
+  --spacing-0-5: 4px;
+  --spacing-1: 8px;
+  --spacing-2: 16px;
+  --spacing-3: 24px;
+  --spacing-4: 32px;
+  --spacing-5: 40px;
+  --spacing-6: 48px;
+  --spacing-8: 64px;
+
+  --action-hover: #919eab14;
+  --action-selected: #919eab29;
+  --divider: #919eab33;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background-neutral);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
 }
+
+/* --------------------------------------------------------------------------
+   Landing page motion — one orchestrated hero reveal + scroll anchors.
+   .lp-rise children stagger in via --d (delay) custom property.
+   -------------------------------------------------------------------------- */
+@keyframes lp-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.lp-rise { opacity: 0; animation: lp-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; animation-delay: var(--d, 0s); }
+@keyframes lp-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.lp-drift { animation: lp-drift 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .lp-rise { animation: none; opacity: 1; }
+  .lp-drift { animation: none; }
+}
+[id] { scroll-margin-top: 88px; }

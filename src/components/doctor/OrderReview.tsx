@@ -1,0 +1,237 @@
+"use client";
+
+import { useState } from "react";
+import { pharmacyName } from "@/lib/doctor/data";
+import type { NewOrder } from "@/lib/doctor/types";
+import { AiRecommendationCard, AuditNote } from "./AiRecommendationCard";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PatientSummaryCard } from "./PatientSummaryCard";
+import { RagPill } from "@/components/ui/StatusPill";
+import { Toast } from "@/components/ui/Toast";
+import { CameraIcon, IdIcon, WarnIcon } from "@/components/ui/icons";
+
+type Decision = null | "approved" | "declined" | "info" | "escalated";
+
+export function OrderReview({ order }: { order: NewOrder }) {
+  const [decision, setDecision] = useState<Decision>(null);
+  const [escalating, setEscalating] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const isDecline = order.verdict === "decline";
+
+  const approve = () => {
+    setDecision(isDecline ? "declined" : "approved");
+    setToast(isDecline ? "Order declined & audit-logged" : "Prescription issued & audit-logged");
+  };
+  const requestInfo = () => {
+    setDecision("info");
+    setToast("Information requested from patient");
+  };
+  const escalate = () => {
+    setEscalating(false);
+    setDecision("escalated");
+    setToast("Escalated to senior review");
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="New Order Review"
+        subtitle={`${order.ref} · ${pharmacyName(order.pharmacyCode)} · new GLP-1 start`}
+      />
+
+      <div className="px-6 py-6 lg:px-8">
+        <Breadcrumb backHref="/doctor/queue" trail={["New Orders", order.ref]} />
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(320px,380px)_1fr]">
+          {/* left column */}
+          <div className="space-y-6">
+            <PatientSummaryCard
+              ref_={order.ref}
+              nhs={order.nhs}
+              age={order.age}
+              sex={order.sex}
+              bmi={order.bmi}
+              ethnicity={order.ethnicity}
+              pharmacyCode={order.pharmacyCode}
+              comorbidities={order.comorbidities}
+              pill={<RagPill rag={order.score.rag} />}
+            />
+
+            <div className="rounded-lg bg-background-paper p-5 shadow-card">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                Order request
+              </p>
+              <p className="mt-2 text-base font-bold text-text-primary">{order.med}</p>
+              <p className="text-sm text-text-secondary">{order.dose} · self-requested new start</p>
+              <p className="mt-1 text-sm text-text-secondary">
+                {pharmacyName(order.pharmacyCode)} · submitted {order.submittedAt}
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-background-paper p-5 shadow-card">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                Identity &amp; weight verification
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <VerifyTile icon={<CameraIcon />} title="Weight photo" caption={order.verification.weightPhoto} />
+                <VerifyTile icon={<IdIcon />} title="ID document" caption={order.verification.idDocument} />
+              </div>
+              <div className="mt-3 flex items-start gap-2 rounded-lg bg-warning-lighter px-3 py-2.5 text-sm text-warning-darker">
+                <WarnIcon width={18} height={18} className="mt-0.5 shrink-0 text-warning-dark" />
+                Visually confirm the ID matches the weight photo before issuing.
+              </div>
+            </div>
+          </div>
+
+          {/* right column — AI recommendation + decision */}
+          <AiRecommendationCard
+            ai={order.ai}
+            actions={
+              decision ? (
+                <OrderOutcome decision={decision} order={order} />
+              ) : (
+                <>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={approve}
+                      className={`flex-1 rounded-lg px-5 py-3 text-sm font-bold text-white ${
+                        isDecline ? "bg-error hover:bg-error-dark" : "bg-primary hover:bg-primary-dark"
+                      }`}
+                    >
+                      {isDecline ? "Decline order" : "Approve & issue"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={requestInfo}
+                      className="flex-1 rounded-lg border border-[var(--divider)] px-5 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
+                    >
+                      Request more info
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEscalating(true)}
+                      className="flex-1 rounded-lg border border-warning px-5 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
+                    >
+                      Escalate
+                    </button>
+                  </div>
+                  <AuditNote />
+                </>
+              )
+            }
+          />
+        </div>
+      </div>
+
+      <Modal
+        open={escalating}
+        title="Escalate to senior review"
+        subtitle={`${order.ref} · ${pharmacyName(order.pharmacyCode)}`}
+        onClose={() => setEscalating(false)}
+      >
+        <p className="text-sm text-text-secondary">
+          This order will be removed from your queue and routed to senior clinical review. Add an optional note for the reviewer.
+        </p>
+        <textarea
+          rows={3}
+          placeholder="Optional note for the reviewer…"
+          className="mt-3 w-full rounded-lg border border-[var(--divider)] p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-main-24"
+        />
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setEscalating(false)}
+            className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-neutral"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={escalate}
+            className="rounded-lg bg-warning-dark px-4 py-2.5 text-sm font-bold text-white hover:opacity-90"
+          >
+            Confirm escalation
+          </button>
+        </div>
+      </Modal>
+
+      <Toast message={toast} onDone={() => setToast(null)} />
+    </>
+  );
+}
+
+function VerifyTile({ icon, title, caption }: { icon: React.ReactNode; title: string; caption: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--divider)] p-3">
+      <div className="flex h-20 items-center justify-center rounded-md bg-background-neutral text-text-disabled">
+        {icon}
+      </div>
+      <p className="mt-2 text-sm font-bold text-text-primary">{title}</p>
+      <p className="text-xs text-text-secondary">{caption}</p>
+    </div>
+  );
+}
+
+function OrderOutcome({ decision, order }: { decision: Exclude<Decision, null>; order: NewOrder }) {
+  const map = {
+    approved: {
+      tone: "success" as const,
+      title: "Prescription issued",
+      body: `${order.ai.recommendedRx} issued to ${pharmacyName(order.pharmacyCode)}. Decision and active SOP version recorded to the audit trail.`,
+    },
+    declined: {
+      tone: "error" as const,
+      title: "Order declined",
+      body: "The patient has been notified and signposted. Decision recorded to the audit trail.",
+    },
+    info: {
+      tone: "warning" as const,
+      title: "More information requested",
+      body: "The order stays pending until the patient responds, then re-enters triage.",
+    },
+    escalated: {
+      tone: "slate" as const,
+      title: "Escalated to senior review",
+      body: "Removed from your queue and routed to senior clinical review.",
+    },
+  }[decision];
+
+  return <OutcomePanel {...map} />;
+}
+
+export function OutcomePanel({
+  tone,
+  title,
+  body,
+}: {
+  tone: "success" | "error" | "warning" | "slate";
+  title: string;
+  body: string;
+}) {
+  const toneCls = {
+    success: "bg-success-lighter text-success-dark",
+    error: "bg-error-lighter text-error-dark",
+    warning: "bg-warning-lighter text-warning-dark",
+    slate: "bg-background-neutral text-text-secondary",
+  }[tone];
+  return (
+    <div className="mt-6 rounded-lg bg-background-neutral p-6 text-center">
+      <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${toneCls}`}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="m5 12 5 5L20 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <h3 className="mt-3 text-base font-bold text-text-primary">{title}</h3>
+      <p className="mx-auto mt-1 max-w-md text-sm text-text-secondary">{body}</p>
+      <a
+        href="/doctor/queue"
+        className="mt-5 inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
+      >
+        Back to Work Queue
+      </a>
+    </div>
+  );
+}
