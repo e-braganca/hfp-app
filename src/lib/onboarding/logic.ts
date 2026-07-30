@@ -30,7 +30,12 @@ export type Outcome = null | "submitted" | "blocked" | "declined-bmi" | "decline
 
 export interface Answers {
   sex: Sex | null;
-  dob: string; // ISO yyyy-mm-dd
+  /** Canonical ISO yyyy-mm-dd, derived from the three dob part fields. */
+  dob: string;
+  /** Raw NHS-style date-of-birth parts (separate Day / Month / Year boxes). */
+  dobDay: string;
+  dobMonth: string;
+  dobYear: string;
   /** Canonical, always metric — every clinical rule reads these two. */
   heightCm: string;
   weightKg: string;
@@ -65,6 +70,9 @@ export interface Answers {
 export const emptyAnswers = (): Answers => ({
   sex: null,
   dob: "",
+  dobDay: "",
+  dobMonth: "",
+  dobYear: "",
   heightCm: "",
   weightKg: "",
   heightUnit: DEFAULT_HEIGHT_UNIT,
@@ -91,6 +99,20 @@ export const emptyAnswers = (): Answers => ({
   cardExpiry: "",
   cardCvc: "",
 });
+
+/** Fold the Day / Month / Year boxes into the canonical ISO dob — "" if the
+ *  parts don't form a real calendar date (guards 31 Feb, year typos, etc.). */
+export function withCanonicalDob(a: Answers): Answers {
+  const d = Number(a.dobDay);
+  const m = Number(a.dobMonth);
+  const y = Number(a.dobYear);
+  const next = { ...a, dob: "" };
+  if (!d || !m || !y || y < 1900 || y > 2100 || m > 12 || d > 31) return next;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return next;
+  next.dob = `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  return next;
+}
 
 /** Fold whichever unit fields are on screen back into the canonical cm / kg. */
 export function withCanonicalMeasures(a: Answers): Answers {
@@ -234,8 +256,12 @@ export function canContinue(step: string, a: Answers): boolean {
   switch (step) {
     case "sex":
       return a.sex !== null;
-    case "dob":
-      return age(a) !== null;
+    case "dob": {
+      // hard-stop under-18s at the step itself; the 74 upper bound is checked
+      // with the other gates after safety screening
+      const yrs = age(a);
+      return yrs !== null && yrs >= 18;
+    }
     case "measure":
       return bmi(a) !== null;
     case "ethnicity":

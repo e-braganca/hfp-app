@@ -22,6 +22,7 @@ import {
   ethnicityLabel,
   hardContra,
   measureSummary,
+  withCanonicalDob,
   withCanonicalMeasures,
   withHeightUnit,
   withWeightUnit,
@@ -54,6 +55,9 @@ export function OnboardingFunnel() {
   /** measure fields feed the canonical cm/kg on every keystroke */
   const setMeasure = (patch: Partial<Answers>) =>
     setAnswers((prev) => withCanonicalMeasures({ ...prev, ...patch }));
+  /** dob part fields feed the canonical ISO dob the same way */
+  const setDob = (patch: Partial<Answers>) =>
+    setAnswers((prev) => withCanonicalDob({ ...prev, ...patch }));
   const key = STEPS[step];
 
   const next = () => {
@@ -120,7 +124,7 @@ export function OnboardingFunnel() {
           <div className="mx-auto w-full max-w-lg">
             {outcome
               ? renderOutcome(outcome, a, back)
-              : renderStep(key, a, setA, setMeasure, next)}
+              : renderStep(key, a, setA, setMeasure, setDob, next)}
           </div>
         </main>
 
@@ -222,6 +226,7 @@ function renderStep(
   a: Answers,
   setA: (p: Partial<Answers>) => void,
   setMeasure: (p: Partial<Answers>) => void,
+  setDob: (p: Partial<Answers>) => void,
   next: () => void,
 ) {
   switch (key) {
@@ -260,18 +265,39 @@ function renderStep(
 
     case "dob": {
       const yrs = age(a);
+      const parts = [
+        { field: "dobDay" as const, label: "Day", placeholder: "DD", max: 2, width: "" },
+        { field: "dobMonth" as const, label: "Month", placeholder: "MM", max: 2, width: "" },
+        { field: "dobYear" as const, label: "Year", placeholder: "YYYY", max: 4, width: "flex-[1.6]" },
+      ];
       return (
         <div>
-          <StepHeading eyebrow="About you" title="What's your date of birth?" sub="Treatment is available for adults aged 18–74." />
-          <input
-            type="date"
-            value={a.dob}
-            onChange={(e) => setA({ dob: e.target.value })}
-            className="h-14 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-lg font-semibold text-text-primary focus:border-primary focus:outline-none"
-          />
-          {yrs !== null && (
+          <StepHeading eyebrow="About you" title="What's your date of birth?" sub="Treatment is available for adults aged 18–74. For example, 12 4 1985." />
+          <div className="flex gap-3">
+            {parts.map((p) => (
+              <label key={p.field} className={`block flex-1 ${p.width}`}>
+                <span className="mb-1.5 block text-sm text-text-secondary">{p.label}</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete={p.field === "dobDay" ? "bday-day" : p.field === "dobMonth" ? "bday-month" : "bday-year"}
+                  maxLength={p.max}
+                  placeholder={p.placeholder}
+                  value={a[p.field]}
+                  onChange={(e) => setDob({ [p.field]: e.target.value.replace(/\D/g, "") })}
+                  className="h-14 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-center font-mono text-xl font-bold text-text-primary focus:border-primary focus:outline-none"
+                />
+              </label>
+            ))}
+          </div>
+          {yrs !== null && yrs >= 18 && (
             <p className="mt-3 text-sm text-text-secondary">
               You are <span className="font-bold text-text-primary">{yrs}</span> years old.
+            </p>
+          )}
+          {yrs !== null && yrs < 18 && (
+            <p className="mt-3 rounded-lg bg-error-lighter px-4 py-3 text-sm font-semibold text-error-dark">
+              You must be 18 or over to use this service.
             </p>
           )}
         </div>
