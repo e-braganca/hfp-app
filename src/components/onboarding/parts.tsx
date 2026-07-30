@@ -1,5 +1,7 @@
 // Reusable onboarding funnel UI primitives.
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckIcon } from "@/components/ui/icons";
 
 export function Eyebrow({ children }: { children: ReactNode }) {
@@ -129,41 +131,150 @@ export function NumberField({
   );
 }
 
-/** Dashed capture card for live photo / ID (mock: toggles a boolean). */
-export function CaptureCard({
+/**
+ * Live camera capture for the weight photo / ID checks. Streams the device
+ * camera via getUserMedia and grabs a frame to a JPEG data URL — there is no
+ * file input on purpose: gallery uploads are exactly what this step must
+ * prevent. Desktop browsers ignore facingMode and use whatever camera exists.
+ */
+export function CameraCapture({
   icon,
-  captured,
   captureLabel,
+  facing,
+  imageUrl,
   onCapture,
+  onRetake,
   note,
 }: {
   icon: ReactNode;
-  captured: boolean;
   captureLabel: string;
-  onCapture: () => void;
+  /** "user" = front camera (weight selfie), "environment" = back (ID) */
+  facing: "user" | "environment";
+  /** captured JPEG data URL, or "" when nothing captured yet */
+  imageUrl: string;
+  onCapture: (dataUrl: string) => void;
+  onRetake: () => void;
   note: string;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [live, setLive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const stop = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setLive(false);
+  };
+
+  const start = async () => {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setLive(true);
+    } catch {
+      setError("We couldn't access your camera. Allow camera permission in your browser and try again.");
+    }
+  };
+
+  // attach the stream once the <video> for the live state is in the DOM
+  useEffect(() => {
+    if (live && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [live]);
+
+  // release the camera if the user navigates away mid-stream
+  useEffect(() => stop, []);
+
+  const takePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")!.drawImage(video, 0, 0);
+    stop();
+    onCapture(canvas.toDataURL("image/jpeg", 0.85));
+  };
+
   return (
     <div>
       <div
-        className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center ${
-          captured ? "border-primary bg-primary-lighter" : "border-[var(--divider)] bg-background-paper"
-        }`}
+        className={`overflow-hidden rounded-xl border-2 ${
+          imageUrl ? "border-primary" : "border-dashed border-[var(--divider)]"
+        } bg-background-paper`}
       >
-        <span
-          className={`flex h-14 w-14 items-center justify-center rounded-full ${
-            captured ? "bg-primary text-white" : "bg-background-neutral text-text-disabled"
-          }`}
-        >
-          {captured ? <CheckIcon width={28} height={28} /> : icon}
-        </span>
-        <button
-          type="button"
-          onClick={onCapture}
-          className="rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
-        >
-          {captured ? "Retake" : captureLabel}
-        </button>
+        {imageUrl ? (
+          /* captured: show the frozen frame + retake */
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageUrl} alt="Captured photo" className="max-h-80 w-full object-cover" />
+            <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-[11px] font-extrabold text-white">
+              <CheckIcon width={12} height={12} /> Captured live
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onRetake();
+                start();
+              }}
+              className="absolute bottom-3 right-3 rounded-lg bg-background-paper/95 px-4 py-2 text-sm font-bold text-text-primary shadow-z8 hover:bg-background-neutral"
+            >
+              Retake
+            </button>
+          </div>
+        ) : live ? (
+          /* streaming: live viewfinder + shutter */
+          <div className="relative">
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              autoPlay
+              className={`max-h-80 w-full bg-primary-darker object-cover ${facing === "user" ? "-scale-x-100" : ""}`}
+            />
+            <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-error px-2.5 py-1 text-[11px] font-extrabold text-white">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /> LIVE
+            </span>
+            <div className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={takePhoto}
+                className="rounded-lg bg-primary px-6 py-2.5 text-sm font-extrabold text-white shadow-z8 hover:bg-primary-dark"
+              >
+                Take photo
+              </button>
+              <button
+                type="button"
+                onClick={stop}
+                className="rounded-lg bg-background-paper/95 px-4 py-2.5 text-sm font-bold text-text-primary shadow-z8 hover:bg-background-neutral"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* idle: open the camera */
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-background-neutral text-text-disabled">
+              {icon}
+            </span>
+            <button
+              type="button"
+              onClick={start}
+              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
+            >
+              {captureLabel}
+            </button>
+            {error && <p className="max-w-sm text-sm font-semibold text-error-dark">{error}</p>}
+          </div>
+        )}
       </div>
       <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning-lighter px-3 py-2.5 text-sm text-warning-darker">
         <WarnDot />

@@ -53,6 +53,9 @@ export interface Answers {
   safety: Record<string, "yes" | "no">;
   weightPhoto: boolean;
   idDoc: boolean;
+  /** live-camera captures (JPEG data URLs); the booleans above gate the step */
+  weightPhotoUrl: string;
+  idDocUrl: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -90,6 +93,8 @@ export const emptyAnswers = (): Answers => ({
   safety: {},
   weightPhoto: false,
   idDoc: false,
+  weightPhotoUrl: "",
+  idDocUrl: "",
   firstName: "",
   lastName: "",
   email: "",

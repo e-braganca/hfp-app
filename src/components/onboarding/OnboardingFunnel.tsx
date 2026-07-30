@@ -37,7 +37,7 @@ import {
   type WeightUnit,
 } from "@/lib/onboarding/units";
 import {
-  CaptureCard,
+  CameraCapture,
   OptionCard,
   ResultRing,
   StepHeading,
@@ -273,7 +273,7 @@ function renderStep(
       ];
       return (
         <div>
-          <StepHeading eyebrow="About you" title="What's your date of birth?" sub="Treatment is available for adults aged 18–74. For example, 12 4 1985." />
+          <StepHeading eyebrow="About you" title="What's your date of birth?" sub="Treatment is available for adults aged 18–74." />
           <div className="flex gap-3">
             {parts.map((p) => (
               <label key={p.field} className={`block flex-1 ${p.width}`}>
@@ -457,11 +457,13 @@ function renderStep(
       return (
         <div>
           <StepHeading eyebrow="Verification" title="Take a live weight photo" sub="A full-length photo taken right now on your camera." />
-          <CaptureCard
+          <CameraCapture
             icon={<CameraIcon width={26} height={26} />}
-            captured={a.weightPhoto}
             captureLabel="Open camera"
-            onCapture={() => setA({ weightPhoto: !a.weightPhoto })}
+            facing="user"
+            imageUrl={a.weightPhotoUrl}
+            onCapture={(url) => setA({ weightPhoto: true, weightPhotoUrl: url })}
+            onRetake={() => setA({ weightPhoto: false, weightPhotoUrl: "" })}
             note="Must be taken live on your camera now — gallery uploads aren't accepted."
           />
         </div>
@@ -471,11 +473,13 @@ function renderStep(
       return (
         <div>
           <StepHeading eyebrow="Verification" title="Verify your identity" sub="Photograph your passport or UK driving licence." />
-          <CaptureCard
+          <CameraCapture
             icon={<IdIcon width={26} height={26} />}
-            captured={a.idDoc}
             captureLabel="Capture ID"
-            onCapture={() => setA({ idDoc: !a.idDoc })}
+            facing="environment"
+            imageUrl={a.idDocUrl}
+            onCapture={(url) => setA({ idDoc: true, idDocUrl: url })}
+            onRetake={() => setA({ idDoc: false, idDocUrl: "" })}
             note="A prescriber will visually confirm your ID matches your weight photo before issuing."
           />
         </div>

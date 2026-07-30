@@ -156,7 +156,7 @@ function TopBar() {
 function Hero() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-primary-darker via-primary-dark to-primary text-white">
-      <div className="relative mx-auto grid max-w-6xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-28 lg:pt-24">
+      <div className="relative mx-auto grid max-w-6xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-0 lg:pb-28 lg:pt-24">
         <div>
           <p className="lp-rise font-mono text-xs font-bold tracking-[0.25em] text-primary-lighter" style={{ "--d": "0s" } as React.CSSProperties}>
             GLP-1 WEIGHT MANAGEMENT · UK
@@ -167,10 +167,9 @@ function Hero() {
           >
             Weight loss, prescribed{" "}
             <span className="relative inline-block">
-              properly
+              properly.
               <span aria-hidden className="absolute -bottom-1 left-0 h-[5px] w-full rounded-full bg-warning-light/80" />
             </span>
-            .
           </h1>
           <p className="lp-rise mt-6 max-w-md text-lg leading-relaxed text-white/75" style={{ "--d": "0.16s" } as React.CSSProperties}>
             Wegovy and Mounjaro from GPhC-registered UK prescribers — every order screened against clinical protocol,
@@ -203,14 +202,14 @@ function Hero() {
         {/* Patients as hero art, clinical proof floating alongside. self-end +
             -mb-28 cancels the grid's bottom padding so they stand on the fold. */}
         <div
-          className="lp-rise relative hidden self-end lg:-mb-28 lg:block"
+          className="lp-rise relative hidden min-w-0 self-end lg:-mb-28 lg:block"
           style={{ "--d": "0.3s" } as React.CSSProperties}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/hero-patients.webp"
             alt="Two Prescriptr patients, one holding a GLP-1 weekly pen"
-            className="mx-auto max-h-[600px] w-auto"
+            className="mx-auto max-h-[780px] w-auto max-w-none"
             style={{ filter: "drop-shadow(0 24px 48px rgba(0,0,0,0.35))" }}
           />
           <div className="lp-drift absolute -left-8 top-[56%] w-52 rounded-xl bg-background-paper p-4 text-text-primary shadow-dialog">
