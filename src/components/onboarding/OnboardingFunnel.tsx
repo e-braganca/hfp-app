@@ -21,6 +21,10 @@ import {
   computeOutcome,
   emptyAnswers,
   ethnicityLabel,
+  expiryMonthInvalid,
+  formatCardExpiry,
+  formatCardNumber,
+  formatCvc,
   hardContra,
   measureSummary,
   withCanonicalDob,
@@ -657,7 +661,7 @@ function renderStep(
                 inputMode="numeric"
                 autoComplete="off"
                 value={a.cardNumber}
-                onChange={(e) => setA({ cardNumber: e.target.value })}
+                onChange={(e) => setA({ cardNumber: formatCardNumber(e.target.value) })}
                 placeholder="4242 4242 4242 4242"
                 className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 font-mono text-base text-text-primary focus:border-primary focus:outline-none"
               />
@@ -668,19 +672,28 @@ function renderStep(
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
+                  maxLength={5}
                   value={a.cardExpiry}
-                  onChange={(e) => setA({ cardExpiry: e.target.value })}
+                  onChange={(e) => setA({ cardExpiry: formatCardExpiry(e.target.value, a.cardExpiry) })}
                   placeholder="MM/YY"
-                  className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 font-mono text-base text-text-primary focus:border-primary focus:outline-none"
+                  className={`h-12 w-full rounded-xl border-2 bg-background-paper px-4 font-mono text-base text-text-primary focus:outline-none ${
+                    expiryMonthInvalid(a.cardExpiry)
+                      ? "border-error focus:border-error"
+                      : "border-[var(--divider)] focus:border-primary"
+                  }`}
                 />
+                {expiryMonthInvalid(a.cardExpiry) && (
+                  <p className="mt-1.5 text-xs font-semibold text-error-dark">Month must be between 01 and 12.</p>
+                )}
               </Field>
               <Field label="CVC">
                 <input
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
+                  maxLength={4}
                   value={a.cardCvc}
-                  onChange={(e) => setA({ cardCvc: e.target.value })}
+                  onChange={(e) => setA({ cardCvc: formatCvc(e.target.value) })}
                   placeholder="123"
                   className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 font-mono text-base text-text-primary focus:border-primary focus:outline-none"
                 />

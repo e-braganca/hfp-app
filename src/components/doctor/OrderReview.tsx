@@ -68,6 +68,25 @@ export function OrderReview({ order }: { order: NewOrder }) {
               <p className="mt-1 text-sm text-text-secondary">
                 {pharmacyName(order.pharmacyCode)} · submitted {order.submittedAt}
               </p>
+              <div className="mt-3 border-t border-[var(--divider)] pt-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                  Patient preference
+                </p>
+                <p className="mt-1.5">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-bold ${
+                      order.preference === "Let prescriber recommend"
+                        ? "bg-background-neutral text-text-secondary"
+                        : "bg-primary-lighter text-primary-dark"
+                    }`}
+                  >
+                    {order.preference}
+                  </span>
+                </p>
+                <p className="mt-1.5 text-xs text-text-secondary">
+                  Chosen at onboarding — the AI recommendation accounts for it below.
+                </p>
+              </div>
             </div>
 
             <div className="rounded-lg bg-background-paper p-5 shadow-card">

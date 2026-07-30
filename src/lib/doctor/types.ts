@@ -85,6 +85,10 @@ export interface NewOrder {
   bmi: number;
   ethnicity: string;
   comorbidities: string[];
+  /** Treatment preference the patient picked at onboarding — either a named
+   *  medication or "Let prescriber recommend". The AI recommendation must
+   *  honour it when SOP-compatible and say so in its checks. */
+  preference: string;
   verdict: Verdict;
   ai: AiRecommendation;
   verification: {

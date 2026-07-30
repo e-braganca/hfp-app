@@ -259,6 +259,43 @@ export function computeOutcome(a: Answers): Exclude<Outcome, "submitted"> {
 
 const EMAIL_RE = /.+@.+\..+/;
 
+/* ---- card field masks (demo checkout) ------------------------------------ */
+
+/** Digits only, "/" auto-inserted after the month, hard-capped at MM/YY.
+ *  The slash is only appended while typing forward (prev shorter), so
+ *  backspacing over it doesn't fight the formatter. */
+export function formatCardExpiry(value: string, prev: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 4);
+  if (d.length >= 3) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  if (d.length === 2 && value.length > prev.length) return `${d}/`;
+  return d;
+}
+
+/** True once a full month is typed but it isn't 01–12. */
+export function expiryMonthInvalid(value: string): boolean {
+  const d = value.replace(/\D/g, "");
+  if (d.length < 2) return false;
+  const mm = Number(d.slice(0, 2));
+  return mm < 1 || mm > 12;
+}
+
+/** Digits only, max 4 (Amex). */
+export const formatCvc = (value: string): string => value.replace(/\D/g, "").slice(0, 4);
+
+/** Digits and spaces only, max 19 digits (longest PAN). */
+export function formatCardNumber(value: string): string {
+  let digits = 0;
+  let out = "";
+  for (const ch of value) {
+    if (ch === " ") out += ch;
+    else if (/\d/.test(ch) && digits < 19) {
+      out += ch;
+      digits++;
+    }
+  }
+  return out;
+}
+
 /** Whether the current step's inputs are complete enough to continue. */
 export function canContinue(step: string, a: Answers): boolean {
   switch (step) {
@@ -299,7 +336,7 @@ export function canContinue(step: string, a: Answers): boolean {
       // mock checkout: shape-only completeness, nothing is validated for real
       return (
         a.cardNumber.replace(/\D/g, "").length >= 12 &&
-        /^\d{2}\s*\/\s*\d{2}$/.test(a.cardExpiry.trim()) &&
+        /^(0[1-9]|1[0-2])\/\d{2}$/.test(a.cardExpiry.trim()) &&
         a.cardCvc.replace(/\D/g, "").length >= 3
       );
     default:
