@@ -14,7 +14,7 @@ export function AppSidebar({ config, role }: { config: NavConfig; role: Role }) 
   const pathname = usePathname();
   const isActive = (item: NavItem) =>
     pathname === item.href ||
-    pathname.startsWith(item.href + "/") ||
+    (!item.exact && pathname.startsWith(item.href + "/")) ||
     (item.match?.some((m) => pathname.startsWith(m)) ?? false);
 
   return (

@@ -29,6 +29,8 @@ export interface NavItem {
   badge?: string;
   /** extra path prefixes that keep this item active */
   match?: string[];
+  /** active on exact path only (for hub items whose href prefixes siblings) */
+  exact?: boolean;
   /** hide from the mobile bottom bar */
   hideOnMobile?: boolean;
 }
@@ -125,8 +127,8 @@ export const ADMIN_NAV: NavConfig = {
 };
 
 // ---- Patient ----------------------------------------------------------------
-// Placeholder shell for the patient platform (FC-13…18). Dashboard is a stub;
-// the other destinations anchor into it until their pages are built.
+// Patient platform (FC-13…18): dashboard, treatment, deliveries (+ re-order
+// wizard), weight tracking.
 
 export const PATIENT_NAV: NavConfig = {
   brand: "PRESCRIPTR",
@@ -134,10 +136,10 @@ export const PATIENT_NAV: NavConfig = {
     {
       label: "My care",
       items: [
-        { label: "Dashboard", href: "/patient", icon: HomeIcon },
-        { label: "My treatment", href: "/patient#treatment", icon: ProtocolIcon },
-        { label: "Deliveries", href: "/patient#deliveries", icon: PharmacyIcon },
-        { label: "Weight tracking", short: "Weight", href: "/patient#weight", icon: ComplianceIcon },
+        { label: "Dashboard", href: "/patient", icon: HomeIcon, exact: true },
+        { label: "My treatment", href: "/patient/treatment", icon: ProtocolIcon },
+        { label: "Deliveries", href: "/patient/deliveries", icon: PharmacyIcon },
+        { label: "Weight tracking", short: "Weight", href: "/patient/weight", icon: ComplianceIcon },
       ],
     },
   ],

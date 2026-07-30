@@ -17,7 +17,7 @@ export function AppMobileNav({ config }: { config: NavConfig }) {
       {items.map((item) => {
         const active =
           pathname === item.href ||
-          pathname.startsWith(item.href + "/") ||
+          (!item.exact && pathname.startsWith(item.href + "/")) ||
           (item.match?.some((m) => pathname.startsWith(m)) ?? false);
         const Icon = item.icon;
         return (
