@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Toast } from "@/components/ui/Toast";
@@ -10,7 +10,23 @@ import { SopUploadDrawer } from "@/components/admin/SopUploadDrawer";
 import { RAG_FILL, complianceRag } from "@/lib/doctor/rag";
 import { PHARMACIES, protocolFor } from "@/lib/doctor/data";
 import { ADMIN_PHARMACIES } from "@/lib/admin/data";
+import {
+  getApplicationsServerSnapshot,
+  getApplicationsSnapshot,
+  removeApplication,
+  subscribeApplications,
+  type PharmacyApplication,
+} from "@/lib/pharmacy-applications";
 import type { Pharmacy, SopRule } from "@/lib/doctor/types";
+
+/** Unique 2-letter code for a newly approved partner, e.g. "Boots Online" → BO. */
+function deriveCode(business: string, taken: string[]): string {
+  const words = business.replace(/[^a-zA-Z ]/g, "").split(/\s+/).filter(Boolean);
+  let code = ((words[0]?.[0] ?? "P") + (words[1]?.[0] ?? words[0]?.[1] ?? "X")).toUpperCase();
+  let i = 2;
+  while (taken.includes(code)) code = code[0] + String(i++);
+  return code;
+}
 
 /* ============================================================================
    Pharmacies & SOPs — one page: pharmacy list on the left, the selected
@@ -35,9 +51,48 @@ export function PharmaciesSopsView({ editable = false }: { editable?: boolean })
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // partner applications from /pharmacies/register (localStorage-backed store;
+  // useSyncExternalStore keeps SSR markup stable and re-renders on mutation)
+  const applications = useSyncExternalStore(
+    subscribeApplications,
+    getApplicationsSnapshot,
+    getApplicationsServerSnapshot,
+  );
+  // codes approved this session: their SOP is uploaded but not yet parsed
+  const [pendingSop, setPendingSop] = useState<Record<string, string>>({});
+
+  const approve = (app: PharmacyApplication) => {
+    const code = deriveCode(app.business, pharmacies.map((p) => p.code));
+    const postcode = app.address.trim().split(/\s+/).slice(-2).join(" ");
+    setPharmacies((ps) => [
+      ...ps,
+      {
+        code,
+        name: app.business,
+        region: app.coverage[0] ?? "UK",
+        postcode: /\d/.test(postcode) ? postcode : "—",
+        ordersToday: 0,
+        compliance: 100,
+        sopVersion: "v1.0",
+        sopUpdated: "today",
+        connected: true,
+      },
+    ]);
+    setPendingSop((m) => ({ ...m, [code]: app.sopFileName }));
+    removeApplication(app.id);
+    setSelected(code);
+    setToast(`${app.business} approved — live as ${code}, SOP v1.0 queued for parsing`);
+  };
+
+  const decline = (app: PharmacyApplication) => {
+    removeApplication(app.id);
+    setToast(`${app.business} declined — ${app.responsibleEmail} will be notified`);
+  };
+
   const pharmacy = pharmacies.find((p) => p.code === selected)!;
+  const sopPending = pendingSop[selected];
   const protocol = protocolFor(selected);
-  const rules = ruleEdits[selected] ?? protocol.rules;
+  const rules = sopPending ? [] : (ruleEdits[selected] ?? protocol.rules);
 
   const saveRule = (n: string) => {
     setRuleEdits((re) => ({
@@ -73,6 +128,68 @@ export function PharmaciesSopsView({ editable = false }: { editable?: boolean })
             </span>
             Edits never overwrite history — every case stays scored and audit-logged against the SOP version active at
             decision time.
+          </div>
+        )}
+
+        {/* pending partner applications (admin) */}
+        {editable && applications.length > 0 && (
+          <div className="mb-6">
+            <h2 className="flex items-center gap-2 text-sm font-extrabold text-text-primary">
+              Pending applications
+              <span className="rounded-full bg-warning-lighter px-2 py-0.5 text-[11px] font-extrabold text-warning-dark">
+                {applications.length}
+              </span>
+            </h2>
+            <div className="mt-3 space-y-3">
+              {applications.map((app) => (
+                <div key={app.id} className="rounded-lg border-2 border-warning/50 bg-background-paper p-5 shadow-card">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-base font-extrabold text-text-primary">{app.business}</p>
+                      <p className="text-sm text-text-secondary">
+                        {app.responsibleName} · {app.responsibleEmail} · {app.phone}
+                      </p>
+                    </div>
+                    <span className="font-mono text-xs text-text-secondary">{app.id} · {app.submittedAt}</span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                    <p className="text-text-secondary">
+                      <span className="font-bold text-text-primary">Address · </span>
+                      {app.address.replace(/\n/g, ", ")}
+                    </p>
+                    <p className="text-text-secondary">
+                      <span className="font-bold text-text-primary">Coverage · </span>
+                      {app.coverage.join(", ")}
+                    </p>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                    {app.meds.map((m) => (
+                      <span key={m} className="rounded-full bg-primary-lighter px-2.5 py-1 text-[11px] font-bold text-primary-dark">{m}</span>
+                    ))}
+                    <span className="ml-1 flex items-center gap-1.5 text-xs text-text-secondary">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-error-lighter text-[8px] font-bold text-error-dark">PDF</span>
+                      {app.sopFileName}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => approve(app)}
+                      className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
+                    >
+                      Approve &amp; onboard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => decline(app)}
+                      className="rounded-lg border border-error px-4 py-2.5 text-sm font-bold text-error hover:bg-error-lighter"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -153,7 +270,7 @@ export function PharmaciesSopsView({ editable = false }: { editable?: boolean })
                   ["Region", `${pharmacy.region} · ${pharmacy.postcode}`],
                   ["Orders today", String(pharmacy.ordersToday)],
                   ["SOP compliance", `${pharmacy.compliance}%`],
-                  ["Document", `${protocol.pages} pages`],
+                  ["Document", sopPending ? "parsing…" : `${protocol.pages} pages`],
                 ] as const
               ).map(([k, v]) => (
                 <div key={k} className="bg-background-paper p-3.5">
@@ -165,6 +282,15 @@ export function PharmaciesSopsView({ editable = false }: { editable?: boolean })
 
             {/* rules */}
             <h3 className="mt-6 text-sm font-extrabold text-text-primary">SOP rules</h3>
+            {sopPending && (
+              <div className="mt-3 rounded-xl border border-dashed border-[var(--divider)] px-5 py-8 text-center">
+                <p className="text-sm font-bold text-text-primary">{sopPending} uploaded with the application</p>
+                <p className="mx-auto mt-1 max-w-md text-sm text-text-secondary">
+                  Parsing and rule extraction run next — configure thresholds with the partner, validate against sample
+                  cases, then the rules appear here.
+                </p>
+              </div>
+            )}
             <ol className="mt-1">
               {rules.map((r) => (
                 <li key={r.n} className="group flex gap-4 border-b border-[var(--divider)] py-4 last:border-0">
@@ -252,7 +378,15 @@ export function PharmaciesSopsView({ editable = false }: { editable?: boolean })
       {/* SOP upload pipeline (admin) */}
       {uploading && (
         <SopUploadDrawer
-          pharmacy={ADMIN_PHARMACIES.find((p) => p.code === selected)!}
+          pharmacy={{
+            code: pharmacy.code,
+            name: pharmacy.name,
+            region: pharmacy.region,
+            sopVersion: pharmacy.sopVersion,
+            sopUpdated: pharmacy.sopUpdated,
+            ordersTotal: ADMIN_PHARMACIES.find((p) => p.code === selected)?.ordersTotal ?? 0,
+            compliance: pharmacy.compliance,
+          }}
           onClose={() => setUploading(false)}
           onActivate={(v) => {
             setPharmacies((ps) => ps.map((p) => (p.code === selected ? { ...p, sopVersion: v } : p)));
