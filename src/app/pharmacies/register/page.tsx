@@ -39,7 +39,10 @@ export default function PharmacyRegisterPage() {
   const [respEmail, setRespEmail] = useState("");
   const [phoneCountry, setPhoneCountry] = useState("+44");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [addr1, setAddr1] = useState("");
+  const [addr2, setAddr2] = useState("");
+  const [city, setCity] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [coverage, setCoverage] = useState<string[]>([]);
   const [meds, setMeds] = useState<string[]>([]);
   const [sopFile, setSopFile] = useState("");
@@ -47,11 +50,17 @@ export default function PharmacyRegisterPage() {
   const key: StepKey = STEPS[step];
   const total = STEPS.length;
 
+  // loose UK postcode shape (outward + inward), e.g. "SE1 9RT" / "L3 4BX"
+  const postcodeValid = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(postcode.trim());
+  const address = [addr1.trim(), addr2.trim(), `${city.trim()} ${postcode.trim().toUpperCase()}`]
+    .filter(Boolean)
+    .join(", ");
+
   const canContinue =
     key === "business"
       ? business.trim() !== "" && respName.trim() !== "" && EMAIL_RE.test(respEmail) && phone.replace(/\D/g, "").length >= 9
       : key === "location"
-        ? address.trim().length > 6 && coverage.length > 0
+        ? addr1.trim() !== "" && city.trim() !== "" && postcodeValid && coverage.length > 0
         : key === "meds"
           ? meds.length > 0
           : key === "sop"
@@ -68,7 +77,7 @@ export default function PharmacyRegisterPage() {
       responsibleName: respName.trim(),
       responsibleEmail: respEmail.trim(),
       phone: `${phoneCountry} ${phone.trim()}`,
-      address: address.trim(),
+      address,
       coverage,
       meds,
       sopFileName: sopFile,
@@ -259,15 +268,54 @@ export default function PharmacyRegisterPage() {
                   <div>
                     <StepHeading eyebrow="Coverage" title="Where do you dispense from — and to?" />
                     <div className="space-y-4">
-                      <Field label="Registered address">
-                        <textarea
-                          rows={3}
-                          value={address}
-                          onChange={(e) => setAddress(e.target.value)}
-                          placeholder={"Unit 4, Riverside Business Park\nLondon SE1 9RT"}
-                          className="w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper p-4 text-base text-text-primary focus:border-primary focus:outline-none"
+                      <Field label="Address line 1">
+                        <input
+                          value={addr1}
+                          onChange={(e) => setAddr1(e.target.value)}
+                          autoComplete="address-line1"
+                          placeholder="Unit 4, Riverside Business Park"
+                          className={inputCls}
                         />
                       </Field>
+                      <Field label="Address line 2 (optional)">
+                        <input
+                          value={addr2}
+                          onChange={(e) => setAddr2(e.target.value)}
+                          autoComplete="address-line2"
+                          placeholder="Southwark Street"
+                          className={inputCls}
+                        />
+                      </Field>
+                      <div className="grid grid-cols-[1.4fr_1fr] gap-3">
+                        <Field label="Town / City">
+                          <input
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            autoComplete="address-level2"
+                            placeholder="London"
+                            className={inputCls}
+                          />
+                        </Field>
+                        <Field label="Postcode">
+                          <input
+                            value={postcode}
+                            onChange={(e) => setPostcode(e.target.value.toUpperCase())}
+                            autoComplete="postal-code"
+                            placeholder="SE1 9RT"
+                            maxLength={8}
+                            className={`h-12 w-full rounded-xl border-2 bg-background-paper px-4 font-mono text-base text-text-primary focus:outline-none ${
+                              postcode && !postcodeValid
+                                ? "border-error focus:border-error"
+                                : "border-[var(--divider)] focus:border-primary"
+                            }`}
+                          />
+                          {postcode && !postcodeValid && (
+                            <p className="mt-1.5 text-xs font-semibold text-error-dark">
+                              Enter a valid UK postcode, e.g. SE1 9RT.
+                            </p>
+                          )}
+                        </Field>
+                      </div>
                       <Field label="Coverage area — where you can deliver cold-chain">
                         <div className="flex flex-wrap gap-2">
                           {COVERAGE_AREAS.map((c) => (
@@ -347,7 +395,7 @@ export default function PharmacyRegisterPage() {
                           ["Business", business],
                           ["Responsible person", respName],
                           ["Contact", `${respEmail} · ${phoneCountry} ${phone}`],
-                          ["Address", address.replace(/\n/g, ", ")],
+                          ["Address", address],
                           ["Coverage", coverage.join(", ")],
                           ["Can supply", meds.join(", ")],
                           ["SOP document", sopFile],
