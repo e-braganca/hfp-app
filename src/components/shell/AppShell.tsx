@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { NAV_BY_ROLE, type Role } from "@/lib/nav";
+import { AppMobileHeader } from "./AppMobileHeader";
 import { AppMobileNav } from "./AppMobileNav";
 import { AppSidebar } from "./AppSidebar";
 
@@ -18,6 +19,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
       <AppSidebar config={config} role={role} />
       <AppMobileNav config={config} />
       <div className="lg:pl-[264px]">
+        <AppMobileHeader config={config} role={role} />
         <div className="pb-20 lg:pb-0">{children}</div>
       </div>
     </div>

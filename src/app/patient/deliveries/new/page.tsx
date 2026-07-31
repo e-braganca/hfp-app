@@ -23,6 +23,18 @@ const CHECKIN_QUESTIONS = [
   { key: "pregnancy", q: "Pregnant, breastfeeding, or planning a pregnancy?" },
 ] as const;
 
+// The side effects that actually change what a prescriber does with a GLP-1
+// repeat (hold the dose, slow titration, or stop). "Other" opens free text.
+const SIDE_EFFECTS = [
+  "Severe or persistent vomiting",
+  "Severe stomach pain",
+  "Persistent diarrhoea",
+  "Dizziness or heart palpitations",
+  "Injection-site reaction",
+  "Low mood or anxiety changes",
+] as const;
+const OTHER = "Other";
+
 export default function NewDeliveryPage() {
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -32,6 +44,8 @@ export default function NewDeliveryPage() {
   const [doseNote, setDoseNote] = useState("");
   // step 2 — check-in
   const [checkin, setCheckin] = useState<Record<string, "yes" | "no">>({});
+  const [effects, setEffects] = useState<string[]>([]);
+  const [effectsOther, setEffectsOther] = useState("");
   // step 3 — weight + photo
   const [unit, setUnit] = useState<WeightUnit>("kg");
   const [kgStr, setKgStr] = useState("");
@@ -57,11 +71,24 @@ export default function NewDeliveryPage() {
   const bigLoss = kgValid && (lastKg - kg!) / lastKg > 0.1;
   const bigGain = kgValid && (kg! - lastKg) / lastKg > 0.07;
 
+  // a "yes" on side effects must be specified — that detail is what the
+  // prescriber acts on (hold dose, slow titration, stop)
+  const effectsComplete =
+    checkin.sideEffects !== "yes" ||
+    (effects.length > 0 && (!effects.includes(OTHER) || effectsOther.trim().length > 0));
+
+  const effectsSummary = effects
+    .map((e) => (e === OTHER ? effectsOther.trim() || "other" : e.toLowerCase()))
+    .join(", ");
+
+  const toggleEffect = (e: string) =>
+    setEffects((es) => (es.includes(e) ? es.filter((x) => x !== e) : [...es, e]));
+
   const canContinue =
     step === 0
       ? doseChoice !== null
       : step === 1
-        ? CHECKIN_QUESTIONS.every((q) => checkin[q.key])
+        ? CHECKIN_QUESTIONS.every((q) => checkin[q.key]) && effectsComplete
         : step === 2
           ? kgValid && photoUrl !== ""
           : true;
@@ -175,9 +202,48 @@ export default function NewDeliveryPage() {
                 </p>
                 <div className="mt-2 divide-y divide-[var(--divider)]">
                   {CHECKIN_QUESTIONS.map((q) => (
-                    <div key={q.key} className="flex items-center justify-between gap-4 py-4">
-                      <span className="text-sm text-text-primary">{q.q}</span>
-                      <YesNo value={checkin[q.key]} onChange={(v) => setCheckin((c) => ({ ...c, [q.key]: v }))} />
+                    <div key={q.key} className="py-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm text-text-primary">{q.q}</span>
+                        <YesNo value={checkin[q.key]} onChange={(v) => setCheckin((c) => ({ ...c, [q.key]: v }))} />
+                      </div>
+                      {q.key === "sideEffects" && checkin.sideEffects === "yes" && (
+                        <div className="mt-3 rounded-xl bg-background-neutral p-4">
+                          <p className="text-sm font-semibold text-text-primary">Which of these?</p>
+                          <p className="mt-0.5 text-xs text-text-secondary">
+                            Select all that apply — this is what your prescriber acts on.
+                          </p>
+                          <div className="mt-2.5 flex flex-wrap gap-2">
+                            {[...SIDE_EFFECTS, OTHER].map((e) => {
+                              const on = effects.includes(e);
+                              return (
+                                <button
+                                  key={e}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() => toggleEffect(e)}
+                                  className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                                    on
+                                      ? "border-primary bg-primary-lighter text-primary-dark"
+                                      : "border-[var(--divider)] bg-background-paper text-text-secondary hover:border-primary-light hover:text-text-primary"
+                                  }`}
+                                >
+                                  {on ? "✓ " : ""}{e}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {effects.includes(OTHER) && (
+                            <input
+                              type="text"
+                              value={effectsOther}
+                              onChange={(e) => setEffectsOther(e.target.value)}
+                              placeholder="Describe what you're experiencing…"
+                              className="mt-3 h-11 w-full rounded-lg border border-[var(--divider)] bg-background-paper px-3 text-sm focus:border-primary focus:outline-none"
+                            />
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -264,7 +330,14 @@ export default function NewDeliveryPage() {
                   {[
                     ["Order", `${TREATMENT.shortName} ${TREATMENT.dose} · 4 doses`],
                     ["Dose", doseChoice === "same" ? "Continue current dose" : "Prescriber dose review requested"],
-                    ["Check-in", flagged ? "Flagged for prescriber attention" : "All clear"],
+                    [
+                      "Check-in",
+                      flagged
+                        ? checkin.sideEffects === "yes" && effectsSummary
+                          ? `Flagged — ${effectsSummary}`
+                          : "Flagged for prescriber attention"
+                        : "All clear",
+                    ],
                     ["Weight", `${trim1(kg ?? 0)} kg · live photo attached`],
                     ["Price", `£${TREATMENT.priceMo}/mo · charged on approval only`],
                   ].map(([k, v]) => (
