@@ -39,6 +39,7 @@ export default function PharmacyRegisterPage() {
   const [respEmail, setRespEmail] = useState("");
   const [phoneCountry, setPhoneCountry] = useState("+44");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [addr1, setAddr1] = useState("");
   const [addr2, setAddr2] = useState("");
   const [city, setCity] = useState("");
@@ -58,7 +59,11 @@ export default function PharmacyRegisterPage() {
 
   const canContinue =
     key === "business"
-      ? business.trim() !== "" && respName.trim() !== "" && EMAIL_RE.test(respEmail) && phone.replace(/\D/g, "").length >= 9
+      ? business.trim() !== "" &&
+        respName.trim() !== "" &&
+        EMAIL_RE.test(respEmail) &&
+        phone.replace(/\D/g, "").length >= 9 &&
+        password.length >= 8
       : key === "location"
         ? addr1.trim() !== "" && city.trim() !== "" && postcodeValid && coverage.length > 0
         : key === "meds"
@@ -189,12 +194,20 @@ export default function PharmacyRegisterPage() {
                     </div>
                   ))}
                 </div>
-                <Link
-                  href="/pharmacies"
-                  className="mt-6 inline-block rounded-xl bg-primary px-7 py-3.5 text-sm font-extrabold text-white hover:bg-primary-dark"
-                >
-                  Back to partners page
-                </Link>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/pharmacy"
+                    className="rounded-xl bg-primary px-7 py-3.5 text-sm font-extrabold text-white hover:bg-primary-dark"
+                  >
+                    Go to your partner dashboard →
+                  </Link>
+                  <Link
+                    href="/pharmacies"
+                    className="rounded-xl border border-[var(--divider)] bg-background-paper px-6 py-3.5 text-sm font-bold text-text-primary hover:bg-background-neutral"
+                  >
+                    Back to partners page
+                  </Link>
+                </div>
               </div>
             ) : (
               <>
@@ -235,6 +248,21 @@ export default function PharmacyRegisterPage() {
                       </Field>
                       <Field label="Email">
                         <input type="email" value={respEmail} onChange={(e) => setRespEmail(e.target.value)} placeholder="name@pharmacy.co.uk" className={inputCls} />
+                      </Field>
+                      <Field label="Create a password">
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="At least 8 characters — this becomes your portal login"
+                          className={inputCls}
+                        />
+                        {password.length > 0 && password.length < 8 && (
+                          <p className="mt-1.5 text-xs font-semibold text-warning-dark">
+                            {8 - password.length} more character{8 - password.length === 1 ? "" : "s"} needed — minimum is 8.
+                          </p>
+                        )}
                       </Field>
                       <Field label="Phone number">
                         <div className="flex gap-2">

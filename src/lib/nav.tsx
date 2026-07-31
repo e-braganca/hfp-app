@@ -150,12 +150,35 @@ export const PATIENT_NAV: NavConfig = {
   },
 };
 
-export type Role = "doctor" | "admin" | "patient";
+// ---- Pharmacy (partner portal) ---------------------------------------------
+
+export const PHARMACY_NAV: NavConfig = {
+  brand: "PRESCRIPTR",
+  groups: [
+    {
+      label: "Partner portal",
+      items: [
+        { label: "Dashboard", href: "/pharmacy", icon: HomeIcon, exact: true },
+        { label: "Orders", href: "/pharmacy#orders", icon: QueueIcon },
+        { label: "Your SOP", short: "SOP", href: "/pharmacy#sop", icon: ProtocolIcon },
+      ],
+    },
+  ],
+  identity: {
+    name: "Willowbrook Pharmacy",
+    role: "Partner · GPhC 9010311",
+    initials: "WP",
+    signOutHref: "/login",
+  },
+};
+
+export type Role = "doctor" | "admin" | "patient" | "pharmacy";
 
 export const NAV_BY_ROLE: Record<Role, NavConfig> = {
   doctor: DOCTOR_NAV,
   admin: ADMIN_NAV,
   patient: PATIENT_NAV,
+  pharmacy: PHARMACY_NAV,
 };
 
 export { BellIcon };

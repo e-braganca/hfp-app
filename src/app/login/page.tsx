@@ -4,22 +4,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-type Role = "patient" | "doctor" | "admin";
+type Role = "patient" | "doctor" | "admin" | "pharmacy";
 
 const DEMO_EMAIL: Record<Role, string> = {
   patient: "alex.morgan@email.com",
   doctor: "eleanor.hart@hfp.co.uk",
   admin: "admin@hfp.co.uk",
+  pharmacy: "partners@willowbrook.co.uk",
 };
 const DEST: Record<Role, string> = {
   patient: "/patient",
   doctor: "/doctor/queue",
   admin: "/admin/overview",
+  pharmacy: "/pharmacy",
 };
 const ROLE_LABEL: Record<Role, string> = {
   patient: "Patient",
   doctor: "Doctor",
-  admin: "Administrator",
+  admin: "Admin",
+  pharmacy: "Pharmacy",
 };
 
 export default function LoginPage() {
@@ -54,8 +57,8 @@ export default function LoginPage() {
           {/* role selector */}
           <div className="mt-6">
             <span className="mb-1.5 block text-sm font-semibold text-text-primary">Sign in as</span>
-            <div className="grid grid-cols-3 gap-2 rounded-xl bg-background-neutral p-1">
-              {(["patient", "doctor", "admin"] as const).map((r) => (
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-background-neutral p-1 sm:grid-cols-4">
+              {(["patient", "doctor", "admin", "pharmacy"] as const).map((r) => (
                 <button
                   key={r}
                   type="button"

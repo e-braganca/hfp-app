@@ -8,11 +8,13 @@ const ROLE_HOME: Record<Role, string> = {
   patient: "/patient",
   doctor: "/doctor/queue",
   admin: "/admin/overview",
+  pharmacy: "/pharmacy",
 };
 const ROLE_LABEL: Record<Role, string> = {
   patient: "Patient",
   doctor: "Doctor",
   admin: "Admin",
+  pharmacy: "Pharmacy",
 };
 
 /**

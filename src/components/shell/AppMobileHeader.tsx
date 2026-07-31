@@ -25,4 +25,5 @@ const ROLE_HOME: Record<Role, string> = {
   patient: "/patient",
   doctor: "/doctor/queue",
   admin: "/admin/overview",
+  pharmacy: "/pharmacy",
 };
