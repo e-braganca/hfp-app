@@ -70,8 +70,7 @@ export const DOCTOR_NAV: NavConfig = {
       items: [
         { label: "Work Queue", href: "/doctor/queue", icon: QueueIcon, match: ["/doctor/orders", "/doctor/cases"] },
         { label: "Patients", href: "/doctor/patients", icon: PatientsIcon },
-        { label: "Protocols (SOPs)", short: "SOPs", href: "/doctor/protocols", icon: ProtocolIcon },
-        { label: "Pharmacies", href: "/doctor/pharmacies", icon: PharmacyIcon },
+        { label: "Pharmacies & SOPs", short: "Pharmacies", href: "/doctor/pharmacies", icon: PharmacyIcon, match: ["/doctor/protocols"] },
       ],
     },
     {
