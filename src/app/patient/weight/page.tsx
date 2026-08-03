@@ -5,7 +5,8 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
 import { Toast } from "@/components/ui/Toast";
-import { bmiFor, WEIGHT_LOG, type WeightEntry } from "@/lib/patient/data";
+import { bmiFor, HEIGHT_CM, TREATMENT, WEIGHT_LOG, type WeightEntry } from "@/lib/patient/data";
+import { buildProjection, type Projection } from "@/lib/patient/projection";
 import { kgToStLb, numOf, stLbToKg, trim1, WEIGHT_UNITS, type WeightUnit } from "@/lib/onboarding/units";
 
 /* ============================================================================
@@ -24,6 +25,14 @@ export default function WeightTrackingPage() {
   const change = current - start;
   const pct = (change / start) * 100;
   const weeklyAvg = change / (entries.length - 1);
+  const projection = buildProjection({
+    startKg: start,
+    currentKg: current,
+    heightCm: HEIGHT_CM,
+    med: TREATMENT.shortName,
+    startDate: entries[0].date,
+    weeksElapsed: entries.length - 1,
+  });
 
   const addEntry = (kg: number, note: string) => {
     setEntries((es) => [
@@ -44,11 +53,17 @@ export default function WeightTrackingPage() {
 
       <div className="space-y-6 px-6 py-6 lg:px-8">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatTile value={`${current.toFixed(1)} kg`} label="Current weight" />
+          <StatTile value={`${current.toFixed(1)} kg`} label={`Current weight · BMI ${bmiFor(current).toFixed(1)}`} />
           <StatTile value={`${change <= 0 ? "–" : "+"}${Math.abs(change).toFixed(1)} kg`} label={`Total change · ${pct.toFixed(1)}%`} tone={change <= 0 ? "success" : "warning"} />
+          <StatTile
+            value={`${projection.targetKg.toFixed(1)} kg`}
+            label={`Target · BMI ${projection.targetBmi.toFixed(1)}`}
+            tone="success"
+          />
           <StatTile value={`${Math.abs(weeklyAvg).toFixed(2)} kg`} label="Avg per week" tone="muted" />
-          <StatTile value={bmiFor(current).toFixed(1)} label="Current BMI" />
         </div>
+
+        <ProjectionPanel projection={projection} current={current} />
 
         {/* chart */}
         <section className="rounded-lg bg-background-paper p-6 shadow-card">
@@ -62,7 +77,20 @@ export default function WeightTrackingPage() {
               Log this week&rsquo;s weight
             </button>
           </div>
-          <WeightChart entries={entries} />
+          <WeightChart entries={entries} projection={projection} />
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-text-secondary">
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-5 rounded-full bg-primary" /> Your check-ins
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-5 rounded-full bg-primary-light" style={{ backgroundImage: "repeating-linear-gradient(90deg,var(--primary-light) 0 4px,transparent 4px 8px)" }} />
+              Projected on trial average
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-5 rounded-full" style={{ backgroundImage: "repeating-linear-gradient(90deg,var(--color-secondary) 0 5px,transparent 5px 9px)" }} />
+              Target {projection.targetKg.toFixed(1)} kg
+            </span>
+          </div>
         </section>
 
         {/* log */}
@@ -114,59 +142,136 @@ export default function WeightTrackingPage() {
 
 /* ---- chart with axes ------------------------------------------------------ */
 
-function WeightChart({ entries }: { entries: WeightEntry[] }) {
-  const w = 720;
-  const h = 220;
+/** Logged weights + the trial projection out to the target, with the 5% and
+ *  10% milestones marked — 5% is the SOP continuation gate at 6 months. */
+function WeightChart({ entries, projection }: { entries: WeightEntry[]; projection: Projection }) {
+  const w = 760;
+  const h = 240;
   const padX = 44;
-  const padY = 22;
+  const padY = 26;
+  const rightPad = 20;
   const values = entries.map((e) => e.kg);
-  const min = Math.floor(Math.min(...values) - 1);
+  const loggedWeeks = values.length - 1;
+  const totalWeeks = projection.horizonWeeks;
+
+  const min = Math.floor(projection.targetKg - 1);
   const max = Math.ceil(Math.max(...values) + 1);
-  const x = (i: number) => padX + (i * (w - padX - 16)) / Math.max(values.length - 1, 1);
+  const x = (week: number) => padX + (week / totalWeeks) * (w - padX - rightPad);
   const y = (v: number) => padY + ((max - v) * (h - padY * 2)) / (max - min || 1);
-  const points = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
-  const gridLines = [max, (max + min) / 2, min];
+
+  const logged = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const future: string[] = [];
+  for (let week = loggedWeeks; week <= totalWeeks; week += 1) future.push(`${x(week)},${y(projection.at(week))}`);
+
+  const gridLines = [max, Math.round((max + min) / 2), min];
+  // x labels every ~12 weeks so the axis stays readable across 68–72 weeks
+  const tickWeeks = [0, 12, 24, 36, 48, 60, totalWeeks].filter((t) => t <= totalWeeks);
 
   return (
     <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h + 20}`} className="mt-4 w-full min-w-[560px]" role="img" aria-label="Weight chart">
+      <svg viewBox={`0 0 ${w} ${h + 24}`} className="mt-4 w-full min-w-[620px]" role="img" aria-label={`Weight chart with projection to a ${projection.targetKg.toFixed(1)} kg target`}>
         {gridLines.map((g) => (
           <g key={g}>
-            <line x1={padX} x2={w - 8} y1={y(g)} y2={y(g)} stroke="var(--divider)" strokeDasharray="3 4" />
+            <line x1={padX} x2={w - rightPad} y1={y(g)} y2={y(g)} stroke="var(--divider)" strokeDasharray="3 4" />
             <text x={padX - 8} y={y(g) + 4} textAnchor="end" className="fill-[var(--color-text-disabled)] font-mono text-[11px]">
-              {g.toFixed(0)}
+              {g}
             </text>
           </g>
         ))}
-        <polyline
-          points={`${points} ${x(values.length - 1)},${y(min)} ${x(0)},${y(min)}`}
-          fill="var(--primary-main-12)"
-          stroke="none"
-        />
-        <polyline points={points} fill="none" stroke="var(--primary-main)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {values.map((v, i) => (
-          <g key={i}>
-            <circle cx={x(i)} cy={y(v)} r={i === values.length - 1 ? 5 : 3.5} fill="var(--primary-main)" />
-            {i === values.length - 1 && (
-              <text x={x(i)} y={y(v) - 10} textAnchor="middle" className="fill-[var(--color-text-primary)] font-mono text-[12px] font-bold">
-                {v.toFixed(1)}
+
+        {/* target band + line */}
+        <line x1={padX} x2={w - rightPad} y1={y(projection.targetKg)} y2={y(projection.targetKg)} stroke="var(--color-secondary)" strokeWidth="1.8" strokeDasharray="6 4" />
+        <text x={padX + 4} y={y(projection.targetKg) - 6} className="fill-[var(--color-secondary-dark)] font-mono text-[11px] font-bold">
+          TARGET {projection.targetKg.toFixed(1)} kg · BMI {projection.targetBmi.toFixed(1)}
+        </text>
+
+        {/* milestones */}
+        {projection.milestones
+          .filter((m) => m.weeks !== null && m.pct < projection.totalPct)
+          .map((m) => (
+            <g key={m.label}>
+              <line x1={x(m.weeks!)} x2={x(m.weeks!)} y1={padY} y2={h - padY} stroke="var(--divider)" strokeDasharray="2 5" />
+              <circle cx={x(m.weeks!)} cy={y(m.kg)} r="4" fill={m.reached ? "var(--color-success)" : "var(--color-grey-400)"} />
+              <text x={x(m.weeks!)} y={padY - 8} textAnchor="middle" className="fill-[var(--color-text-disabled)] font-mono text-[10px] font-bold">
+                {(m.pct * 100).toFixed(0)}%
               </text>
-            )}
-          </g>
+            </g>
+          ))}
+
+        {/* logged */}
+        <polyline points={`${logged} ${x(loggedWeeks)},${y(min)} ${x(0)},${y(min)}`} fill="var(--primary-main-12)" stroke="none" />
+        <polyline points={logged} fill="none" stroke="var(--primary-main)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* projection */}
+        <polyline points={future.join(" ")} fill="none" stroke="var(--primary-light)" strokeWidth="2.2" strokeDasharray="5 5" strokeLinecap="round" />
+
+        {values.map((v, i) => (
+          <circle key={i} cx={x(i)} cy={y(v)} r={i === values.length - 1 ? 5 : 3} fill="var(--primary-main)" />
         ))}
-        {entries.map((e, i) => (
-          <text
-            key={e.date}
-            x={x(i)}
-            y={h + 12}
-            textAnchor="middle"
-            className="fill-[var(--color-text-disabled)] font-mono text-[10px]"
-          >
-            {e.date.split(" ").slice(0, 2).join(" ")}
+        <text x={x(loggedWeeks)} y={y(values[loggedWeeks]) - 10} textAnchor="middle" className="fill-[var(--color-text-primary)] font-mono text-[12px] font-bold">
+          {values[loggedWeeks].toFixed(1)}
+        </text>
+
+        {tickWeeks.map((t) => (
+          <text key={t} x={x(t)} y={h + 14} textAnchor="middle" className="fill-[var(--color-text-disabled)] font-mono text-[10px]">
+            {t === 0 ? "start" : `wk ${t}`}
           </text>
         ))}
       </svg>
     </div>
+  );
+}
+
+/** Target, projected dates and pace-vs-trial, with the honesty caveat. */
+function ProjectionPanel({ projection, current }: { projection: Projection; current: number }) {
+  const ahead = projection.paceKg >= 0;
+  return (
+    <section className="rounded-lg bg-background-paper p-6 shadow-card">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-base font-bold text-text-primary">Where this is heading</h2>
+        <span className="font-mono text-[11px] tracking-wide text-text-secondary">{projection.source}</span>
+      </div>
+
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
+        On the trial average for your treatment you&rsquo;d reach{" "}
+        <span className="font-bold text-text-primary">{projection.targetKg.toFixed(1)} kg</span> (BMI{" "}
+        <span className="font-bold text-text-primary">{projection.targetBmi.toFixed(1)}</span>) around{" "}
+        <span className="font-bold text-text-primary">{projection.targetDate}</span> — a{" "}
+        {(projection.totalPct * 100).toFixed(1)}% reduction from your start weight.
+      </p>
+
+      <div className="mt-4 grid gap-px overflow-hidden rounded-xl border border-[var(--divider)] bg-[var(--divider)] sm:grid-cols-3">
+        {projection.milestones.map((m) => (
+          <div key={m.label} className="bg-background-paper p-4">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+              {m.reached && <span className="h-1.5 w-1.5 rounded-full bg-success" />}
+              {m.label}
+            </p>
+            <p className="mt-1 font-mono text-lg font-extrabold text-text-primary">{m.kg.toFixed(1)} kg</p>
+            <p className="text-xs text-text-secondary">
+              {m.reached ? "reached" : m.date ? `projected ${m.date}` : "beyond trial average"}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p
+        className={`mt-4 rounded-lg px-4 py-3 text-sm ${
+          ahead ? "bg-success-lighter text-success-darker" : "bg-warning-lighter text-warning-darker"
+        }`}
+      >
+        <span className="font-bold">
+          {ahead ? "Ahead of the trial pace" : "Behind the trial pace"} by {Math.abs(projection.paceKg).toFixed(1)} kg.
+        </span>{" "}
+        You&rsquo;re at {current.toFixed(1)} kg — the trial curve puts this week at{" "}
+        {(current + projection.paceKg).toFixed(1)} kg.
+      </p>
+
+      <p className="mt-3 text-xs leading-relaxed text-text-secondary">
+        This is an estimate from manufacturer trial averages at the highest dose, alongside diet and exercise — not a
+        prediction for you and not a guarantee. Individual results vary widely, and your prescriber reviews your actual
+        progress at every repeat.
+      </p>
+    </section>
   );
 }
 

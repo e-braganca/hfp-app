@@ -8,9 +8,11 @@ import {
   DELIVERIES,
   DELIVERY_STATUS_LABEL,
   DOSE_SCHEDULE,
+  HEIGHT_CM,
   TREATMENT,
   WEIGHT_LOG,
 } from "@/lib/patient/data";
+import { buildProjection } from "@/lib/patient/projection";
 
 export const metadata: Metadata = { title: "Your dashboard — Prescriptr" };
 
@@ -23,6 +25,14 @@ export default function PatientDashboard() {
   const start = WEIGHT_LOG[0].kg;
   const current = WEIGHT_LOG[WEIGHT_LOG.length - 1].kg;
   const next = DELIVERIES.find((d) => d.status !== "delivered");
+  const projection = buildProjection({
+    startKg: start,
+    currentKg: current,
+    heightCm: HEIGHT_CM,
+    med: TREATMENT.shortName,
+    startDate: WEIGHT_LOG[0].date,
+    weeksElapsed: WEIGHT_LOG.length - 1,
+  });
 
   return (
     <div>
@@ -49,21 +59,28 @@ export default function PatientDashboard() {
               <h2 className="text-base font-bold text-text-primary">Weight trend</h2>
               <span className="font-mono text-xs text-text-secondary">weekly check-in · kg</span>
             </div>
-            <WeightSparkline values={WEIGHT_LOG.map((w) => w.kg)} />
-            <div className="mt-3 flex items-center justify-between text-sm">
+            <WeightSparkline values={WEIGHT_LOG.map((w) => w.kg)} projection={projection} />
+            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
               <span className="text-text-secondary">
                 Started <span className="font-mono font-bold text-text-primary">{start.toFixed(1)}</span>
               </span>
               <span className="text-text-secondary">
                 Today <span className="font-mono font-bold text-success-dark">{current.toFixed(1)}</span>
               </span>
+              <span className="text-text-secondary">
+                Target <span className="font-mono font-bold text-secondary-dark">{projection.targetKg.toFixed(1)}</span>
+              </span>
               <Link
                 href="/patient/weight"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-dark"
+                className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-dark"
               >
                 Log this week&rsquo;s weight
               </Link>
             </div>
+            <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+              Dashed line is the {TREATMENT.shortName} trial average applied to your start weight — an estimate, not a
+              promise. <Link href="/patient/weight" className="font-semibold text-primary hover:underline">See the full projection</Link>
+            </p>
           </section>
 
           {/* dose schedule */}
