@@ -97,10 +97,10 @@ export const QUEUE_METRICS: QueueMetric[] = [
 
 export const NEW_ORDERS: NewOrder[] = [
   {
-    ref: "PT-4471", nhs: "485 219 7740", med: "Mounjaro (tirzepatide)", dose: "2.5 mg",
+    ref: "PT-4471", patientName: "Aisha Khan", nhs: "485 219 7740", med: "Mounjaro (tirzepatide)", dose: "2.5 mg",
     eligibility: "New start · BMI 33.1 · eligible", score: { rag: "green", confidence: 97 },
     pharmacyCode: "WB", submittedAt: "10:24 today",
-    age: 47, sex: "Male", bmi: 33.1, ethnicity: "White British", comorbidities: ["Hypertension"],
+    age: 47, sex: "Female", bmi: 33.1, ethnicity: "White British", comorbidities: ["Hypertension"],
     preference: "Mounjaro (tirzepatide)",
     verdict: "approve",
     ai: {
@@ -118,7 +118,7 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Passport" },
   },
   {
-    ref: "PT-4470", nhs: "602 884 1190", med: "Wegovy (semaglutide)", dose: "0.25 mg",
+    ref: "PT-4470", patientName: "Grace Adeyemi", nhs: "602 884 1190", med: "Wegovy (semaglutide)", dose: "0.25 mg",
     eligibility: "New start · BMI 31.6 · eligible", score: { rag: "green", confidence: 96 },
     pharmacyCode: "MX", submittedAt: "10:11 today",
     age: 39, sex: "Female", bmi: 31.6, ethnicity: "Black African", comorbidities: [],
@@ -134,7 +134,7 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Driving licence" },
   },
   {
-    ref: "PT-4468", nhs: "771 045 3328", med: "Mounjaro (tirzepatide)", dose: "2.5 mg",
+    ref: "PT-4468", patientName: "Nadia Patel", nhs: "771 045 3328", med: "Mounjaro (tirzepatide)", dose: "2.5 mg",
     eligibility: "BMI 28.4 · borderline — verify", score: { rag: "amber", confidence: 82 },
     pharmacyCode: "PD", submittedAt: "09:52 today",
     age: 44, sex: "Female", bmi: 28.4, ethnicity: "South Asian", comorbidities: ["Type 2 diabetes"],
@@ -155,7 +155,7 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Passport" },
   },
   {
-    ref: "PT-4465", nhs: "339 612 5507", med: "Wegovy (semaglutide)", dose: "0.25 mg",
+    ref: "PT-4465", patientName: "Chloe Barnes", nhs: "339 612 5507", med: "Wegovy (semaglutide)", dose: "0.25 mg",
     eligibility: "BMI 26.1 · below threshold", score: { rag: "red", confidence: 91 },
     pharmacyCode: "CP", submittedAt: "09:40 today",
     age: 35, sex: "Female", bmi: 26.1, ethnicity: "White British", comorbidities: [],
@@ -176,7 +176,7 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Driving licence" },
   },
   {
-    ref: "PT-4464", nhs: "123 456 7890", med: "Wegovy (semaglutide)", dose: "0.5 mg",
+    ref: "PT-4464", patientName: "Peter Whitfield", nhs: "123 456 7890", med: "Wegovy (semaglutide)", dose: "0.5 mg",
     eligibility: "New start · BMI 32.5 · eligible", score: { rag: "green", confidence: 95 },
     pharmacyCode: "NC", submittedAt: "09:31 today",
     age: 51, sex: "Male", bmi: 32.5, ethnicity: "White British", comorbidities: ["Hypertension"],
@@ -192,7 +192,7 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Passport" },
   },
   {
-    ref: "PT-4463", nhs: "987 654 3210", med: "Wegovy (semaglutide)", dose: "1.0 mg",
+    ref: "PT-4463", patientName: "Sarah Doyle", nhs: "987 654 3210", med: "Wegovy (semaglutide)", dose: "1.0 mg",
     eligibility: "New start · BMI 30.2 · eligible", score: { rag: "green", confidence: 93 },
     pharmacyCode: "RS", submittedAt: "09:18 today",
     age: 42, sex: "Female", bmi: 30.2, ethnicity: "White British", comorbidities: [],
@@ -208,7 +208,7 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Driving licence" },
   },
   {
-    ref: "PT-4462", nhs: "456 789 1234", med: "Mounjaro (tirzepatide)", dose: "5.0 mg",
+    ref: "PT-4462", patientName: "Mark Ellison", nhs: "456 789 1234", med: "Mounjaro (tirzepatide)", dose: "5.0 mg",
     eligibility: "BMI 29.1 · borderline — verify", score: { rag: "amber", confidence: 85 },
     pharmacyCode: "WB", submittedAt: "09:02 today",
     age: 48, sex: "Male", bmi: 29.1, ethnicity: "White British", comorbidities: ["Obstructive sleep apnoea"],

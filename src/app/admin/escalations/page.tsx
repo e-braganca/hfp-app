@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
+import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
 import { pharmacyName } from "@/lib/doctor/data";
 import { ADMIN_ESCALATIONS } from "@/lib/admin/data";
 import { OUTCOME_LABEL, type EscalationStatus } from "@/lib/admin/types";
@@ -23,18 +24,6 @@ const RAG_BORDER: Record<Rag, string> = {
   red: "border-error/50",
 };
 
-// What the admin can ask the patient for — multi-select in the request-info modal.
-const INFO_TOPICS = [
-  "Current weight (new live photo)",
-  "Blood pressure readings",
-  "Pregnancy / breastfeeding status",
-  "Current medications & doses",
-  "Side effects experienced",
-  "Weight history / previous attempts",
-  "Recent blood tests",
-  "GP contact details",
-];
-
 export default function AdminEscalationsPage() {
   const [statuses, setStatuses] = useState<Record<string, EscalationStatus>>(
     Object.fromEntries(ADMIN_ESCALATIONS.map((e) => [e.ref, e.status])),
@@ -43,8 +32,6 @@ export default function AdminEscalationsPage() {
   const [guideFor, setGuideFor] = useState<string | null>(null);
   const [declineFor, setDeclineFor] = useState<string | null>(null);
   const [infoFor, setInfoFor] = useState<string | null>(null);
-  const [infoTopics, setInfoTopics] = useState<string[]>([]);
-  const [infoNote, setInfoNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
   const resolve = (ref: string, status: Exclude<EscalationStatus, "open">, toastMsg: string) => {
@@ -55,15 +42,9 @@ export default function AdminEscalationsPage() {
     setToast(toastMsg);
   };
 
-  const openInfoModal = (ref: string) => {
-    setInfoTopics([]);
-    setInfoNote("");
-    setInfoFor(ref);
-  };
-  const toggleTopic = (t: string) =>
-    setInfoTopics((ts) => (ts.includes(t) ? ts.filter((x) => x !== t) : [...ts, t]));
-
   // Open = untouched; Past = returned/awaiting info; declined leave the board entirely.
+  const infoPatient = ADMIN_ESCALATIONS.find((e) => e.ref === infoFor);
+
   const visible = ADMIN_ESCALATIONS.filter((e) =>
     tab === "open" ? statuses[e.ref] === "open" : statuses[e.ref] === "guidance" || statuses[e.ref] === "info",
   );
@@ -171,7 +152,7 @@ export default function AdminEscalationsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => openInfoModal(e.ref)}
+                      onClick={() => setInfoFor(e.ref)}
                       className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-bold text-text-primary hover:bg-background-neutral"
                     >
                       Request patient info
@@ -260,71 +241,21 @@ export default function AdminEscalationsPage() {
         </div>
       </Modal>
 
-      {/* request patient info modal */}
-      <Modal
-        open={infoFor !== null}
-        title="Request patient information"
-        subtitle={infoFor ?? ""}
-        onClose={() => setInfoFor(null)}
-      >
-        <p className="text-sm font-semibold text-text-primary">What do you need from the patient?</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {INFO_TOPICS.map((t) => {
-            const on = infoTopics.includes(t);
-            return (
-              <button
-                key={t}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleTopic(t)}
-                className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-                  on
-                    ? "border-primary bg-primary-lighter text-primary-dark"
-                    : "border-[var(--divider)] bg-background-paper text-text-secondary hover:border-primary-light hover:text-text-primary"
-                }`}
-              >
-                {on ? "✓ " : ""}{t}
-              </button>
-            );
-          })}
-        </div>
-        <label className="mt-4 block text-sm font-semibold text-text-primary">Anything else? (optional)</label>
-        <textarea
-          rows={3}
-          value={infoNote}
-          onChange={(e) => setInfoNote(e.target.value)}
-          placeholder="Add context the patient will see with the request…"
-          className="mt-2 w-full rounded-lg border border-[var(--divider)] p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-main-24"
+      {/* request patient info — email composer */}
+      {infoFor && (
+        <RequestInfoEmailModal
+          open
+          onClose={() => setInfoFor(null)}
+          onSend={({ subject }) =>
+            resolve(infoFor, "info", `Email sent to ${infoPatient?.patientName ?? "patient"} — "${subject}"`)
+          }
+          patientName={infoPatient?.patientName ?? "the patient"}
+          sex={infoPatient?.sex}
+          caseRef={infoFor}
+          senderName="Dr. Eleanor Hart"
+          senderRole="Clinical Lead · HFP Admin"
         />
-        <p className="mt-3 text-xs text-text-secondary">
-          The patient gets an email + dashboard task; the case moves to Past as “Awaiting patient info” and is
-          audit-logged with the SOP version.
-        </p>
-        <div className="mt-4 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => setInfoFor(null)}
-            className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-neutral"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={infoTopics.length === 0}
-            onClick={() =>
-              infoFor &&
-              resolve(
-                infoFor,
-                "info",
-                `Information request sent to patient — ${infoFor} (${infoTopics.length} topic${infoTopics.length === 1 ? "" : "s"})`,
-              )
-            }
-            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
-          >
-            Send request
-          </button>
-        </div>
-      </Modal>
+      )}
 
       <Toast message={toast} onDone={() => setToast(null)} />
     </>

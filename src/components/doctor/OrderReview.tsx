@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
+import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
 import { CameraIcon, IdIcon, WarnIcon } from "@/components/ui/icons";
 
 type Decision = null | "approved" | "declined" | "info" | "escalated";
@@ -17,6 +18,7 @@ type Decision = null | "approved" | "declined" | "info" | "escalated";
 export function OrderReview({ order }: { order: NewOrder }) {
   const [decision, setDecision] = useState<Decision>(null);
   const [escalating, setEscalating] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const isDecline = order.verdict === "decline";
 
@@ -24,9 +26,10 @@ export function OrderReview({ order }: { order: NewOrder }) {
     setDecision(isDecline ? "declined" : "approved");
     setToast(isDecline ? "Order declined & audit-logged" : "Prescription issued & audit-logged");
   };
-  const requestInfo = () => {
+  const requestInfo = (subject: string) => {
+    setEmailing(false);
     setDecision("info");
-    setToast("Information requested from patient");
+    setToast(`Email sent to ${order.patientName} — "${subject}"`);
   };
   const escalate = () => {
     setEscalating(false);
@@ -124,7 +127,7 @@ export function OrderReview({ order }: { order: NewOrder }) {
                     </button>
                     <button
                       type="button"
-                      onClick={requestInfo}
+                      onClick={() => setEmailing(true)}
                       className="flex-1 rounded-lg border border-[var(--divider)] px-5 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
                     >
                       Request more info
@@ -144,6 +147,17 @@ export function OrderReview({ order }: { order: NewOrder }) {
           />
         </div>
       </div>
+
+      <RequestInfoEmailModal
+        open={emailing}
+        onClose={() => setEmailing(false)}
+        onSend={({ subject }) => requestInfo(subject)}
+        patientName={order.patientName}
+        sex={order.sex}
+        caseRef={order.ref}
+        senderName="Dr. Eleanor Hart"
+        senderRole="Clinical Lead · GMC 7041182"
+      />
 
       <Modal
         open={escalating}

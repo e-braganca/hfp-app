@@ -12,6 +12,8 @@ export type EscalationStatus = "open" | "guidance" | "info" | "declined";
 
 export interface AdminEscalation {
   ref: string;
+  patientName: string;
+  sex: "Male" | "Female";
   pharmacyCode: string;
   escalatedBy: string;
   waited: string; // "1d", "5h", "2h"

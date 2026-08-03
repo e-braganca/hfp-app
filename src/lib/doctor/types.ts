@@ -73,6 +73,8 @@ export type Verdict = "approve" | "verify" | "decline";
 
 export interface NewOrder {
   ref: string; // "PT-4471"
+  /** used for correspondence — the pharmacy and prescriber both see it */
+  patientName: string;
   nhs: string; // "485 219 7740"
   med: string; // "Mounjaro (tirzepatide)"
   dose: string; // "2.5 mg"

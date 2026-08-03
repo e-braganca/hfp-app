@@ -36,24 +36,24 @@ export const ATTENTION_ROWS: AttentionRow[] = [
 
 export const ADMIN_ESCALATIONS: AdminEscalation[] = [
   {
-    ref: "PT-2043", pharmacyCode: "PD", escalatedBy: "Dr. Mads Lindqvist", waited: "1d", rag: "red",
+    ref: "PT-2043", patientName: "Helen Roberts", sex: "Female", pharmacyCode: "PD", escalatedBy: "Dr. Mads Lindqvist", waited: "1d", rag: "red",
     reason: "No weight loss at 6 months", med: "Wegovy (semaglutide) · 2.4 mg",
     note: "Patient adamant it works — SOP 6.2 says discontinue below 5%. Second opinion?",
     status: "open",
   },
   {
-    ref: "PT-2071", pharmacyCode: "MX", escalatedBy: "Dr. Julia Reyes", waited: "5h", rag: "red",
+    ref: "PT-2071", patientName: "Callum Wright", sex: "Male", pharmacyCode: "MX", escalatedBy: "Dr. Julia Reyes", waited: "5h", rag: "red",
     reason: "Dose escalation above SOP max", med: "Wegovy (semaglutide) · 2.4 mg",
     status: "open",
   },
   {
-    ref: "PT-2087", pharmacyCode: "PD", escalatedBy: "Dr. Tomas Bowen", waited: "2h", rag: "amber",
+    ref: "PT-2087", patientName: "James Mitchell", sex: "Male", pharmacyCode: "PD", escalatedBy: "Dr. Tomas Bowen", waited: "2h", rag: "amber",
     reason: "7-week treatment gap", med: "Mounjaro (tirzepatide) · 7.5 mg",
     note: "Gap was due to a supply issue. Is re-titration still mandatory?",
     status: "open",
   },
   {
-    ref: "PT-4461", pharmacyCode: "RS", escalatedBy: "Dr. Sofia Patel", waited: "1h", rag: "amber",
+    ref: "PT-4461", patientName: "Zainab Hussain", sex: "Female", pharmacyCode: "RS", escalatedBy: "Dr. Sofia Patel", waited: "1h", rag: "amber",
     reason: "Pregnancy flag, breastfeeding unconfirmed", med: "Wegovy (semaglutide) · 0.25 mg",
     note: "Patient reply is ambiguous. Do we need midwife confirmation before issuing?",
     status: "open",
