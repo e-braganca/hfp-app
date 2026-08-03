@@ -40,6 +40,7 @@ import {
   type HeightUnit,
   type WeightUnit,
 } from "@/lib/onboarding/units";
+import { setPendingVerification } from "@/lib/verification";
 import {
   CameraCapture,
   OptionCard,
@@ -74,6 +75,17 @@ export function OnboardingFunnel() {
       }
     }
     if (key === "payment") {
+      // deferred captures put the order on hold — the patient dashboard picks
+      // this up and routes to the catch-up wizard
+      if (!a.weightPhoto || !a.idDoc) {
+        setPendingVerification({
+          weightPhoto: !a.weightPhoto,
+          idDoc: !a.idDoc,
+          deferredAt: new Date().toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        });
+      } else {
+        setPendingVerification(null);
+      }
       setOutcome("submitted");
       return;
     }
@@ -466,10 +478,17 @@ function renderStep(
             captureLabel="Open camera"
             facing="user"
             imageUrl={a.weightPhotoUrl}
-            onCapture={(url) => setA({ weightPhoto: true, weightPhotoUrl: url })}
+            onCapture={(url) => setA({ weightPhoto: true, weightPhotoUrl: url, weightPhotoDeferred: false })}
             onRetake={() => setA({ weightPhoto: false, weightPhotoUrl: "" })}
             note="Must be taken live on your camera now — gallery uploads aren't accepted."
           />
+          {!a.weightPhoto && (
+            <DeferChoice
+              deferred={a.weightPhotoDeferred}
+              onToggle={(v) => setA({ weightPhotoDeferred: v })}
+              what="weight photo"
+            />
+          )}
         </div>
       );
 
@@ -482,10 +501,17 @@ function renderStep(
             captureLabel="Capture ID"
             facing="environment"
             imageUrl={a.idDocUrl}
-            onCapture={(url) => setA({ idDoc: true, idDocUrl: url })}
+            onCapture={(url) => setA({ idDoc: true, idDocUrl: url, idDocDeferred: false })}
             onRetake={() => setA({ idDoc: false, idDocUrl: "" })}
             note="A prescriber will visually confirm your ID matches your weight photo before issuing."
           />
+          {!a.idDoc && (
+            <DeferChoice
+              deferred={a.idDocDeferred}
+              onToggle={(v) => setA({ idDocDeferred: v })}
+              what="ID photo"
+            />
+          )}
         </div>
       );
 
@@ -721,7 +747,15 @@ function renderStep(
               { label: "BMI", value: `${bmi(a)?.toFixed(1)} kg/m²` },
               { label: "Ethnic background", value: ethnicityLabel(a) },
               { label: "Conditions", value: a.conditions.length ? a.conditions.map((c) => CONDITIONS.find((x) => x.key === c)?.label).join(", ") : "None" },
-              { label: "Verification", value: "Weight photo + ID captured" },
+              {
+                label: "Verification",
+                value:
+                  a.weightPhoto && a.idDoc
+                    ? "Weight photo + ID captured"
+                    : `On hold — ${[!a.weightPhoto && "weight photo", !a.idDoc && "ID photo"]
+                        .filter(Boolean)
+                        .join(" + ")} from your dashboard`,
+              },
               {
                 label: "Treatment preference",
                 value: TREATMENT_OPTIONS.find((t) => t.key === a.treatment)?.name ?? "—",
@@ -824,6 +858,7 @@ function bmiCategory(b: number): string {
 
 function renderOutcome(outcome: Exclude<Outcome, null>, a: Answers, back: () => void) {
   if (outcome === "submitted") {
+    const onHold = !a.weightPhoto || !a.idDoc;
     return (
       <div className="text-center">
         <ResultRing tone="ok" />
@@ -832,6 +867,13 @@ function renderOutcome(outcome: Exclude<Outcome, null>, a: Answers, back: () => 
           Thank you! A prescriber registered with the GPhC is currently reviewing your responses. Expect an email from us at{" "}
           <span className="font-semibold text-text-primary">{a.email || "your inbox"}</span> within the next 24 hours.
         </p>
+        {onHold && (
+          <p className="mx-auto mt-4 max-w-md rounded-lg bg-warning-lighter px-4 py-3 text-left text-sm leading-relaxed text-warning-darker">
+            <span className="font-bold">One thing left:</span> your order is on hold until you take the{" "}
+            {[!a.weightPhoto && "weight photo", !a.idDoc && "ID photo"].filter(Boolean).join(" and ")} — you can do it
+            any time from your dashboard. No review or charge happens before that.
+          </p>
+        )}
         <div className="mt-6 space-y-3 rounded-xl border border-[var(--divider)] bg-background-paper p-5 text-left">
           {[
             "A prescriber reviews your consultation against the pharmacy's clinical SOP.",
@@ -952,6 +994,46 @@ function LeadCapture({ reason }: { reason: string }) {
       </div>
       <p className="mt-2 text-[11px] text-text-secondary">No marketing — one email if your eligibility changes. Unsubscribe any time.</p>
     </div>
+  );
+}
+
+/** "I'll do this later" escape hatch on the capture steps — camera stays the
+ *  default; deferring puts the order on hold after payment, never skips it. */
+function DeferChoice({
+  deferred,
+  onToggle,
+  what,
+}: {
+  deferred: boolean;
+  onToggle: (v: boolean) => void;
+  what: string;
+}) {
+  if (deferred) {
+    return (
+      <div className="mt-3 flex items-start justify-between gap-3 rounded-lg bg-warning-lighter px-4 py-3">
+        <p className="text-sm leading-relaxed text-warning-darker">
+          <span className="font-bold">Skipped for now.</span> You can finish your order, but it stays{" "}
+          <span className="font-bold">on hold</span> — no prescriber review and no charge — until you take the {what}{" "}
+          from your dashboard.
+        </p>
+        <button
+          type="button"
+          onClick={() => onToggle(false)}
+          className="shrink-0 text-sm font-bold text-warning-darker underline hover:no-underline"
+        >
+          Take it now
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(true)}
+      className="mt-3 text-sm font-semibold text-text-secondary underline hover:text-text-primary"
+    >
+      I&rsquo;ll take the {what} later
+    </button>
   );
 }
 

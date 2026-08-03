@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StepperBar } from "@/components/ui/StepperBar";
 import { CameraIcon, CheckIcon } from "@/components/ui/icons";
 import { CameraCapture, YesNo } from "@/components/onboarding/parts";
 import { TREATMENT, WEIGHT_LOG } from "@/lib/patient/data";
@@ -145,14 +146,7 @@ export default function NewDeliveryPage() {
       <div className="px-6 py-6 lg:px-8">
         <div className="mx-auto max-w-xl">
           {/* stepper */}
-          <ol className="flex items-center gap-2">
-            {STEPS.map((s, i) => (
-              <li key={s} className="flex flex-1 flex-col gap-1.5">
-                <span className={`h-1 rounded-full ${i <= step ? "bg-primary" : "bg-grey-300"}`} />
-                <span className={`text-[11px] font-bold ${i === step ? "text-primary-dark" : "text-text-disabled"}`}>{s}</span>
-              </li>
-            ))}
-          </ol>
+          <StepperBar steps={STEPS} current={step} />
 
           <div className="mt-6 rounded-lg bg-background-paper p-6 shadow-card">
             {step === 0 && (

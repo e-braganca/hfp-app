@@ -56,6 +56,9 @@ export interface Answers {
   /** live-camera captures (JPEG data URLs); the booleans above gate the step */
   weightPhotoUrl: string;
   idDocUrl: string;
+  /** patient chose "I'll do this later" — order goes on hold at submit */
+  weightPhotoDeferred: boolean;
+  idDocDeferred: boolean;
   firstName: string;
   lastName: string;
   email: string;
@@ -95,6 +98,8 @@ export const emptyAnswers = (): Answers => ({
   idDoc: false,
   weightPhotoUrl: "",
   idDocUrl: "",
+  weightPhotoDeferred: false,
+  idDocDeferred: false,
   firstName: "",
   lastName: "",
   email: "",
@@ -318,9 +323,9 @@ export function canContinue(step: string, a: Answers): boolean {
     case "safety":
       return SAFETY_QUESTIONS.every((q) => a.safety[q.key]);
     case "photo":
-      return a.weightPhoto;
+      return a.weightPhoto || a.weightPhotoDeferred;
     case "id":
-      return a.idDoc;
+      return a.idDoc || a.idDocDeferred;
     case "account":
       return (
         a.firstName.trim().length > 0 &&

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
+import { PendingVerificationBanner } from "@/components/patient/PendingVerificationBanner";
 import { WeightSparkline } from "@/components/patient/WeightSparkline";
 import {
   DELIVERIES,
@@ -31,6 +32,8 @@ export default function PatientDashboard() {
       />
 
       <div className="space-y-6 px-6 py-6 lg:px-8">
+        <PendingVerificationBanner />
+
         {/* headline numbers */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatTile value={TREATMENT.dose} label="Current weekly dose" />
