@@ -14,6 +14,7 @@ import {
   TREATMENT_OPTIONS,
 } from "@/lib/onboarding/constants";
 import {
+  addressSummary,
   age,
   bmi,
   bmiThreshold,
@@ -21,6 +22,7 @@ import {
   computeOutcome,
   emptyAnswers,
   ethnicityLabel,
+  ukPostcodeValid,
   expiryMonthInvalid,
   formatCardExpiry,
   formatCardNumber,
@@ -107,11 +109,13 @@ export function OnboardingFunnel() {
       ? "Begin assessment"
       : key === "account"
         ? "Create account & continue"
-        : key === "review"
-          ? "Continue to payment"
-          : key === "payment"
-            ? "Confirm order"
-            : "Continue";
+        : key === "address"
+          ? "Save delivery address"
+          : key === "review"
+            ? "Continue to payment"
+            : key === "payment"
+              ? "Confirm order"
+              : "Continue";
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,42%)_minmax(0,58%)]">
@@ -613,6 +617,81 @@ function renderStep(
         </div>
       );
 
+    case "address": {
+      const badPostcode = a.postcode.trim() !== "" && !ukPostcodeValid(a.postcode);
+      return (
+        <div>
+          <StepHeading
+            eyebrow="Delivery"
+            title="Where should we deliver your treatment?"
+            sub="If a prescriber approves you, this is where your medication ships — cold-chain and signed for, so use an address where someone can receive it."
+          />
+          <div className="space-y-4">
+            <Field label="Address line 1">
+              <input
+                type="text"
+                autoComplete="address-line1"
+                value={a.addr1}
+                onChange={(e) => setA({ addr1: e.target.value })}
+                placeholder="42 Bramble Road"
+                className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+              />
+            </Field>
+            <Field label="Address line 2 (optional)">
+              <input
+                type="text"
+                autoComplete="address-line2"
+                value={a.addr2}
+                onChange={(e) => setA({ addr2: e.target.value })}
+                placeholder="Flat 3"
+                className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+              />
+            </Field>
+            <div className="grid grid-cols-[1.4fr_1fr] gap-3">
+              <Field label="Town / City">
+                <input
+                  type="text"
+                  autoComplete="address-level2"
+                  value={a.city}
+                  onChange={(e) => setA({ city: e.target.value })}
+                  placeholder="Manchester"
+                  className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+                />
+              </Field>
+              <Field label="Postcode">
+                <input
+                  type="text"
+                  autoComplete="postal-code"
+                  maxLength={8}
+                  value={a.postcode}
+                  onChange={(e) => setA({ postcode: e.target.value.toUpperCase() })}
+                  placeholder="M1 4BT"
+                  className={`h-12 w-full rounded-xl border-2 bg-background-paper px-4 font-mono text-base text-text-primary focus:outline-none ${
+                    badPostcode ? "border-error focus:border-error" : "border-[var(--divider)] focus:border-primary"
+                  }`}
+                />
+                {badPostcode && (
+                  <p className="mt-1.5 text-xs font-semibold text-error-dark">Enter a valid UK postcode, e.g. M1 4BT.</p>
+                )}
+              </Field>
+            </div>
+            <Field label="Delivery notes (optional)">
+              <input
+                type="text"
+                value={a.deliveryNote}
+                onChange={(e) => setA({ deliveryNote: e.target.value })}
+                placeholder="Safe place, buzzer code, best time…"
+                className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+              />
+            </Field>
+          </div>
+          <p className="mt-4 rounded-lg bg-primary-lighter px-4 py-3 text-xs leading-relaxed text-primary-dark">
+            We only deliver within the UK, and nothing ships until a prescriber approves your consultation.
+          </p>
+        </div>
+      );
+    }
+
     case "treatment":
       return (
         <div>
@@ -761,6 +840,7 @@ function renderStep(
                 value: TREATMENT_OPTIONS.find((t) => t.key === a.treatment)?.name ?? "—",
               },
               { label: "Contact", value: `${a.email} · ${a.mobileCountry} ${a.mobile}` },
+              { label: "Delivery address", value: addressSummary(a) || "—" },
             ]}
           />
           <p className="mt-4 rounded-lg bg-primary-lighter px-4 py-3 text-sm text-primary-dark">

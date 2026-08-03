@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CheckIcon, UploadIcon } from "@/components/ui/icons";
 import { PHONE_COUNTRIES } from "@/lib/onboarding/constants";
+import { ukPostcodeValid } from "@/lib/onboarding/logic";
 import {
   COVERAGE_AREAS,
   SUPPLY_MEDS,
@@ -51,8 +52,7 @@ export default function PharmacyRegisterPage() {
   const key: StepKey = STEPS[step];
   const total = STEPS.length;
 
-  // loose UK postcode shape (outward + inward), e.g. "SE1 9RT" / "L3 4BX"
-  const postcodeValid = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(postcode.trim());
+  const postcodeValid = ukPostcodeValid(postcode);
   const address = [addr1.trim(), addr2.trim(), `${city.trim()} ${postcode.trim().toUpperCase()}`]
     .filter(Boolean)
     .join(", ");

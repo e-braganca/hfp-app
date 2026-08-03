@@ -182,6 +182,7 @@ export const STEPS = [
   "safety",
   "eligible",
   "account",
+  "address",
   "photo",
   "id",
   "treatment",
@@ -195,7 +196,7 @@ export type StepKey = (typeof STEPS)[number];
 export const PHASES: { label: string; steps: number[] }[] = [
   { label: "About you", steps: [1, 2, 3, 4, 5, 6] },
   { label: "Safety & eligibility", steps: [7, 8] },
-  { label: "Your account", steps: [9] },
-  { label: "Verification", steps: [10, 11] },
-  { label: "Treatment & payment", steps: [12, 13, 14] },
+  { label: "Account & delivery", steps: [9, 10] },
+  { label: "Verification", steps: [11, 12] },
+  { label: "Treatment & payment", steps: [13, 14, 15] },
 ];

@@ -66,6 +66,12 @@ export interface Answers {
   mobileCountry: string;
   mobile: string;
   password: string;
+  /** delivery address — where the treatment ships if approved */
+  addr1: string;
+  addr2: string;
+  city: string;
+  postcode: string;
+  deliveryNote: string;
   consent: boolean;
   /** TREATMENT_OPTIONS key, chosen after verification */
   treatment: string | null;
@@ -106,6 +112,11 @@ export const emptyAnswers = (): Answers => ({
   mobileCountry: "+44",
   mobile: "",
   password: "",
+  addr1: "",
+  addr2: "",
+  city: "",
+  postcode: "",
+  deliveryNote: "",
   consent: false,
   treatment: null,
   cardNumber: "",
@@ -264,6 +275,18 @@ export function computeOutcome(a: Answers): Exclude<Outcome, "submitted"> {
 
 const EMAIL_RE = /.+@.+\..+/;
 
+/** Loose UK postcode shape (outward + inward), e.g. "SE1 9RT" / "L3 4BX".
+ *  Shared by the patient delivery step and the pharmacy registration wizard. */
+export const ukPostcodeValid = (v: string): boolean =>
+  /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(v.trim());
+
+/** One-line delivery address from the parts, for summaries and the label. */
+export function addressSummary(a: Answers): string {
+  return [a.addr1.trim(), a.addr2.trim(), `${a.city.trim()} ${a.postcode.trim().toUpperCase()}`]
+    .filter((p) => p.trim())
+    .join(", ");
+}
+
 /* ---- card field masks (demo checkout) ------------------------------------ */
 
 /** Digits only, "/" auto-inserted after the month, hard-capped at MM/YY.
@@ -335,6 +358,8 @@ export function canContinue(step: string, a: Answers): boolean {
         a.password.length >= 8 &&
         a.consent
       );
+    case "address":
+      return a.addr1.trim() !== "" && a.city.trim() !== "" && ukPostcodeValid(a.postcode);
     case "treatment":
       return a.treatment !== null;
     case "payment":
