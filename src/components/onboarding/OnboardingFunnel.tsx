@@ -42,6 +42,7 @@ import {
   type HeightUnit,
   type WeightUnit,
 } from "@/lib/onboarding/units";
+import { ProjectionPreview } from "@/components/patient/ProjectionPreview";
 import { setPendingVerification } from "@/lib/verification";
 import {
   CameraCapture,
@@ -470,6 +471,7 @@ function renderStep(
               ]}
             />
           </div>
+          <ProjectionPreview startKg={Number(a.weightKg)} heightCm={Number(a.heightCm)} />
         </div>
       );
 
