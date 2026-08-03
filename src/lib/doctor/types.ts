@@ -112,7 +112,9 @@ export interface SimpleRepeat {
 export interface TimelineEvent {
   label: string; // "Started 2.5 mg"
   date: string; // "14 Jan 2026"
-  flag?: boolean; // red treatment-gap node
+  flag?: boolean; // red node
+  /** the flagged node IS a treatment gap — everything before it collapses */
+  gap?: boolean;
   detail?: string; // sub-line for a flagged node
 }
 
