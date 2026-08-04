@@ -14,6 +14,7 @@ export function ReviewShell({
   subtitle,
   backHref,
   trail,
+  banner,
   left,
   right,
 }: {
@@ -21,6 +22,8 @@ export function ReviewShell({
   subtitle: string;
   backHref: string;
   trail: string[];
+  /** reservation / claim state strip, above the columns */
+  banner?: ReactNode;
   left: ReactNode;
   right: ReactNode;
 }) {
@@ -28,8 +31,9 @@ export function ReviewShell({
     <div className="flex flex-col lg:h-dvh lg:overflow-hidden">
       <PageHeader title={title} subtitle={subtitle} />
 
-      <div className="shrink-0 px-6 pt-5 lg:px-8">
+      <div className="shrink-0 space-y-4 px-6 pt-5 lg:px-8">
         <Breadcrumb backHref={backHref} trail={trail} />
+        {banner}
       </div>
 
       <div className="grid gap-6 px-6 py-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(320px,380px)_1fr] lg:px-8">

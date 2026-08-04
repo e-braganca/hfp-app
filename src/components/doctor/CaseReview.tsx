@@ -9,7 +9,9 @@ import { OutcomePanel } from "./OrderReview";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { RagPill } from "@/components/ui/StatusPill";
 import { MedicationTimeline } from "./MedicationTimeline";
+import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
+import { useCaseHold } from "./queueHooks";
 import { Toast } from "@/components/ui/Toast";
 
 type Decision = null | "approved" | "overriding" | "overridden" | "escalated";
@@ -26,6 +28,7 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
   const [escalating, setEscalating] = useState(false);
   const [reason, setReason] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const hold = useCaseHold(case_.ref);
 
   const approve = () => {
     setDecision("approved");
@@ -48,6 +51,14 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
         subtitle={`${case_.ref} · ${pharmacyName(case_.pharmacyCode)} · Flagged for ${case_.flagReason.toLowerCase()}`}
         backHref="/doctor/queue"
         trail={["Complex Repeats", case_.ref]}
+        banner={
+          <ReservationBanner
+            claimed={hold.claimed}
+            secondsLeft={hold.secondsLeft}
+            onClaim={hold.claimCase}
+            onRelease={hold.releaseCase}
+          />
+        }
         left={
           <>
             <PatientSummaryCard
@@ -103,26 +114,35 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
                       <button
                         type="button"
                         onClick={approve}
-                        className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark"
+                        disabled={!hold.claimed}
+                        className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
                       >
                         Approve recommendation
                       </button>
                       <button
                         type="button"
                         onClick={() => setDecision("overriding")}
-                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
+                        disabled={!hold.claimed}
+                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral disabled:opacity-40"
                       >
                         Review / Override
                       </button>
                       <button
                         type="button"
                         onClick={() => setEscalating(true)}
-                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-error px-4 py-3 text-sm font-bold text-error hover:bg-error-lighter"
+                        disabled={!hold.claimed}
+                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-error px-4 py-3 text-sm font-bold text-error hover:bg-error-lighter disabled:opacity-40"
                       >
                         Escalate / decline
                       </button>
                     </div>
-                    <AuditNote />
+                    {hold.claimed ? (
+                      <AuditNote />
+                    ) : (
+                      <p className="mt-3 text-xs font-semibold text-warning-dark">
+                        Claim this case to unlock the decision.
+                      </p>
+                    )}
                   </>
                 )
             }

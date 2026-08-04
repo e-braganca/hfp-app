@@ -6,7 +6,9 @@ import type { NewOrder } from "@/lib/doctor/types";
 import { AiRecommendationCard, AuditNote } from "./AiRecommendationCard";
 import { Modal } from "@/components/ui/Modal";
 import { PatientSummaryCard } from "./PatientSummaryCard";
+import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
+import { useCaseHold } from "./queueHooks";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
@@ -20,6 +22,7 @@ export function OrderReview({ order }: { order: NewOrder }) {
   const [emailing, setEmailing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const isDecline = order.verdict === "decline";
+  const hold = useCaseHold(order.ref);
 
   const approve = () => {
     setDecision(isDecline ? "declined" : "approved");
@@ -43,6 +46,14 @@ export function OrderReview({ order }: { order: NewOrder }) {
         subtitle={`${order.ref} · ${pharmacyName(order.pharmacyCode)} · new GLP-1 start`}
         backHref="/doctor/queue"
         trail={["New Orders", order.ref]}
+        banner={
+          <ReservationBanner
+            claimed={hold.claimed}
+            secondsLeft={hold.secondsLeft}
+            onClaim={hold.claimCase}
+            onRelease={hold.releaseCase}
+          />
+        }
         left={
           <>
             <PatientSummaryCard
@@ -114,7 +125,8 @@ export function OrderReview({ order }: { order: NewOrder }) {
                     <button
                       type="button"
                       onClick={approve}
-                      className={`flex-1 basis-40 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-bold text-white ${
+                      disabled={!hold.claimed}
+                      className={`flex-1 basis-40 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-bold text-white disabled:opacity-40 ${
                         isDecline ? "bg-error hover:bg-error-dark" : "bg-primary hover:bg-primary-dark"
                       }`}
                     >
@@ -123,19 +135,27 @@ export function OrderReview({ order }: { order: NewOrder }) {
                     <button
                       type="button"
                       onClick={() => setEmailing(true)}
-                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
+                      disabled={!hold.claimed}
+                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral disabled:opacity-40"
                     >
                       Request more info
                     </button>
                     <button
                       type="button"
                       onClick={() => setEscalating(true)}
-                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
+                      disabled={!hold.claimed}
+                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter disabled:opacity-40"
                     >
                       Escalate
                     </button>
                   </div>
-                  <AuditNote />
+                  {hold.claimed ? (
+                    <AuditNote />
+                  ) : (
+                    <p className="mt-3 text-xs font-semibold text-warning-dark">
+                      Claim this case to unlock the decision.
+                    </p>
+                  )}
                 </>
               )
             }
