@@ -105,6 +105,19 @@ export function OnboardingFunnel() {
   };
 
   const progress = step === 0 ? 0 : Math.round((step / (TOTAL - 1)) * 100);
+
+  // Deferring a capture is a real path, not fine print — it rides in the
+  // footer next to the primary CTA. Only offered while the photo is missing.
+  const defer =
+    key === "photo" && !a.weightPhoto
+      ? {
+          on: a.weightPhotoDeferred,
+          what: "weight photo",
+          set: (v: boolean) => setA({ weightPhotoDeferred: v }),
+        }
+      : key === "id" && !a.idDoc
+        ? { on: a.idDocDeferred, what: "ID photo", set: (v: boolean) => setA({ idDocDeferred: v }) }
+        : null;
   const ctaLabel =
     key === "intro"
       ? "Begin assessment"
@@ -153,7 +166,7 @@ export function OnboardingFunnel() {
         {/* footer */}
         {!outcome && (
           <div
-            className="sticky bottom-0 flex items-center gap-3 border-t border-[var(--divider)] bg-background-neutral px-6 py-4 lg:px-16"
+            className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-[var(--divider)] bg-background-neutral px-6 py-4 lg:px-16"
             style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
           >
             {step > 0 && (
@@ -161,7 +174,7 @@ export function OnboardingFunnel() {
                 type="button"
                 onClick={back}
                 aria-label="Back"
-                className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--divider)] bg-background-paper text-text-primary hover:bg-background-neutral"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--divider)] bg-background-paper text-text-primary hover:bg-background-neutral"
               >
                 <ArrowLeft width={18} height={18} />
               </button>
@@ -170,10 +183,29 @@ export function OnboardingFunnel() {
               type="button"
               onClick={next}
               disabled={!canContinue(key, a)}
-              className="rounded-lg bg-primary px-6 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
+              className="h-11 flex-1 rounded-lg bg-primary px-6 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40 sm:flex-none"
             >
               {ctaLabel}
             </button>
+            {/* full-width on its own line below sm, inline with the CTA above */}
+            {defer &&
+              (defer.on ? (
+                <button
+                  type="button"
+                  onClick={() => defer.set(false)}
+                  className="h-11 w-full rounded-lg border-2 border-warning bg-warning-lighter px-5 text-sm font-bold text-warning-darker hover:bg-warning-light sm:w-auto"
+                >
+                  Take the {defer.what} now
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => defer.set(true)}
+                  className="h-11 w-full rounded-lg border-2 border-[var(--divider)] bg-background-paper px-5 text-sm font-bold text-text-primary hover:border-text-secondary hover:bg-background-neutral sm:w-auto"
+                >
+                  I&rsquo;ll do this later
+                </button>
+              ))}
           </div>
         )}
       </div>
@@ -488,13 +520,7 @@ function renderStep(
             onRetake={() => setA({ weightPhoto: false, weightPhotoUrl: "" })}
             note="Must be taken live on your camera now — gallery uploads aren't accepted."
           />
-          {!a.weightPhoto && (
-            <DeferChoice
-              deferred={a.weightPhotoDeferred}
-              onToggle={(v) => setA({ weightPhotoDeferred: v })}
-              what="weight photo"
-            />
-          )}
+          {!a.weightPhoto && a.weightPhotoDeferred && <DeferNotice what="weight photo" />}
         </div>
       );
 
@@ -511,13 +537,7 @@ function renderStep(
             onRetake={() => setA({ idDoc: false, idDocUrl: "" })}
             note="A prescriber will visually confirm your ID matches your weight photo before issuing."
           />
-          {!a.idDoc && (
-            <DeferChoice
-              deferred={a.idDocDeferred}
-              onToggle={(v) => setA({ idDocDeferred: v })}
-              what="ID photo"
-            />
-          )}
+          {!a.idDoc && a.idDocDeferred && <DeferNotice what="ID photo" />}
         </div>
       );
 
@@ -1079,43 +1099,17 @@ function LeadCapture({ reason }: { reason: string }) {
   );
 }
 
-/** "I'll do this later" escape hatch on the capture steps — camera stays the
- *  default; deferring puts the order on hold after payment, never skips it. */
-function DeferChoice({
-  deferred,
-  onToggle,
-  what,
-}: {
-  deferred: boolean;
-  onToggle: (v: boolean) => void;
-  what: string;
-}) {
-  if (deferred) {
-    return (
-      <div className="mt-3 flex items-start justify-between gap-3 rounded-lg bg-warning-lighter px-4 py-3">
-        <p className="text-sm leading-relaxed text-warning-darker">
-          <span className="font-bold">Skipped for now.</span> You can finish your order, but it stays{" "}
-          <span className="font-bold">on hold</span> — no prescriber review and no charge — until you take the {what}{" "}
-          from your dashboard.
-        </p>
-        <button
-          type="button"
-          onClick={() => onToggle(false)}
-          className="shrink-0 text-sm font-bold text-warning-darker underline hover:no-underline"
-        >
-          Take it now
-        </button>
-      </div>
-    );
-  }
+/** What deferring actually costs. The toggle itself lives in the footer next
+ *  to the primary CTA; this only explains the hold once it's chosen. */
+function DeferNotice({ what }: { what: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => onToggle(true)}
-      className="mt-3 text-sm font-semibold text-text-secondary underline hover:text-text-primary"
-    >
-      I&rsquo;ll take the {what} later
-    </button>
+    <div className="mt-4 rounded-lg bg-warning-lighter px-4 py-3">
+      <p className="text-sm leading-relaxed text-warning-darker">
+        <span className="font-bold">Skipped for now.</span> You can finish your order, but it stays{" "}
+        <span className="font-bold">on hold</span> — no prescriber review and no charge — until you take the {what}{" "}
+        from your dashboard.
+      </p>
+    </div>
   );
 }
 
