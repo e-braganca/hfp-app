@@ -144,6 +144,13 @@ export function EscalationDrawer({
               />
 
               <div className="rounded-lg bg-background-paper p-5 shadow-card">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Order request</p>
+                <p className="mt-2 text-base font-bold text-text-primary">{d.orderRequest.med}</p>
+                <p className="text-sm text-text-secondary">{d.orderRequest.detail}</p>
+                <p className="mt-1 text-sm text-text-secondary">{d.orderRequest.meta}</p>
+              </div>
+
+              <div className="rounded-lg bg-background-paper p-5 shadow-card">
                 <p className="text-sm font-bold text-text-primary">Medication history</p>
                 <p className="text-xs text-text-secondary">
                   {e.med} · {pharmacyName(e.pharmacyCode)} SOP {d.sopCitation.version}
@@ -152,27 +159,8 @@ export function EscalationDrawer({
               </div>
             </div>
 
-            <div className="space-y-6">
-              <AiRecommendationCard ai={d.ai} />
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="rounded-lg bg-background-paper p-5 shadow-card">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Order request</p>
-                  <p className="mt-2 text-base font-bold text-text-primary">{d.orderRequest.med}</p>
-                  <p className="text-sm text-text-secondary">{d.orderRequest.detail}</p>
-                  <p className="mt-1 text-sm text-text-secondary">{d.orderRequest.meta}</p>
-                </div>
-                <div className="rounded-lg bg-background-paper p-5 shadow-card">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">{d.sopCitation.rule}</p>
-                    <span className="rounded-md bg-background-neutral px-2 py-0.5 font-mono text-xs font-bold text-text-secondary">
-                      {d.sopCitation.version}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm italic leading-relaxed text-text-primary">“{d.sopCitation.quote}”</p>
-                </div>
-              </div>
-            </div>
+            {/* SOP rule rides inside the AI card, as on the review pages */}
+            <AiRecommendationCard ai={d.ai} sop={d.sopCitation} />
           </div>
         </div>
 

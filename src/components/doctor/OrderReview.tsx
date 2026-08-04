@@ -4,10 +4,9 @@ import { useState } from "react";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { NewOrder } from "@/lib/doctor/types";
 import { AiRecommendationCard, AuditNote } from "./AiRecommendationCard";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Modal } from "@/components/ui/Modal";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { PatientSummaryCard } from "./PatientSummaryCard";
+import { ReviewShell } from "./ReviewShell";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
@@ -39,17 +38,13 @@ export function OrderReview({ order }: { order: NewOrder }) {
 
   return (
     <>
-      <PageHeader
+      <ReviewShell
         title="New Order Review"
         subtitle={`${order.ref} · ${pharmacyName(order.pharmacyCode)} · new GLP-1 start`}
-      />
-
-      <div className="px-6 py-6 lg:px-8">
-        <Breadcrumb backHref="/doctor/queue" trail={["New Orders", order.ref]} />
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(320px,380px)_1fr]">
-          {/* left column */}
-          <div className="space-y-6">
+        backHref="/doctor/queue"
+        trail={["New Orders", order.ref]}
+        left={
+          <>
             <PatientSummaryCard
               ref_={order.ref}
               nhs={order.nhs}
@@ -105,9 +100,9 @@ export function OrderReview({ order }: { order: NewOrder }) {
                 Visually confirm the ID matches the weight photo before issuing.
               </div>
             </div>
-          </div>
-
-          {/* right column — AI recommendation + decision */}
+          </>
+        }
+        right={
           <AiRecommendationCard
             ai={order.ai}
             actions={
@@ -115,11 +110,11 @@ export function OrderReview({ order }: { order: NewOrder }) {
                 <OrderOutcome decision={decision} order={order} />
               ) : (
                 <>
-                  <div className="mt-6 flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
                       onClick={approve}
-                      className={`flex-1 rounded-lg px-5 py-3 text-sm font-bold text-white ${
+                      className={`flex-1 basis-40 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-bold text-white ${
                         isDecline ? "bg-error hover:bg-error-dark" : "bg-primary hover:bg-primary-dark"
                       }`}
                     >
@@ -128,14 +123,14 @@ export function OrderReview({ order }: { order: NewOrder }) {
                     <button
                       type="button"
                       onClick={() => setEmailing(true)}
-                      className="flex-1 rounded-lg border border-[var(--divider)] px-5 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
+                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
                     >
                       Request more info
                     </button>
                     <button
                       type="button"
                       onClick={() => setEscalating(true)}
-                      className="flex-1 rounded-lg border border-warning px-5 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
+                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
                     >
                       Escalate
                     </button>
@@ -145,8 +140,8 @@ export function OrderReview({ order }: { order: NewOrder }) {
               )
             }
           />
-        </div>
-      </div>
+        }
+      />
 
       <RequestInfoEmailModal
         open={emailing}
@@ -251,7 +246,7 @@ export function OutcomePanel({
     slate: "bg-background-neutral text-text-secondary",
   }[tone];
   return (
-    <div className="mt-6 rounded-lg bg-background-neutral p-6 text-center">
+    <div className="rounded-lg bg-background-neutral p-6 text-center">
       <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${toneCls}`}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="m5 12 5 5L20 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />

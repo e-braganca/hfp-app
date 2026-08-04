@@ -20,7 +20,9 @@ function parseEventDate(s: string): Date | null {
  *     event, not the wall clock — these records are fixed stories);
  *   · on a treatment-gap case, everything before the gap, however recent —
  *     the gap node itself states the dates it spans, so nothing is lost.
- * Whatever stays visible scrolls after six rows.
+ * No internal scroller: both hosts (the review page's left rail and the
+ * escalation drawer) already scroll, and nesting one inside the other traps
+ * the wheel over the card.
  *
  * Shared by the doctor's complex-repeat review and the admin escalation drawer.
  */
@@ -65,7 +67,7 @@ export function MedicationTimeline({ events }: { events: TimelineEvent[] }) {
         </button>
       )}
 
-      <ol className={`space-y-0 ${shown.length > 6 ? "max-h-[360px] overflow-y-auto pr-2" : ""}`}>
+      <ol className="space-y-0">
         {shown.map(({ e, i }, idx) => {
           const last = idx === shown.length - 1;
           const dimmed = expanded && isCollapsed(i);
