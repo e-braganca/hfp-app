@@ -1,22 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { EscalationDrawer } from "@/components/admin/EscalationDrawer";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
+import { ChevronRight } from "@/components/ui/icons";
+import { RAG_TEXT } from "@/lib/doctor/rag";
 import { pharmacyName } from "@/lib/doctor/data";
 import { ADMIN_ESCALATIONS } from "@/lib/admin/data";
 import { OUTCOME_LABEL, type EscalationStatus } from "@/lib/admin/types";
 import type { Rag } from "@/lib/doctor/types";
 
-const RAG_TEXT: Record<Rag, string> = {
-  green: "text-success-dark",
-  amber: "text-warning-dark",
-  yellow: "text-warning-dark",
-  red: "text-error",
-};
 const RAG_BORDER: Record<Rag, string> = {
   green: "border-success/50",
   amber: "border-warning/50",
@@ -29,27 +26,40 @@ export default function AdminEscalationsPage() {
     Object.fromEntries(ADMIN_ESCALATIONS.map((e) => [e.ref, e.status])),
   );
   const [tab, setTab] = useState<"open" | "past">("open");
+  const [activeRef, setActiveRef] = useState<string | null>(null);
   const [guideFor, setGuideFor] = useState<string | null>(null);
   const [declineFor, setDeclineFor] = useState<string | null>(null);
   const [infoFor, setInfoFor] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const resolve = (ref: string, status: Exclude<EscalationStatus, "open">, toastMsg: string) => {
-    setStatuses((s) => ({ ...s, [ref]: status }));
-    setGuideFor(null);
-    setDeclineFor(null);
-    setInfoFor(null);
-    setToast(toastMsg);
-  };
-
   // Open = untouched; Past = returned/awaiting info; declined leave the board entirely.
-  const infoPatient = ADMIN_ESCALATIONS.find((e) => e.ref === infoFor);
-
   const visible = ADMIN_ESCALATIONS.filter((e) =>
     tab === "open" ? statuses[e.ref] === "open" : statuses[e.ref] === "guidance" || statuses[e.ref] === "info",
   );
   const openCount = ADMIN_ESCALATIONS.filter((e) => statuses[e.ref] === "open").length;
   const pastCount = ADMIN_ESCALATIONS.filter((e) => ["guidance", "info"].includes(statuses[e.ref])).length;
+
+  const active = ADMIN_ESCALATIONS.find((e) => e.ref === activeRef) ?? null;
+  const infoPatient = ADMIN_ESCALATIONS.find((e) => e.ref === infoFor);
+
+  /**
+   * Resolve, then hand the reviewer the next case in list order. The resolved
+   * one drops out of Open, so "next" is the one that followed it — wrapping to
+   * the top when it was last, since everything left sits above it.
+   */
+  const resolve = (ref: string, status: Exclude<EscalationStatus, "open">, toastMsg: string) => {
+    const queue = visible.map((e) => e.ref);
+    const remaining = queue.filter((r) => r !== ref);
+    const at = queue.indexOf(ref);
+    const nextRef = remaining.length === 0 ? null : (remaining[at] ?? remaining[0]);
+
+    setStatuses((s) => ({ ...s, [ref]: status }));
+    setGuideFor(null);
+    setDeclineFor(null);
+    setInfoFor(null);
+    setActiveRef(nextRef);
+    setToast(nextRef ? toastMsg : `${toastMsg} — no open escalations left`);
+  };
 
   return (
     <>
@@ -67,7 +77,10 @@ export default function AdminEscalationsPage() {
             <button
               key={t.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => {
+                setTab(t.key);
+                setActiveRef(null);
+              }}
               className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-bold transition-colors ${
                 tab === t.key
                   ? "border-primary text-primary-dark"
@@ -92,92 +105,27 @@ export default function AdminEscalationsPage() {
           </p>
         )}
 
-        {visible.map((e) => {
-          const status = statuses[e.ref];
-          const resolved = status !== "open";
-          return (
-            <div
-              key={e.ref}
-              className={`rounded-lg border-2 bg-background-paper p-5 shadow-card ${
-                resolved ? "border-[var(--divider)]" : RAG_BORDER[e.rag]
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm font-bold text-text-primary">{e.ref}</span>
-                  <span className="flex items-center gap-1.5 text-sm text-text-secondary">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background-neutral text-text-disabled">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="2" />
-                        <path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                    </span>
-                    {pharmacyName(e.pharmacyCode)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-text-secondary">
-                    Escalated by <span className="font-semibold text-text-primary">{e.escalatedBy}</span>
-                  </span>
-                  {!resolved && <span className={`text-sm font-semibold ${RAG_TEXT[e.rag]}`}>waiting {e.waited}</span>}
-                  {resolved ? (
-                    <RagPill rag={OUTCOME_LABEL[status].rag} label={OUTCOME_LABEL[status].label} />
-                  ) : (
-                    <RagPill rag={e.rag} />
-                  )}
-                </div>
-              </div>
-
-              <h3 className="mt-3 text-lg font-bold text-text-primary">{e.reason}</h3>
-              <p className="text-sm text-text-secondary">{e.med}</p>
-
-              {e.note && (
-                <div className="mt-3 flex gap-2.5 rounded-lg bg-background-neutral px-4 py-3 text-sm text-text-primary">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0 text-text-disabled">
-                    <path d="M4 5h16v11H8l-4 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                  </svg>
-                  {e.note}
-                </div>
-              )}
-
-              {!resolved && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setGuideFor(e.ref)}
-                      className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
-                    >
-                      Return with guidance
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInfoFor(e.ref)}
-                      className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-bold text-text-primary hover:bg-background-neutral"
-                    >
-                      Request patient info
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeclineFor(e.ref)}
-                      className="rounded-lg border border-error px-4 py-2.5 text-sm font-bold text-error hover:bg-error-lighter"
-                    >
-                      Decline order
-                    </button>
-                  </div>
-                  <p className="flex items-center gap-1.5 text-xs text-text-secondary">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                      <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
-                      <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" />
-                    </svg>
-                    Every outcome is audit-logged with SOP version
-                  </p>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {visible.map((e) => (
+          <EscalationCard
+            key={e.ref}
+            e={e}
+            status={statuses[e.ref]}
+            active={activeRef === e.ref}
+            onOpen={() => setActiveRef(e.ref)}
+          />
+        ))}
       </div>
+
+      <EscalationDrawer
+        escalation={active}
+        status={active ? statuses[active.ref] : "open"}
+        position={active ? visible.findIndex((v) => v.ref === active.ref) + 1 : 0}
+        total={visible.length}
+        onClose={() => setActiveRef(null)}
+        onGuidance={() => active && setGuideFor(active.ref)}
+        onInfo={() => active && setInfoFor(active.ref)}
+        onDecline={() => active && setDeclineFor(active.ref)}
+      />
 
       {/* return with guidance modal */}
       <Modal
@@ -259,5 +207,99 @@ export default function AdminEscalationsPage() {
 
       <Toast message={toast} onDone={() => setToast(null)} />
     </>
+  );
+}
+
+/** List card. Decisions moved into the drawer, so the card's only job is to
+ *  summarise the case and show whether it's the one under review. */
+function EscalationCard({
+  e,
+  status,
+  active,
+  onOpen,
+}: {
+  e: (typeof ADMIN_ESCALATIONS)[number];
+  status: EscalationStatus;
+  active: boolean;
+  onOpen: () => void;
+}) {
+  const resolved = status !== "open";
+  const el = useRef<HTMLDivElement>(null);
+
+  // when resolving advances the drawer, bring the new case into view behind it
+  useEffect(() => {
+    if (active) el.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [active]);
+
+  return (
+    <div ref={el} className={active ? "relative" : undefined}>
+      {active && (
+        <span className="absolute -left-3 top-6 bottom-6 w-1.5 rounded-full bg-primary" aria-hidden />
+      )}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(ev) => {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            onOpen();
+          }
+        }}
+        className={`cursor-pointer rounded-lg border-2 bg-background-paper p-5 text-left shadow-card transition-shadow hover:shadow-dialog focus:outline-none ${
+          active
+            ? "border-primary ring-2 ring-primary-main-24"
+            : resolved
+              ? "border-[var(--divider)]"
+              : RAG_BORDER[e.rag]
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* first in the row so it stays readable in the sliver of list the
+                open drawer leaves visible */}
+            {active && (
+              <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">
+                Reviewing
+              </span>
+            )}
+            <span className="font-mono text-sm font-bold text-text-primary">{e.ref}</span>
+            <span className="text-sm font-semibold text-text-primary">{e.patientName}</span>
+            <span className="text-sm text-text-secondary">{pharmacyName(e.pharmacyCode)}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-text-secondary">
+              Escalated by <span className="font-semibold text-text-primary">{e.escalatedBy}</span>
+            </span>
+            {!resolved && <span className={`text-sm font-semibold ${RAG_TEXT[e.rag]}`}>waiting {e.waited}</span>}
+            {resolved ? (
+              <RagPill rag={OUTCOME_LABEL[status].rag} label={OUTCOME_LABEL[status].label} />
+            ) : (
+              <RagPill rag={e.rag} />
+            )}
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold text-text-primary">{e.reason}</h3>
+            <p className="text-sm text-text-secondary">{e.med}</p>
+          </div>
+          <span className="flex shrink-0 items-center gap-1 text-sm font-bold text-primary-dark">
+            {resolved ? "View record" : "Open review"}
+            <ChevronRight width={16} height={16} />
+          </span>
+        </div>
+
+        {e.note && (
+          <div className="mt-3 flex gap-2.5 rounded-lg bg-background-neutral px-4 py-3 text-sm text-text-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0 text-text-disabled">
+              <path d="M4 5h16v11H8l-4 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            </svg>
+            {e.note}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

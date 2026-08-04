@@ -4,11 +4,28 @@
 // Escalations, Doctors, Pharmacies & SOPs) and legacy adminVals().
 // ============================================================================
 
-import type { Rag } from "@/lib/doctor/types";
+import type { AiRecommendation, Rag, TimelineEvent } from "@/lib/doctor/types";
 
 // ---- Escalations (FC-08) --------------------------------------------------
 
 export type EscalationStatus = "open" | "guidance" | "info" | "declined";
+
+/**
+ * The clinical record behind an escalation — the same context the doctor had
+ * when they escalated. Senior review can't be a judgement on a one-line
+ * headline, so the drawer shows this in full.
+ */
+export interface EscalationDetail {
+  nhs: string;
+  age: number;
+  bmi: number;
+  ethnicity: string;
+  comorbidities: string[];
+  history: TimelineEvent[];
+  ai: AiRecommendation;
+  orderRequest: { med: string; detail: string; meta: string };
+  sopCitation: { rule: string; version: string; quote: string };
+}
 
 export interface AdminEscalation {
   ref: string;
@@ -22,6 +39,7 @@ export interface AdminEscalation {
   med: string; // "Wegovy (semaglutide) · 2.4 mg"
   note?: string; // optional doctor question
   status: EscalationStatus;
+  detail: EscalationDetail;
 }
 
 /** Resolution outcome copy shown once an escalation is resolved. */
