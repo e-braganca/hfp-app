@@ -75,7 +75,11 @@ export interface AdminDoctor {
   /** compliance %, null while onboarding */
   pct: number | null;
   filter: QueueFilter;
+  /** account state — set by the admin, independent of who's logged in now */
   status: DoctorStatus;
+  /** live platform presence; lastSeen only shown when offline */
+  online: boolean;
+  lastSeen: string; // "12 min ago" / "Yesterday 18:40"
   cases: AssignedCase[];
 }
 

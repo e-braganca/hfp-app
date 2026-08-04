@@ -1,6 +1,6 @@
 // Small, reusable admin doctor UI bits — shared by the Overview team table and
 // the Doctors management page.
-import { RAG_FILL, complianceRag } from "@/lib/doctor/rag";
+import { RAG_TEXT, complianceRag } from "@/lib/doctor/rag";
 import type { AdminDoctor, DoctorStatus, QueueFilter } from "@/lib/admin/types";
 
 export function DoctorStatusPill({ status }: { status: DoctorStatus }) {
@@ -10,6 +10,21 @@ export function DoctorStatusPill({ status }: { status: DoctorStatus }) {
     onboarding: { label: "Onboarding", cls: "bg-warning-lighter text-warning-darker" },
   }[status];
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${map.cls}`}>{map.label}</span>;
+}
+
+/** Live presence — is this clinician on the platform right now? */
+export function PresencePill({ online, lastSeen }: { online: boolean; lastSeen: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+        online ? "bg-success-lighter text-success-darker" : "bg-grey-200 text-text-secondary"
+      }`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-grey-500"}`} />
+        {online ? "Online" : "Offline"}
+      </span>
+      {!online && <span className="text-[11px] text-text-disabled">{lastSeen}</span>}
+    </span>
+  );
 }
 
 export function QueueAccessBadge({ filter }: { filter: QueueFilter }) {
@@ -59,15 +74,7 @@ export function WorkingOn({ cases }: { cases: AdminDoctor["cases"] }) {
 
 export function MiniComplianceBar({ pct }: { pct: number | null }) {
   if (pct === null) return <span className="text-xs text-text-disabled">Onboarding</span>;
-  const rag = complianceRag(pct);
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 w-28 overflow-hidden rounded-full bg-background-neutral">
-        <div className={`h-full rounded-full ${RAG_FILL[rag]}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="font-mono text-sm font-bold text-text-primary">{pct}%</span>
-    </div>
-  );
+  return <span className={`font-mono text-sm font-bold ${RAG_TEXT[complianceRag(pct)]}`}>{pct}%</span>;
 }
 
 export function CaseCategoryPill({ cat }: { cat: string }) {

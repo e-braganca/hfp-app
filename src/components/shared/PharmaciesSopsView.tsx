@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Toast } from "@/components/ui/Toast";
 import { CheckIcon, ProtocolIcon } from "@/components/ui/icons";
 import { SopUploadDrawer } from "@/components/admin/SopUploadDrawer";
-import { RAG_FILL, complianceRag } from "@/lib/doctor/rag";
+import { RAG_TEXT, complianceRag } from "@/lib/doctor/rag";
 import { PHARMACIES, protocolFor } from "@/lib/doctor/data";
 import { ADMIN_PHARMACIES } from "@/lib/admin/data";
 import {
@@ -221,12 +221,7 @@ export function PharmaciesSopsView({ editable = false }: { editable?: boolean })
                       {p.region} · SOP {p.sopVersion}
                     </span>
                   </span>
-                  <span className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="font-mono text-xs font-bold text-text-primary">{p.compliance}%</span>
-                    <span className="h-1.5 w-12 overflow-hidden rounded-full bg-background-neutral">
-                      <span className={`block h-full rounded-full ${RAG_FILL[pRag]}`} style={{ width: `${p.compliance}%` }} />
-                    </span>
-                  </span>
+                  <span className={`shrink-0 font-mono text-sm font-bold ${RAG_TEXT[pRag]}`}>{p.compliance}%</span>
                 </button>
               );
             })}

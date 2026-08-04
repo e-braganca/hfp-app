@@ -16,6 +16,14 @@ export const RAG_FILL: Record<Rag, string> = {
   red: "bg-error",
 };
 
+/** Text colour for a bare RAG figure (compliance % with no bar). */
+export const RAG_TEXT: Record<Rag, string> = {
+  green: "text-success-dark",
+  amber: "text-warning-dark",
+  yellow: "text-warning-dark",
+  red: "text-error",
+};
+
 export const RAG_LABEL: Record<Rag, string> = {
   green: "Green",
   amber: "Amber",

@@ -5,6 +5,7 @@ import {
   CaseCategoryPill,
   DoctorIdentity,
   DoctorStatusPill,
+  PresencePill,
   MiniComplianceBar,
   QueueAccessBadge,
   WorkingOn,
@@ -92,7 +93,7 @@ export default function AdminDoctorsPage() {
     if (!clean) return;
     const full = clean.startsWith("Dr.") ? clean : `Dr. ${clean}`;
     const initials = full.replace("Dr. ", "").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-    setDoctors((ds) => [...ds, { name: full, initials, gmc: "pending", pct: null, filter: "green", status: "onboarding", cases: [] }]);
+    setDoctors((ds) => [...ds, { name: full, initials, gmc: "pending", pct: null, filter: "green", status: "onboarding", online: false, lastSeen: "Never signed in", cases: [] }]);
     setAddOpen(false);
     setToast(`Account provisioned — invitation & certification exam sent to ${full}`);
   };
@@ -127,7 +128,7 @@ export default function AdminDoctorsPage() {
             <div className="min-w-[920px]">
               <div className={`grid ${cols} border-y border-[var(--divider)] bg-grey-100`}>
                 <div />
-                {["Doctor", "Status", "Queue Access", "Working On", "SOP Compliance", "Actions"].map((h) => (
+                {["Doctor", "Presence", "Queue Access", "Working On", "SOP Compliance", "Actions"].map((h) => (
                   <div key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary">{h}</div>
                 ))}
               </div>
@@ -155,8 +156,11 @@ export default function AdminDoctorsPage() {
                       >
                         <ChevronDown width={18} height={18} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
                       </button>
-                      <div className="px-4 py-3"><DoctorIdentity doctor={d} /></div>
-                      <div className="px-4 py-3"><DoctorStatusPill status={d.status} /></div>
+                      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                        <DoctorIdentity doctor={d} />
+                        {d.status !== "active" && <DoctorStatusPill status={d.status} />}
+                      </div>
+                      <div className="px-4 py-3"><PresencePill online={d.online} lastSeen={d.lastSeen} /></div>
                       <div className="px-4 py-3"><QueueAccessBadge filter={d.filter} /></div>
                       <div className="px-4 py-3"><WorkingOn cases={d.cases} /></div>
                       <div className="px-4 py-3"><MiniComplianceBar pct={d.pct} /></div>
