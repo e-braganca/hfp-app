@@ -98,7 +98,8 @@ export default function AdminDoctorsPage() {
     setToast(`Account provisioned — invitation & certification exam sent to ${full}`);
   };
 
-  const cols = "grid-cols-[32px_1.5fr_0.7fr_0.9fr_1fr_1fr_1.1fr]";
+  // compliance is now a bare "99%", so its track gives its width to Actions
+  const cols = "grid-cols-[32px_1.5fr_0.85fr_0.85fr_1.05fr_0.5fr_1.6fr] [&>*]:min-w-0";
   const reassignWarn = reassign && doctors.find((d) => d.name === reassign.to)?.filter === "green" && reassign.case_.rag !== "green";
 
   return (
@@ -124,8 +125,9 @@ export default function AdminDoctorsPage() {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <div className="min-w-[920px]">
+          {/* scrolls at its natural width below lg; fits the viewport from lg up */}
+          <div className="overflow-x-auto lg:overflow-x-visible">
+            <div className="min-w-[920px] lg:min-w-0">
               <div className={`grid ${cols} border-y border-[var(--divider)] bg-grey-100`}>
                 <div />
                 {["Doctor", "Presence", "Queue Access", "Working On", "SOP Compliance", "Actions"].map((h) => (
@@ -168,18 +170,18 @@ export default function AdminDoctorsPage() {
                         {d.status === "onboarding" ? (
                           <span className="text-xs text-text-disabled">Awaiting exam</span>
                         ) : (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
                               onClick={() => toggleFilter(d.name)}
-                              className="rounded-lg border border-[var(--divider)] px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-background-neutral"
+                              className="whitespace-nowrap rounded-lg border border-[var(--divider)] px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-background-neutral"
                             >
                               {d.filter === "green" ? "Allow full queue" : "Set Green-only"}
                             </button>
                             <button
                               type="button"
                               onClick={() => toggleSuspend(d.name)}
-                              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${
+                              className={`whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${
                                 d.status === "suspended"
                                   ? "border-success text-success-dark hover:bg-success-lighter"
                                   : "border-error text-error hover:bg-error-lighter"

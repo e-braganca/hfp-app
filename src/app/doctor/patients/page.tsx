@@ -16,7 +16,8 @@ export default function PatientsPage() {
   const review = PATIENTS.filter((p) => p.status === "review").length;
   const paused = PATIENTS.filter((p) => p.status === "paused").length;
 
-  const cols = "grid-cols-[1.3fr_0.7fr_0.5fr_1.3fr_1.5fr_0.9fr_0.9fr]";
+  // scrolls at its natural width below lg; fluid (and truncating) from lg up
+  const cols = "grid-cols-[1.2fr_0.55fr_0.45fr_1.15fr_1.5fr_0.95fr_1fr] [&>*]:min-w-0";
 
   return (
     <>
@@ -34,8 +35,8 @@ export default function PatientsPage() {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-lg bg-background-paper shadow-card">
-          <div className="overflow-x-auto">
-            <div className="min-w-[880px]">
+          <div className="overflow-x-auto lg:overflow-x-visible">
+            <div className="min-w-[880px] lg:min-w-0">
               <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
                 <Head>Patient</Head>
                 <Head>Age / Sex</Head>
@@ -53,22 +54,22 @@ export default function PatientsPage() {
                     className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0 hover:bg-grey-100`}
                   >
                     <div className="px-4 py-4">
-                      <div className="text-sm font-bold text-text-primary">{p.name}</div>
+                      <div className="truncate text-sm font-bold text-text-primary" title={p.name}>{p.name}</div>
                       <div className="font-mono text-xs text-text-secondary">{p.ref}</div>
                     </div>
                     <div className="px-4 py-4 text-sm text-text-secondary">{p.age} · {p.sex[0]}</div>
                     <div className="px-4 py-4 text-sm text-text-secondary">{p.bmi}</div>
                     <div className="px-4 py-4"><PharmacyLabel code={p.pharmacyCode} /></div>
                     <div className="px-4 py-4">
-                      <div className="text-sm font-semibold text-text-primary">{p.med}</div>
+                      <div className="truncate text-sm font-semibold text-text-primary" title={p.med}>{p.med}</div>
                       <div className="text-xs text-text-secondary">{p.dose}</div>
                     </div>
                     <div className="px-4 py-4">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${s.cls}`}>
+                      <span className={`inline-flex max-w-full truncate rounded-full px-2.5 py-1 text-xs font-bold ${s.cls}`}>
                         {s.label}
                       </span>
                     </div>
-                    <div className="px-4 py-4 text-sm text-text-secondary">{p.lastReview}</div>
+                    <div className="truncate px-4 py-4 text-sm text-text-secondary">{p.lastReview}</div>
                   </div>
                 );
               })}

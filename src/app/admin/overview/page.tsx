@@ -95,15 +95,16 @@ export default function AdminOverviewPage() {
               Manage doctors
             </Link>
           </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-[760px]">
-              <div className="grid grid-cols-[1.4fr_0.7fr_0.9fr_1.1fr_1fr] border-y border-[var(--divider)] bg-grey-100">
+          {/* scrolls at its natural width below lg; fits the viewport from lg up */}
+          <div className="overflow-x-auto lg:overflow-x-visible">
+            <div className="min-w-[760px] lg:min-w-0">
+              <div className="grid grid-cols-[1.4fr_0.7fr_0.9fr_1.1fr_1fr] [&>*]:min-w-0 border-y border-[var(--divider)] bg-grey-100">
                 {["Doctor", "Status", "Queue Access", "Working On", "SOP Compliance"].map((h) => (
                   <div key={h} className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary">{h}</div>
                 ))}
               </div>
               {ADMIN_DOCTORS.map((d) => (
-                <div key={d.name} className="grid grid-cols-[1.4fr_0.7fr_0.9fr_1.1fr_1fr] items-center border-b border-[var(--divider)] last:border-0">
+                <div key={d.name} className="grid grid-cols-[1.4fr_0.7fr_0.9fr_1.1fr_1fr] [&>*]:min-w-0 items-center border-b border-[var(--divider)] last:border-0">
                   <div className="px-5 py-3"><DoctorIdentity doctor={d} /></div>
                   <div className="px-5 py-3"><DoctorStatusPill status={d.status} /></div>
                   <div className="px-5 py-3"><QueueAccessBadge filter={d.filter} /></div>

@@ -25,11 +25,12 @@ export interface PastRequest {
   note?: string;
 }
 
-export const OUTCOME_META: Record<RequestOutcome, { label: string; cls: string }> = {
-  approved: { label: "Approved & issued", cls: "bg-success-lighter text-success-dark" },
-  declined: { label: "Declined", cls: "bg-error-lighter text-error-dark" },
-  info: { label: "Info requested", cls: "bg-warning-lighter text-warning-dark" },
-  escalated: { label: "Escalated", cls: "bg-info-lighter text-info-dark" },
+/** `label` for filters and prose; `short` for the table cell, which is tight. */
+export const OUTCOME_META: Record<RequestOutcome, { label: string; short: string; cls: string }> = {
+  approved: { label: "Approved & issued", short: "Approved", cls: "bg-success-lighter text-success-dark" },
+  declined: { label: "Declined", short: "Declined", cls: "bg-error-lighter text-error-dark" },
+  info: { label: "Info requested", short: "Info requested", cls: "bg-warning-lighter text-warning-dark" },
+  escalated: { label: "Escalated", short: "Escalated", cls: "bg-info-lighter text-info-dark" },
 };
 
 export const PAST_REQUESTS: PastRequest[] = [

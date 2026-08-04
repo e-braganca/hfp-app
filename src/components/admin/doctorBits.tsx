@@ -15,8 +15,8 @@ export function DoctorStatusPill({ status }: { status: DoctorStatus }) {
 /** Live presence — is this clinician on the platform right now? */
 export function PresencePill({ online, lastSeen }: { online: boolean; lastSeen: string }) {
   return (
-    <span className="inline-flex items-center gap-2">
-      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
         online ? "bg-success-lighter text-success-darker" : "bg-grey-200 text-text-secondary"
       }`}>
         <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-grey-500"}`} />
@@ -46,9 +46,9 @@ export function DoctorIdentity({ doctor }: { doctor: AdminDoctor }) {
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-lighter text-xs font-bold text-primary-dark">
         {doctor.initials}
       </span>
-      <div>
-        <p className="text-sm font-bold text-text-primary">{doctor.name}</p>
-        <p className="font-mono text-xs text-text-secondary">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-text-primary" title={doctor.name}>{doctor.name}</p>
+        <p className="truncate font-mono text-xs text-text-secondary">
           {doctor.gmc === "pending" ? "GMC pending" : `GMC ${doctor.gmc}`}
         </p>
       </div>

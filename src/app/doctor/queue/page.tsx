@@ -100,8 +100,9 @@ export default function WorkQueuePage() {
 function TableCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="overflow-hidden rounded-lg bg-background-paper shadow-card">
-      <div className="overflow-x-auto">
-        <div className="min-w-[840px]">{children}</div>
+      {/* scrolls at its natural width below lg; fits the viewport from lg up */}
+      <div className="overflow-x-auto lg:overflow-x-visible">
+        <div className="min-w-[840px] lg:min-w-0">{children}</div>
       </div>
     </div>
   );
@@ -127,8 +128,8 @@ function PatientCell({ ref_, nhs }: { ref_: string; nhs: string }) {
 function MedCell({ med, dose }: { med: string; dose: string }) {
   return (
     <div className="px-4 py-4">
-      <div className="text-sm font-bold text-text-primary">{med}</div>
-      <div className="text-xs text-text-secondary">{dose}</div>
+      <div className="truncate text-sm font-bold text-text-primary" title={med}>{med}</div>
+      <div className="truncate text-xs text-text-secondary">{dose}</div>
     </div>
   );
 }
@@ -136,7 +137,7 @@ function MedCell({ med, dose }: { med: string; dose: string }) {
 // ---- New Orders -----------------------------------------------------------
 
 function NewOrdersTab({ rows }: { rows: typeof NEW_ORDERS }) {
-  const cols = "grid-cols-[1.1fr_1.4fr_1.5fr_1.6fr_auto_40px]";
+  const cols = "grid-cols-[1.1fr_1.35fr_1.6fr_1.55fr_auto_40px] [&>*]:min-w-0";
   return (
     <TableCard>
       <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
@@ -205,7 +206,7 @@ function SimpleRepeatsTab({
     onSigned(n);
   };
 
-  const cols = "grid-cols-[44px_1.1fr_1.4fr_1.5fr_1.2fr_auto_40px]";
+  const cols = "grid-cols-[44px_1.1fr_1.4fr_1.5fr_1.2fr_auto_40px] [&>*]:min-w-0";
 
   if (done) {
     return (
@@ -342,7 +343,7 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
 // ---- Complex Repeats ------------------------------------------------------
 
 function ComplexRepeatsTab({ rows }: { rows: typeof COMPLEX_CASES }) {
-  const cols = "grid-cols-[1.1fr_1.4fr_1.5fr_1.6fr_auto_40px]";
+  const cols = "grid-cols-[1.1fr_1.35fr_1.6fr_1.55fr_auto_40px] [&>*]:min-w-0";
   return (
     <TableCard>
       <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
@@ -377,7 +378,7 @@ function ComplexRepeatsTab({ rows }: { rows: typeof COMPLEX_CASES }) {
 // ---- Escalated (read-only) ------------------------------------------------
 
 function EscalatedTab({ rows }: { rows: typeof ESCALATIONS }) {
-  const cols = "grid-cols-[1.1fr_1.4fr_1.5fr_1.6fr_auto_40px]";
+  const cols = "grid-cols-[1.1fr_1.35fr_1.6fr_1.55fr_auto_40px] [&>*]:min-w-0";
   return (
     <TableCard>
       <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>

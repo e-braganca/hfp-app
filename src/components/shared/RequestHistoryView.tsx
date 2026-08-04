@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
-import { RagPill } from "@/components/ui/StatusPill";
+import { RAG_FILL, RAG_LABEL } from "@/lib/doctor/rag";
 import { pharmacyName } from "@/lib/doctor/data";
 import {
   OUTCOME_META,
@@ -20,6 +20,22 @@ import {
 
 const OUTCOMES: (RequestOutcome | "all")[] = ["all", "approved", "declined", "info", "escalated"];
 const CATEGORIES = ["all", "New Order", "Simple Repeat", "Complex Repeat"] as const;
+
+/* Column tracks. Below lg (1200) the table keeps its natural width and the
+   card scrolls; from lg it has to fit the viewport, so the tracks go fluid and
+   Pharmacy steps out until xl (1536) gives it room back. Header and rows share
+   these strings, so both must list the same number of tracks per breakpoint. */
+const COLS = {
+  admin:
+    "grid-cols-[110px_1.3fr_1.4fr_0.9fr_1fr_1fr_150px] lg:grid-cols-[86px_1.05fr_1.4fr_1.05fr_1.15fr_1.15fr] xl:grid-cols-[104px_1.2fr_1.45fr_1fr_1.15fr_1.1fr_0.95fr]",
+  doctor:
+    "grid-cols-[110px_1.3fr_1.4fr_0.9fr_1fr_150px] lg:grid-cols-[86px_1.1fr_1.5fr_1.05fr_1.1fr] xl:grid-cols-[104px_1.2fr_1.5fr_0.9fr_1.15fr_1fr]",
+};
+
+/** Pharmacy column — always there, except in the lg..xl squeeze. */
+const PHARMACY_CELL = "lg:hidden xl:block";
+/** Cells breathe again once xl gives the table room. */
+const CELL_X = "px-4 lg:px-3 xl:px-4";
 
 export function RequestHistoryView({ onlyDoctor }: { onlyDoctor?: string }) {
   const [outcome, setOutcome] = useState<RequestOutcome | "all">("all");
@@ -97,16 +113,18 @@ export function RequestHistoryView({ onlyDoctor }: { onlyDoctor?: string }) {
           </div>
 
           {/* table */}
-          <div className="overflow-x-auto">
-            <div className={onlyDoctor ? "min-w-[820px]" : "min-w-[980px]"}>
+          <div className="overflow-x-auto lg:overflow-x-visible">
+            <div className={onlyDoctor ? "min-w-[820px] lg:min-w-0" : "min-w-[980px] lg:min-w-0"}>
               <div
-                className={`grid ${onlyDoctor ? "grid-cols-[110px_1.3fr_1.4fr_0.9fr_1fr_140px]" : "grid-cols-[110px_1.3fr_1.4fr_0.9fr_1fr_1fr_140px]"} border-b border-[var(--divider)] bg-grey-100`}
+                className={`grid ${onlyDoctor ? COLS.doctor : COLS.admin} border-b border-[var(--divider)] bg-grey-100 [&>*]:min-w-0`}
               >
-                {["Ref", "Patient", "Medication", "Category", "Pharmacy", ...(onlyDoctor ? [] : ["Decided by"]), "Outcome"].map((h) => (
-                  <div key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                    {h}
-                  </div>
-                ))}
+                <Th>Ref</Th>
+                <Th>Patient</Th>
+                <Th>Medication</Th>
+                <Th>Category</Th>
+                <Th className={PHARMACY_CELL}>Pharmacy</Th>
+                {!onlyDoctor && <Th>Decided by</Th>}
+                <Th>Outcome</Th>
               </div>
 
               {rows.length === 0 && (
@@ -134,35 +152,54 @@ export function RequestHistoryView({ onlyDoctor }: { onlyDoctor?: string }) {
   );
 }
 
+function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`${CELL_X} py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 function Row({ r, onlyDoctor }: { r: PastRequest; onlyDoctor: boolean }) {
   const meta = OUTCOME_META[r.outcome];
   return (
     <div
-      className={`grid ${onlyDoctor ? "grid-cols-[110px_1.3fr_1.4fr_0.9fr_1fr_140px]" : "grid-cols-[110px_1.3fr_1.4fr_0.9fr_1fr_1fr_140px]"} items-center border-b border-[var(--divider)] last:border-0 hover:bg-background-neutral/60`}
+      className={`grid ${onlyDoctor ? COLS.doctor : COLS.admin} items-center border-b border-[var(--divider)] last:border-0 hover:bg-background-neutral/60 [&>*]:min-w-0`}
     >
-      <div className="px-4 py-3">
+      <div className={`${CELL_X} py-3`}>
         <p className="font-mono text-xs font-bold text-text-primary">{r.ref}</p>
         <p className="font-mono text-[10px] text-text-disabled">SOP {r.sopVersion}</p>
       </div>
-      <div className="px-4 py-3">
-        <p className="truncate text-sm font-semibold text-text-primary">{r.patientName}</p>
-        <p className="font-mono text-[11px] text-text-secondary">{r.decidedOn}</p>
+      <div className={`${CELL_X} py-3`}>
+        <p className="truncate text-sm font-semibold text-text-primary" title={r.patientName}>{r.patientName}</p>
+        <p className="truncate font-mono text-[11px] text-text-secondary">{r.decidedOn}</p>
       </div>
-      <div className="px-4 py-3">
-        <p className="truncate text-sm text-text-primary">{r.med}</p>
+      <div className={`${CELL_X} py-3`}>
+        <p className="truncate text-sm text-text-primary" title={r.med}>{r.med}</p>
         <p className="text-xs text-text-secondary">{r.dose}</p>
         {r.note && <p className="mt-0.5 text-xs italic text-text-secondary">{r.note}</p>}
       </div>
-      <div className="px-4 py-3">
-        <span className="rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary">{r.category}</span>
-      </div>
-      <div className="truncate px-4 py-3 text-sm text-text-secondary">{pharmacyName(r.pharmacyCode)}</div>
-      {!onlyDoctor && <div className="truncate px-4 py-3 text-sm text-text-primary">{r.decidedBy}</div>}
-      <div className="flex items-center gap-2 px-4 py-3">
-        <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-extrabold ${meta.cls}`}>
-          {meta.label}
+      <div className={`${CELL_X} py-3`}>
+        <span className="inline-block max-w-full truncate rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary" title={r.category}>
+          {r.category}
         </span>
-        <RagPill rag={r.rag} />
+      </div>
+      <div className={`truncate ${CELL_X} py-3 text-sm text-text-secondary ${PHARMACY_CELL}`} title={pharmacyName(r.pharmacyCode)}>
+        {pharmacyName(r.pharmacyCode)}
+      </div>
+      {!onlyDoctor && (
+        <div className={`truncate ${CELL_X} py-3 text-sm text-text-primary`} title={r.decidedBy}>{r.decidedBy}</div>
+      )}
+      <div className={`flex items-center gap-2 ${CELL_X} py-3`}>
+        <span className={`truncate rounded-full px-2.5 py-1 text-[11px] font-extrabold ${meta.cls}`} title={meta.label}>
+          {meta.short}
+        </span>
+        {/* RAG at decision time is secondary here — a dot keeps the signal
+            without spending the width a second pill would cost */}
+        <span
+          className={`h-2.5 w-2.5 shrink-0 rounded-full ${RAG_FILL[r.rag]}`}
+          title={`${RAG_LABEL[r.rag]} at decision`}
+        />
       </div>
     </div>
   );
