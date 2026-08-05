@@ -2,6 +2,15 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { LogWeightModal } from "@/components/patient/LogWeightModal";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { CHART, ChartFrame, ChartLegend, ChartTooltip, axisProps } from "@/components/ui/chart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
 import { Toast } from "@/components/ui/Toast";
@@ -83,19 +92,6 @@ export default function WeightTrackingPage() {
             </button>
           </div>
           <WeightChart entries={entries} projection={projection} />
-          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-text-secondary">
-            <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-5 rounded-full bg-primary" /> Your check-ins
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-5 rounded-full bg-primary-light" style={{ backgroundImage: "repeating-linear-gradient(90deg,var(--primary-light) 0 4px,transparent 4px 8px)" }} />
-              Projected on trial average
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-5 rounded-full" style={{ backgroundImage: "repeating-linear-gradient(90deg,var(--color-secondary) 0 5px,transparent 5px 9px)" }} />
-              Target {projection.targetKg.toFixed(1)} kg
-            </span>
-          </div>
         </section>
 
         {/* log */}
@@ -149,80 +145,158 @@ export default function WeightTrackingPage() {
 
 /** Logged weights + the trial projection out to the target, with the 5% and
  *  10% milestones marked — 5% is the SOP continuation gate at 6 months. */
+
+/**
+ * Progress against the trial-average projection. Recharts handles the scale,
+ * the hover and the resize; the styling is the app's own tokens, so this chart
+ * reads as part of the platform rather than a widget dropped into it.
+ */
+const RANGES = [
+  { key: "near", label: "Next 3 months", weeks: 12 },
+  { key: "mid", label: "6 months", weeks: 26 },
+  { key: "full", label: "Full plan", weeks: 0 },
+] as const;
+
 function WeightChart({ entries, projection }: { entries: WeightEntry[]; projection: Projection }) {
-  const w = 760;
-  const h = 240;
-  const padX = 44;
-  const padY = 26;
-  const rightPad = 20;
-  const values = entries.map((e) => e.kg);
-  const loggedWeeks = values.length - 1;
-  const totalWeeks = projection.horizonWeeks;
+  // Default to the near window: over the full 72-week horizon eight weeks of
+  // real check-ins collapse into a smudge, and the patient's own line is the
+  // one thing this chart exists to show.
+  const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("near");
+  const logged = entries.length - 1;
+  const picked = RANGES.find((r) => r.key === range)!;
+  const horizon =
+    picked.weeks === 0 ? projection.horizonWeeks : Math.min(projection.horizonWeeks, logged + picked.weeks);
 
-  const min = Math.floor(projection.targetKg - 1);
-  const max = Math.ceil(Math.max(...values) + 1);
-  const x = (week: number) => padX + (week / totalWeeks) * (w - padX - rightPad);
-  const y = (v: number) => padY + ((max - v) * (h - padY * 2)) / (max - min || 1);
+  // one row per week: the logged line stops where the check-ins do, the
+  // projection carries on to the end of the window
+  const data = Array.from({ length: horizon + 1 }, (_, week) => ({
+    week,
+    date: entries[week]?.date,
+    actual: week <= logged ? entries[week].kg : null,
+    // drawn only from the last check-in onwards, so it never sits on top of
+    // the patient's own line and hide it
+    projected: week >= logged ? projection.at(week) : null,
+  }));
 
-  const logged = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
-  const future: string[] = [];
-  for (let week = loggedWeeks; week <= totalWeeks; week += 1) future.push(`${x(week)},${y(projection.at(week))}`);
-
-  const gridLines = [max, Math.round((max + min) / 2), min];
-  // x labels every ~12 weeks so the axis stays readable across 68–72 weeks
-  const tickWeeks = [0, 12, 24, 36, 48, 60, totalWeeks].filter((t) => t <= totalWeeks);
+  // scale to what's in the window, not to a target 18 months out
+  const shown = [...entries.slice(0, horizon + 1).map((e) => e.kg), projection.at(horizon)];
+  const min = Math.floor(Math.min(...shown) - 1);
+  const max = Math.ceil(Math.max(...shown) + 1);
+  const targetInView = projection.targetKg >= min && projection.targetKg <= max;
+  const step = horizon <= 14 ? 2 : horizon <= 30 ? 4 : 8;
 
   return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h + 24}`} className="mt-4 w-full min-w-[620px]" role="img" aria-label={`Weight chart with projection to a ${projection.targetKg.toFixed(1)} kg target`}>
-        {gridLines.map((g) => (
-          <g key={g}>
-            <line x1={padX} x2={w - rightPad} y1={y(g)} y2={y(g)} stroke="var(--divider)" strokeDasharray="3 4" />
-            <text x={padX - 8} y={y(g) + 4} textAnchor="end" className="fill-[var(--color-text-disabled)] font-mono text-[11px]">
-              {g}
-            </text>
-          </g>
+    <>
+      <div className="mt-4 flex flex-wrap gap-1">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => setRange(r.key)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+              range === r.key
+                ? "bg-primary text-white"
+                : "bg-background-neutral text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            {r.label}
+          </button>
         ))}
+      </div>
 
-        {/* target band + line */}
-        <line x1={padX} x2={w - rightPad} y1={y(projection.targetKg)} y2={y(projection.targetKg)} stroke="var(--color-secondary)" strokeWidth="1.8" strokeDasharray="6 4" />
-        <text x={padX + 4} y={y(projection.targetKg) - 6} className="fill-[var(--color-secondary-dark)] font-mono text-[11px] font-bold">
-          TARGET {projection.targetKg.toFixed(1)} kg · BMI {projection.targetBmi.toFixed(1)}
-        </text>
+      <ChartFrame height={280}>
+        <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
+          <defs>
+            <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={CHART.line} stopOpacity={0.18} />
+              <stop offset="100%" stopColor={CHART.line} stopOpacity={0} />
+            </linearGradient>
+          </defs>
 
-        {/* milestones */}
-        {projection.milestones
-          .filter((m) => m.weeks !== null && m.pct < projection.totalPct)
-          .map((m) => (
-            <g key={m.label}>
-              <line x1={x(m.weeks!)} x2={x(m.weeks!)} y1={padY} y2={h - padY} stroke="var(--divider)" strokeDasharray="2 5" />
-              <circle cx={x(m.weeks!)} cy={y(m.kg)} r="4" fill={m.reached ? "var(--color-success)" : "var(--color-grey-400)"} />
-              <text x={x(m.weeks!)} y={padY - 8} textAnchor="middle" className="fill-[var(--color-text-disabled)] font-mono text-[10px] font-bold">
-                {(m.pct * 100).toFixed(0)}%
-              </text>
-            </g>
-          ))}
+          <CartesianGrid stroke={CHART.grid} strokeDasharray="3 4" vertical={false} />
+          <XAxis
+            dataKey="week"
+            {...axisProps}
+            ticks={Array.from({ length: Math.floor(horizon / step) + 1 }, (_, i) => i * step)}
+            tickFormatter={(w: number) => (w === 0 ? "start" : `wk ${w}`)}
+          />
+          <YAxis {...axisProps} domain={[min, max]} width={44} tickFormatter={(v: number) => `${v}`} />
 
-        {/* logged */}
-        <polyline points={`${logged} ${x(loggedWeeks)},${y(min)} ${x(0)},${y(min)}`} fill="var(--primary-main-12)" stroke="none" />
-        <polyline points={logged} fill="none" stroke="var(--primary-main)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {/* projection */}
-        <polyline points={future.join(" ")} fill="none" stroke="var(--primary-light)" strokeWidth="2.2" strokeDasharray="5 5" strokeLinecap="round" />
+          {targetInView && (
+          <ReferenceLine
+            y={projection.targetKg}
+            stroke={CHART.target}
+            strokeDasharray="5 4"
+            strokeWidth={1.5}
+            label={{
+              value: `target ${projection.targetKg.toFixed(1)}`,
+              position: "insideTopRight",
+              fill: "var(--color-secondary-dark)",
+              fontSize: 10,
+              fontFamily: "var(--font-mono)",
+            }}
+          />
+          )}
 
-        {values.map((v, i) => (
-          <circle key={i} cx={x(i)} cy={y(v)} r={i === values.length - 1 ? 5 : 3} fill="var(--primary-main)" />
-        ))}
-        <text x={x(loggedWeeks)} y={y(values[loggedWeeks]) - 10} textAnchor="middle" className="fill-[var(--color-text-primary)] font-mono text-[12px] font-bold">
-          {values[loggedWeeks].toFixed(1)}
-        </text>
+          <Area
+            type="monotone"
+            dataKey="projected"
+            stroke={CHART.lineSoft}
+            strokeDasharray="4 4"
+            strokeWidth={1.5}
+            fill="none"
+            dot={false}
+            activeDot={false}
+            isAnimationActive={false}
+            connectNulls={false}
+          />
+          <Area
+            type="monotone"
+            dataKey="actual"
+            stroke={CHART.line}
+            strokeWidth={2.5}
+            fill="url(#weightFill)"
+            dot={{ r: 3, fill: CHART.line, strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: CHART.line, stroke: "var(--background-paper)", strokeWidth: 2 }}
+            connectNulls={false}
+            // the page re-renders on every store tick; Recharts would restart
+            // its reveal animation each time and never finish drawing the line
+            isAnimationActive={false}
+          />
 
-        {tickWeeks.map((t) => (
-          <text key={t} x={x(t)} y={h + 14} textAnchor="middle" className="fill-[var(--color-text-disabled)] font-mono text-[10px]">
-            {t === 0 ? "start" : `wk ${t}`}
-          </text>
-        ))}
-      </svg>
-    </div>
+          <ChartTooltip
+            format={(d) => {
+              const week = d.week as number;
+              const actual = d.actual as number | null;
+              const projected = d.projected as number;
+              return {
+                title: (d.date as string) ?? `Week ${week}`,
+                rows: [
+                  ...(actual !== null
+                    ? [{ label: "Your weight", value: `${actual.toFixed(1)} kg`, colour: CHART.line }]
+                    : []),
+                  { label: "Trial average", value: `${projected.toFixed(1)} kg`, colour: CHART.lineSoft },
+                ],
+              };
+            }}
+          />
+        </AreaChart>
+      </ChartFrame>
+
+      <ChartLegend
+        items={[
+          { label: "Your check-ins", colour: CHART.line },
+          { label: "Projected on trial average", colour: CHART.lineSoft, dashed: true },
+          {
+            label: targetInView
+              ? `Target ${projection.targetKg.toFixed(1)} kg`
+              : `Target ${projection.targetKg.toFixed(1)} kg — beyond this window`,
+            colour: CHART.target,
+            dashed: true,
+          },
+        ]}
+      />
+    </>
   );
 }
 
@@ -279,5 +353,3 @@ function ProjectionPanel({ projection, current }: { projection: Projection; curr
     </section>
   );
 }
-
-/* ---- log modal ------------------------------------------------------------ */
