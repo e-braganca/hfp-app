@@ -167,7 +167,9 @@ export const PHONE_COUNTRIES: { dial: string; flag: string; label: string }[] = 
   { dial: "+48", flag: "🇵🇱", label: "Poland" },
 ];
 
-// Ordered step machine (15 steps). `eligible` is an interstitial after the
+// Ordered step machine. `medsDetail` is conditional — it only appears when
+// the patient says they are already on a GLP-1 or other prescription
+// medication, so the visible length changes with the answers. `eligible` is an interstitial after the
 // gate; the account is created right after it — the eligibility result is the
 // hook, and everything from verification on happens signed-in. Payment is
 // last: authorised at order time, only charged after prescriber approval.
@@ -179,6 +181,7 @@ export const STEPS = [
   "ethnicity",
   "conditions",
   "meds",
+  "medsDetail",
   "safety",
   "eligible",
   "account",
@@ -194,9 +197,9 @@ export type StepKey = (typeof STEPS)[number];
 
 // Left-panel phases and which step indices they cover.
 export const PHASES: { label: string; steps: number[] }[] = [
-  { label: "About you", steps: [1, 2, 3, 4, 5, 6] },
-  { label: "Safety & eligibility", steps: [7, 8] },
-  { label: "Account & delivery", steps: [9, 10] },
-  { label: "Verification", steps: [11, 12] },
-  { label: "Treatment & payment", steps: [13, 14, 15] },
+  { label: "About you", steps: [1, 2, 3, 4, 5, 6, 7] },
+  { label: "Safety & eligibility", steps: [8, 9] },
+  { label: "Account & delivery", steps: [10, 11] },
+  { label: "Verification", steps: [12, 13] },
+  { label: "Treatment & payment", steps: [14, 15, 16] },
 ];

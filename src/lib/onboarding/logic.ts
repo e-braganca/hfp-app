@@ -3,6 +3,7 @@
 // Ported from legacy onboarding.js. Outcome precedence: blocked > age > BMI.
 // ============================================================================
 
+import { emptyGlp1History, type Glp1History } from "./glp1";
 import {
   ETHNIC_GROUPS,
   HIGHER_RISK_ETHNICITY,
@@ -50,6 +51,10 @@ export interface Answers {
   ethnicity: string | null;
   conditions: string[];
   meds: MedsAnswer | null;
+  /** filled only when meds === "glp1" — the mid-treatment picture */
+  glp1: Glp1History;
+  /** filled only when meds === "other" — searched or free-typed */
+  otherMeds: string[];
   safety: Record<string, "yes" | "no">;
   weightPhoto: boolean;
   idDoc: boolean;
@@ -99,6 +104,8 @@ export const emptyAnswers = (): Answers => ({
   ethnicity: null,
   conditions: [],
   meds: null,
+  glp1: emptyGlp1History(),
+  otherMeds: [],
   safety: {},
   weightPhoto: false,
   idDoc: false,
@@ -343,6 +350,12 @@ export function canContinue(step: string, a: Answers): boolean {
       return true; // "none" is valid
     case "meds":
       return a.meds !== null;
+    case "medsDetail":
+      // asked so the prescriber can continue a titration rather than restart
+      // it — never a gate, but the three fields the SOP rules read are needed
+      if (a.meds === "glp1") return !!(a.glp1.product && a.glp1.dose && a.glp1.lastDoseOn);
+      if (a.meds === "other") return a.otherMeds.length > 0;
+      return true;
     case "safety":
       return SAFETY_QUESTIONS.every((q) => a.safety[q.key]);
     case "photo":

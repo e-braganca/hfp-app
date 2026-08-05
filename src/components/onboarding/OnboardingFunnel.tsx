@@ -42,6 +42,15 @@ import {
   type HeightUnit,
   type WeightUnit,
 } from "@/lib/onboarding/units";
+import {
+  GLP1_PRODUCTS,
+  GLP1_SIDE_EFFECTS,
+  SIDE_EFFECT_OTHER,
+  glp1Product,
+  glp1Signal,
+  weeksSinceLastDose,
+} from "@/lib/onboarding/glp1";
+import { MedicineSearch } from "./MedicineSearch";
 import { ProjectionPreview } from "@/components/patient/ProjectionPreview";
 import { setPendingVerification } from "@/lib/verification";
 import {
@@ -53,7 +62,10 @@ import {
   YesNo,
 } from "./parts";
 
-const TOTAL = STEPS.length; // 13
+/** medsDetail is skipped entirely when the patient takes nothing. */
+function visibleSteps(a: Answers): string[] {
+  return STEPS.filter((k) => k !== "medsDetail" || a.meds === "glp1" || a.meds === "other");
+}
 
 export function OnboardingFunnel() {
   const [step, setStep] = useState(0);
@@ -67,7 +79,9 @@ export function OnboardingFunnel() {
   /** dob part fields feed the canonical ISO dob the same way */
   const setDob = (patch: Partial<Answers>) =>
     setAnswers((prev) => withCanonicalDob({ ...prev, ...patch }));
-  const key = STEPS[step];
+  const steps = visibleSteps(a);
+  const TOTAL = steps.length;
+  const key = steps[Math.min(step, TOTAL - 1)];
 
   const next = () => {
     if (key === "safety") {
@@ -95,10 +109,16 @@ export function OnboardingFunnel() {
     setStep((s) => Math.min(s + 1, TOTAL - 1));
   };
 
+  /** Deferring a capture IS the answer to that step — move on with it. */
+  const deferAndContinue = (patch: Partial<Answers>) => {
+    setA(patch);
+    setStep((s) => Math.min(s + 1, TOTAL - 1));
+  };
+
   const back = () => {
     if (outcome && outcome !== "submitted") {
       setOutcome(null);
-      setStep(STEPS.indexOf("safety"));
+      setStep(steps.indexOf("safety"));
       return;
     }
     setStep((s) => Math.max(s - 1, 0));
@@ -113,10 +133,16 @@ export function OnboardingFunnel() {
       ? {
           on: a.weightPhotoDeferred,
           what: "weight photo",
-          set: (v: boolean) => setA({ weightPhotoDeferred: v }),
+          skip: () => deferAndContinue({ weightPhotoDeferred: true }),
+          undo: () => setA({ weightPhotoDeferred: false }),
         }
       : key === "id" && !a.idDoc
-        ? { on: a.idDocDeferred, what: "ID photo", set: (v: boolean) => setA({ idDocDeferred: v }) }
+        ? {
+            on: a.idDocDeferred,
+            what: "ID photo",
+            skip: () => deferAndContinue({ idDocDeferred: true }),
+            undo: () => setA({ idDocDeferred: false }),
+          }
         : null;
   const ctaLabel =
     key === "intro"
@@ -192,7 +218,7 @@ export function OnboardingFunnel() {
               (defer.on ? (
                 <button
                   type="button"
-                  onClick={() => defer.set(false)}
+                  onClick={defer.undo}
                   className="h-11 w-full rounded-lg border-2 border-warning bg-warning-lighter px-5 text-sm font-bold text-warning-darker hover:bg-warning-light sm:w-auto"
                 >
                   Take the {defer.what} now
@@ -200,10 +226,10 @@ export function OnboardingFunnel() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => defer.set(true)}
+                  onClick={defer.skip}
                   className="h-11 w-full rounded-lg border-2 border-[var(--divider)] bg-background-paper px-5 text-sm font-bold text-text-primary hover:border-text-secondary hover:bg-background-neutral sm:w-auto"
                 >
-                  I&rsquo;ll do this later
+                  I&rsquo;ll do this later &rarr;
                 </button>
               ))}
           </div>
@@ -468,6 +494,25 @@ function renderStep(
         </div>
       );
 
+    case "medsDetail":
+      // Nothing here blocks the consultation — it decides which prescriber
+      // sees it and with what flagged, which is a different question.
+      return a.meds === "glp1" ? (
+        <Glp1Detail a={a} setA={setA} />
+      ) : (
+        <div>
+          <StepHeading
+            eyebrow="About you"
+            title="What else are you taking?"
+            sub="Add everything you're prescribed, including anything from another clinic. It won't stop your consultation — the prescriber needs it to check interactions."
+          />
+          <MedicineSearch selected={a.otherMeds} onChange={(otherMeds) => setA({ otherMeds })} />
+          <p className="mt-4 rounded-lg bg-primary-lighter px-4 py-3 text-xs leading-relaxed text-primary-dark">
+            Can&rsquo;t find it? Type the name and add it anyway — a prescriber will confirm it with you.
+          </p>
+        </div>
+      );
+
     case "safety":
       return (
         <div>
@@ -520,7 +565,7 @@ function renderStep(
             onRetake={() => setA({ weightPhoto: false, weightPhotoUrl: "" })}
             note="Must be taken live on your camera now — gallery uploads aren't accepted."
           />
-          {!a.weightPhoto && a.weightPhotoDeferred && <DeferNotice what="weight photo" />}
+          {!a.weightPhoto && <DeferHint what="weight photo" deferred={a.weightPhotoDeferred} />}
         </div>
       );
 
@@ -537,7 +582,7 @@ function renderStep(
             onRetake={() => setA({ idDoc: false, idDocUrl: "" })}
             note="A prescriber will visually confirm your ID matches your weight photo before issuing."
           />
-          {!a.idDoc && a.idDocDeferred && <DeferNotice what="ID photo" />}
+          {!a.idDoc && <DeferHint what="ID photo" deferred={a.idDocDeferred} />}
         </div>
       );
 
@@ -848,6 +893,32 @@ function renderStep(
               { label: "BMI", value: `${bmi(a)?.toFixed(1)} kg/m²` },
               { label: "Ethnic background", value: ethnicityLabel(a) },
               { label: "Conditions", value: a.conditions.length ? a.conditions.map((c) => CONDITIONS.find((x) => x.key === c)?.label).join(", ") : "None" },
+              ...(a.meds === "glp1"
+                ? [
+                    {
+                      label: "Current GLP-1",
+                      value: `${glp1Product(a.glp1.product)?.name ?? "—"} ${a.glp1.dose}`.trim(),
+                    },
+                    {
+                      label: "Last dose",
+                      value: (() => {
+                        const w = weeksSinceLastDose(a.glp1);
+                        return w === null ? "—" : w === 0 ? "Within the last week" : `${w} week${w === 1 ? "" : "s"} ago`;
+                      })(),
+                    },
+                    {
+                      label: "Side effects",
+                      value: a.glp1.sideEffects.length
+                        ? [...a.glp1.sideEffects.filter((e) => e !== SIDE_EFFECT_OTHER), a.glp1.sideEffectOther]
+                            .filter(Boolean)
+                            .join(", ")
+                        : "None reported",
+                    },
+                  ]
+                : []),
+              ...(a.meds === "other" && a.otherMeds.length
+                ? [{ label: "Other medication", value: a.otherMeds.join(", ") }]
+                : []),
               {
                 label: "Verification",
                 value:
@@ -1099,15 +1170,25 @@ function LeadCapture({ reason }: { reason: string }) {
   );
 }
 
-/** What deferring actually costs. The toggle itself lives in the footer next
- *  to the primary CTA; this only explains the hold once it's chosen. */
-function DeferNotice({ what }: { what: string }) {
+/** What deferring costs, stated BEFORE the choice — the footer button skips
+ *  straight to the next step, so this is the only place to read it in time. */
+function DeferHint({ what, deferred }: { what: string; deferred: boolean }) {
   return (
     <div className="mt-4 rounded-lg bg-warning-lighter px-4 py-3">
       <p className="text-sm leading-relaxed text-warning-darker">
-        <span className="font-bold">Skipped for now.</span> You can finish your order, but it stays{" "}
-        <span className="font-bold">on hold</span> — no prescriber review and no charge — until you take the {what}{" "}
-        from your dashboard.
+        {deferred ? (
+          <>
+            <span className="font-bold">Skipped for now.</span> Your order stays{" "}
+            <span className="font-bold">on hold</span> — no prescriber review and no charge — until you take the {what}{" "}
+            from your dashboard.
+          </>
+        ) : (
+          <>
+            <span className="font-bold">Can&rsquo;t do it right now?</span> Skip it and finish your order — it just stays{" "}
+            <span className="font-bold">on hold</span>, with no prescriber review and no charge, until you take the{" "}
+            {what} from your dashboard.
+          </>
+        )}
       </p>
     </div>
   );
@@ -1122,5 +1203,148 @@ function BackToAnswers({ onClick }: { onClick: () => void }) {
     >
       Back to my answers
     </button>
+  );
+}
+
+/**
+ * The mid-treatment picture: what they're on, how much, when they last took
+ * it, and how they're tolerating it. None of it gates the consultation — it
+ * produces the RAG flags the clinical queue routes on, shown back to the
+ * patient so the questions don't feel arbitrary.
+ */
+function Glp1Detail({ a, setA }: { a: Answers; setA: (p: Partial<Answers>) => void }) {
+  const h = a.glp1;
+  const set = (patch: Partial<typeof h>) => setA({ glp1: { ...h, ...patch } });
+  const product = glp1Product(h.product);
+  const signal = glp1Signal(h);
+  const weeks = weeksSinceLastDose(h);
+  const answered = h.product && h.dose && h.startedOn && h.lastDoseOn;
+
+  const toggleEffect = (e: string) =>
+    set({ sideEffects: h.sideEffects.includes(e) ? h.sideEffects.filter((x) => x !== e) : [...h.sideEffects, e] });
+
+  return (
+    <div>
+      <StepHeading
+        eyebrow="About you"
+        title="Tell us about your current treatment"
+        sub="You can carry on either way — this lets your prescriber continue your titration safely instead of restarting you from the beginning."
+      />
+
+      <div className="space-y-5">
+        <Field label="Which medication are you on?">
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {GLP1_PRODUCTS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => set({ product: p.key, dose: "" })}
+                className={`rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                  h.product === p.key
+                    ? "border-primary bg-primary-lighter"
+                    : "border-[var(--divider)] bg-background-paper hover:border-primary-light"
+                }`}
+              >
+                <span className="block text-sm font-extrabold text-text-primary">{p.name}</span>
+                <span className="block font-mono text-[11px] tracking-wide text-text-secondary">{p.generic}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {product && (
+          <Field label="What dose are you taking now?">
+            <select
+              value={h.dose}
+              onChange={(e) => set({ dose: e.target.value })}
+              className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-3 text-base text-text-primary focus:border-primary focus:outline-none"
+            >
+              <option value="">Select your current dose</option>
+              {product.doses.map((d) => (
+                <option key={d} value={d}>
+                  {d} {product.cadence === "weekly" ? "· once weekly" : "· once daily"}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="When did you start treatment?">
+            <input
+              type="month"
+              value={h.startedOn}
+              onChange={(e) => set({ startedOn: e.target.value })}
+              className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+            />
+          </Field>
+          <Field label="Date of your last dose">
+            <input
+              type="date"
+              value={h.lastDoseOn}
+              onChange={(e) => set({ lastDoseOn: e.target.value })}
+              className="h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+            />
+            {weeks !== null && (
+              <p className="mt-1.5 text-xs text-text-secondary">
+                {weeks === 0 ? "Within the last week." : `${weeks} week${weeks === 1 ? "" : "s"} ago.`}
+              </p>
+            )}
+          </Field>
+        </div>
+
+        <Field label="Have you had any side effects?">
+          <div className="space-y-2.5">
+            {GLP1_SIDE_EFFECTS.map((e) => (
+              <OptionCard key={e} label={e} selected={h.sideEffects.includes(e)} onClick={() => toggleEffect(e)} />
+            ))}
+            <OptionCard
+              label={SIDE_EFFECT_OTHER}
+              selected={h.sideEffects.includes(SIDE_EFFECT_OTHER)}
+              onClick={() => toggleEffect(SIDE_EFFECT_OTHER)}
+            />
+            <OptionCard label="None of these" selected={h.sideEffects.length === 0} onClick={() => set({ sideEffects: [], sideEffectOther: "" })} />
+          </div>
+          {h.sideEffects.includes(SIDE_EFFECT_OTHER) && (
+            <input
+              type="text"
+              value={h.sideEffectOther}
+              onChange={(e) => set({ sideEffectOther: e.target.value })}
+              placeholder="Describe what you've experienced"
+              className="mt-2.5 h-12 w-full rounded-xl border-2 border-[var(--divider)] bg-background-paper px-4 text-base text-text-primary focus:border-primary focus:outline-none"
+            />
+          )}
+        </Field>
+      </div>
+
+      {answered && (
+        <div
+          className={`mt-5 rounded-xl px-4 py-3 ${
+            signal.rag === "red"
+              ? "bg-error-lighter"
+              : signal.rag === "amber"
+                ? "bg-warning-lighter"
+                : signal.rag === "yellow"
+                  ? "bg-warning-lighter/60"
+                  : "bg-success-lighter"
+          }`}
+        >
+          <p
+            className={`text-sm font-bold ${
+              signal.rag === "red" ? "text-error-dark" : signal.rag === "green" ? "text-success-darker" : "text-warning-darker"
+            }`}
+          >
+            {signal.rag === "green" ? "Nothing here needs extra review" : "Your prescriber will look at this closely"}
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {signal.reasons.map((r) => (
+              <li key={r} className="text-xs leading-relaxed text-text-secondary">
+                · {r}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
