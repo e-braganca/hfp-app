@@ -32,7 +32,7 @@ export default function DeliveriesPage() {
               href="/patient/deliveries/new"
               className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-dark"
             >
-              Request new delivery
+              Renew your prescription
             </Link>
           </div>
 
@@ -62,7 +62,7 @@ export default function DeliveriesPage() {
           </div>
 
           <p className="mt-4 rounded-lg bg-primary-lighter px-4 py-3 text-xs leading-relaxed text-primary-dark">
-            Every repeat is reviewed by a prescriber before dispatch. Requesting a delivery includes a quick check-in —
+            Every repeat is reviewed by a prescriber before dispatch. Renewing includes a quick check-in —
             current weight with a live photo — so the review is fast.
           </p>
         </section>

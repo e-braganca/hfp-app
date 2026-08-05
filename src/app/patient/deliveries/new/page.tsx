@@ -112,7 +112,7 @@ export default function NewDeliveryPage() {
   if (submitted) {
     return (
       <div>
-        <PageHeader title="Request new delivery" subtitle={`${TREATMENT.med} · repeat order`} />
+        <PageHeader title="Renew your prescription" subtitle={`${TREATMENT.med} · repeat order`} />
         <div className="px-6 py-10 lg:px-8">
           <div className="mx-auto max-w-xl rounded-lg bg-background-paper p-8 text-center shadow-card">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success-lighter text-success-dark">
@@ -141,7 +141,7 @@ export default function NewDeliveryPage() {
 
   return (
     <div>
-      <PageHeader title="Request new delivery" subtitle={`${TREATMENT.med} · repeat order`} />
+      <PageHeader title="Renew your prescription" subtitle={`${TREATMENT.med} · repeat order`} />
 
       <div className="px-6 py-6 lg:px-8">
         <div className="mx-auto max-w-xl">

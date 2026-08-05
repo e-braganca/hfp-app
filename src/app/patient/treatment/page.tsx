@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { DoseLogPanel } from "@/components/patient/DoseLogPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DOSE_SCHEDULE, TREATMENT } from "@/lib/patient/data";
 
@@ -111,17 +112,19 @@ export default function TreatmentPage() {
           </div>
         </div>
 
+        <DoseLogPanel />
+
         {/* actions */}
         <section className="rounded-lg bg-background-paper p-6 shadow-card">
           <h2 className="text-base font-bold text-text-primary">Need a change?</h2>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">
             Dose feels wrong, side effects dragging on, or you want to pause? Don&rsquo;t adjust anything yourself —
-            request a dose review with your next delivery, or message the clinical team and your prescriber will get
-            back to you.
+            ask for a dose review when you renew, or message the clinical team and your prescriber will get back to
+            you.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link href="/patient/deliveries/new" className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark">
-              Request delivery / dose review
+              Renew your prescription
             </Link>
             <button
               type="button"
