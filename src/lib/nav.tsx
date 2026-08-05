@@ -69,7 +69,6 @@ export const DOCTOR_NAV: NavConfig = {
       label: "Clinical",
       items: [
         { label: "Work Queue", href: "/doctor/queue", icon: QueueIcon, match: ["/doctor/orders", "/doctor/cases"] },
-        { label: "Patients", href: "/doctor/patients", icon: PatientsIcon },
         { label: "Past requests", short: "History", href: "/doctor/requests", icon: ProtocolIcon },
         { label: "Pharmacies & SOPs", short: "Pharmacies", href: "/doctor/pharmacies", icon: PharmacyIcon, match: ["/doctor/protocols"] },
       ],
@@ -109,6 +108,7 @@ export const ADMIN_NAV: NavConfig = {
         { label: "Overview", href: "/admin/overview", icon: HomeIcon },
         { label: "Escalations", href: "/admin/escalations", icon: WarnIcon, badge: "5" },
         { label: "Past requests", short: "History", href: "/admin/requests", icon: QueueIcon },
+        { label: "Patients", href: "/admin/patients", icon: PatientsIcon },
         { label: "Doctors", href: "/admin/doctors", icon: StethoscopeIcon },
         { label: "Pharmacies & SOPs", short: "Pharmacies", href: "/admin/pharmacies", icon: PharmacyIcon, badge: "6", match: ["/admin/protocols"] },
       ],

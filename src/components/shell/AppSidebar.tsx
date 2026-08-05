@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { BellIcon, type NavConfig, type NavItem, type Role } from "@/lib/nav";
+import { NotificationsDrawer } from "./NotificationsDrawer";
 import { ProfileMenu } from "./ProfileMenu";
 
 /**
@@ -12,6 +14,7 @@ import { ProfileMenu } from "./ProfileMenu";
  */
 export function AppSidebar({ config, role }: { config: NavConfig; role: Role }) {
   const pathname = usePathname();
+  const [notifications, setNotifications] = useState(false);
   const isActive = (item: NavItem) =>
     pathname === item.href ||
     (!item.exact && pathname.startsWith(item.href + "/")) ||
@@ -86,6 +89,7 @@ export function AppSidebar({ config, role }: { config: NavConfig; role: Role }) 
       {config.notificationsBadge && (
         <button
           type="button"
+          onClick={() => setNotifications(true)}
           className="mx-3 mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-grey-500 transition-colors hover:bg-white/5 hover:text-white"
         >
           <BellIcon />
@@ -97,6 +101,8 @@ export function AppSidebar({ config, role }: { config: NavConfig; role: Role }) 
       )}
 
       <ProfileMenu config={config} role={role} variant="sidebar" />
+
+      <NotificationsDrawer open={notifications} role={role} onClose={() => setNotifications(false)} />
     </aside>
   );
 }

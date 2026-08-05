@@ -4,7 +4,9 @@ import { useState } from "react";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { ComplexCase } from "@/lib/doctor/types";
 import { AiRecommendationCard, AuditNote } from "./AiRecommendationCard";
+import { ConsultationAnswersCard } from "./ConsultationAnswersCard";
 import { Modal } from "@/components/ui/Modal";
+import { consultationFor } from "@/lib/doctor/consultation";
 import { OutcomePanel } from "./OrderReview";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { RagPill } from "@/components/ui/StatusPill";
@@ -88,6 +90,16 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
               </p>
               <MedicationTimeline events={case_.history} />
             </div>
+
+            <ConsultationAnswersCard
+              answers={consultationFor(case_.ref, {
+                sexAtBirth: case_.sex,
+                age: case_.age,
+                bmi: case_.bmi,
+                ethnicity: case_.ethnicity,
+                conditions: case_.comorbidities,
+              })}
+            />
           </>
         }
         right={

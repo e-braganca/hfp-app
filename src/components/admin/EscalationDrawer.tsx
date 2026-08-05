@@ -2,9 +2,11 @@
 
 import { useEffect } from "react";
 import { AiRecommendationCard } from "@/components/doctor/AiRecommendationCard";
+import { ConsultationAnswersCard } from "@/components/doctor/ConsultationAnswersCard";
 import { MedicationTimeline } from "@/components/doctor/MedicationTimeline";
 import { PatientSummaryCard } from "@/components/doctor/PatientSummaryCard";
 import { RagPill } from "@/components/ui/StatusPill";
+import { consultationFor } from "@/lib/doctor/consultation";
 import { pharmacyName } from "@/lib/doctor/data";
 import { OUTCOME_LABEL, type AdminEscalation, type EscalationStatus } from "@/lib/admin/types";
 
@@ -157,6 +159,16 @@ export function EscalationDrawer({
                 </p>
                 <MedicationTimeline events={d.history} />
               </div>
+
+              <ConsultationAnswersCard
+                answers={consultationFor(e.ref, {
+                  sexAtBirth: e.sex,
+                  age: d.age,
+                  bmi: d.bmi,
+                  ethnicity: d.ethnicity,
+                  conditions: d.comorbidities,
+                })}
+              />
             </div>
 
             {/* SOP rule rides inside the AI card, as on the review pages */}

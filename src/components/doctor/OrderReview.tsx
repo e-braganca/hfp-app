@@ -4,7 +4,9 @@ import { useState } from "react";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { NewOrder } from "@/lib/doctor/types";
 import { AiRecommendationCard, AuditNote } from "./AiRecommendationCard";
+import { ConsultationAnswersCard } from "./ConsultationAnswersCard";
 import { Modal } from "@/components/ui/Modal";
+import { consultationFor } from "@/lib/doctor/consultation";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
@@ -111,6 +113,18 @@ export function OrderReview({ order }: { order: NewOrder }) {
                 Visually confirm the ID matches the weight photo before issuing.
               </div>
             </div>
+
+            <ConsultationAnswersCard
+              answers={consultationFor(order.ref, {
+                sexAtBirth: order.sex,
+                age: order.age,
+                bmi: order.bmi,
+                ethnicity: order.ethnicity,
+                conditions: order.comorbidities,
+                treatmentPreference: order.preference,
+                verification: order.verification,
+              })}
+            />
           </>
         }
         right={

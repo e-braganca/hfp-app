@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { DecisionReviewModal } from "@/components/shared/DecisionReviewModal";
+import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
+import { RequestReviewDrawer } from "@/components/shared/RequestReviewDrawer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
 import { ChevronRight } from "@/components/ui/icons";
@@ -14,6 +15,8 @@ import {
   type RequestOutcome,
 } from "@/lib/shared/request-history";
 import {
+  addRevision,
+  stampNow,
   effectiveOutcome,
   getRevisionsServerSnapshot,
   getRevisionsSnapshot,
@@ -26,12 +29,14 @@ import {
    decisions (`onlyDoctor`), admins get the whole panel plus a "decided by"
    column. Filter by outcome, category and pharmacy; search by ref or patient.
 
-   Any row can be reopened and overturned (DecisionReviewModal). A revision
+   Any row can be reopened in RequestReviewDrawer and overturned. A revision
    never rewrites the original: the row shows what the decision stands at
    today, flagged "Revised", with the original and every reason inside.
    ============================================================================ */
 
-const OUTCOMES: (RequestOutcome | "all")[] = ["all", "approved", "declined", "info", "escalated"];
+// Escalated cases aren't here — they're still live on the queue's Escalated
+// tab, and a case can't be both open and in the decision log.
+const OUTCOMES: (RequestOutcome | "all")[] = ["all", "approved", "declined", "info"];
 const CATEGORIES = ["all", "New Order", "Simple Repeat", "Complex Repeat"] as const;
 
 /* Column tracks. Below lg (1200) the table keeps its natural width and the
@@ -62,6 +67,7 @@ export function RequestHistoryView({
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("all");
   const [query, setQuery] = useState("");
   const [reviewing, setReviewing] = useState<PastRequest | null>(null);
+  const [emailing, setEmailing] = useState<PastRequest | null>(null);
 
   const revisions = useSyncExternalStore(
     subscribeRevisions,
@@ -71,10 +77,10 @@ export function RequestHistoryView({
 
   // scope stays keyed to who DECIDED it, so a case an admin later overturns
   // still shows up in that clinician's own log
-  const scope = useMemo(
-    () => (onlyDoctor ? PAST_REQUESTS.filter((r) => r.decidedBy === onlyDoctor) : PAST_REQUESTS),
-    [onlyDoctor],
-  );
+  const scope = useMemo(() => {
+    const decided = PAST_REQUESTS.filter((r) => r.outcome !== "escalated");
+    return onlyDoctor ? decided.filter((r) => r.decidedBy === onlyDoctor) : decided;
+  }, [onlyDoctor]);
 
   const standsAt = (r: PastRequest) => effectiveOutcome(r, revisions);
 
@@ -104,7 +110,7 @@ export function RequestHistoryView({
           <StatTile value={scope.length} label="Requests decided" />
           <StatTile value={`${approvalRate}%`} label="Approved & issued" tone="success" />
           <StatTile value={count("declined")} label="Declined" tone="warning" />
-          <StatTile value={count("escalated")} label="Escalated" tone="muted" />
+          <StatTile value={count("info")} label="Info requested" tone="muted" />
         </div>
 
         <section className="rounded-lg bg-background-paper shadow-card">
@@ -188,14 +194,40 @@ export function RequestHistoryView({
         </section>
       </div>
 
-      <DecisionReviewModal
+      <RequestReviewDrawer
         key={reviewing?.ref}
         request={reviewing}
         current={reviewing ? standsAt(reviewing) : "approved"}
         history={reviewing ? revisionsFor(revisions, reviewing.ref) : []}
         actor={actor}
         onClose={() => setReviewing(null)}
+        onRequestInfo={(r) => setEmailing(r)}
       />
+
+      {/* "Info requested" is an email, not a status flip — same composer the
+          order review uses */}
+      {emailing && (
+        <RequestInfoEmailModal
+          open
+          onClose={() => setEmailing(null)}
+          onSend={({ subject }) => {
+            addRevision({
+              ref: emailing.ref,
+              from: standsAt(emailing),
+              to: "info",
+              reason: `Information requested from the patient — "${subject}"`,
+              by: actor,
+              on: stampNow(),
+            });
+            setEmailing(null);
+            setReviewing(null);
+          }}
+          patientName={emailing.patientName}
+          caseRef={emailing.ref}
+          senderName={actor}
+          senderRole={onlyDoctor ? "Prescriber · Prescriptr" : "Clinical Lead · HFP Admin"}
+        />
+      )}
     </>
   );
 }
