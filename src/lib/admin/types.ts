@@ -74,7 +74,27 @@ export interface AttentionRow {
 // ---- Doctors (FC-11) ------------------------------------------------------
 
 export type DoctorStatus = "active" | "suspended" | "onboarding";
-export type QueueFilter = "green" | "full";
+
+/**
+ * RAG bands a clinician may work. `granted` is set when they're invited and
+ * only an admin can widen it; `access` is what they're pulling right now, and
+ * can never exceed what was granted. "all" means every granted band.
+ *
+ * Note for production: the queue's own clearance model
+ * (lib/doctor/clinicians.ts) is seeded separately in this prototype — the two
+ * need to read the same record once there's a backend.
+ */
+export type QueueBand = "green" | "amber" | "red";
+export type QueueAccess = QueueBand | "all";
+
+export const QUEUE_BANDS: QueueBand[] = ["green", "amber", "red"];
+
+export const ACCESS_LABEL: Record<QueueAccess, string> = {
+  green: "Green only",
+  amber: "Amber only",
+  red: "Red only",
+  all: "All granted bands",
+};
 export type CaseCategory = "New Order" | "Simple Repeat" | "Complex Repeat";
 
 export interface AssignedCase {
@@ -92,7 +112,10 @@ export interface AdminDoctor {
   gmc: string; // "7041182" or "pending"
   /** compliance %, null while onboarding */
   pct: number | null;
-  filter: QueueFilter;
+  /** bands this clinician is licensed for, set at invitation */
+  granted: QueueBand[];
+  /** the band they are working right now — a subset of `granted` */
+  access: QueueAccess;
   /** account state — set by the admin, independent of who's logged in now */
   status: DoctorStatus;
   /** live platform presence; lastSeen only shown when offline */

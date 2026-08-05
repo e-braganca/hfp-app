@@ -3,11 +3,11 @@ import {
   DoctorIdentity,
   DoctorStatusPill,
   MiniComplianceBar,
-  QueueAccessBadge,
   WorkingOn,
 } from "@/components/admin/doctorBits";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ACCESS_LABEL } from "@/lib/admin/types";
 import { ADMIN_DOCTORS, ATTENTION_ROWS, OVERVIEW_KPIS } from "@/lib/admin/data";
 import type { AttentionKind } from "@/lib/admin/types";
 import type { Rag } from "@/lib/doctor/types";
@@ -107,7 +107,7 @@ export default function AdminOverviewPage() {
                 <div key={d.name} className="grid grid-cols-[1.4fr_0.7fr_0.9fr_1.1fr_1fr] [&>*]:min-w-0 items-center border-b border-[var(--divider)] last:border-0">
                   <div className="px-5 py-3"><DoctorIdentity doctor={d} /></div>
                   <div className="px-5 py-3"><DoctorStatusPill status={d.status} /></div>
-                  <div className="px-5 py-3"><QueueAccessBadge filter={d.filter} /></div>
+                  <div className="px-5 py-3 text-sm text-text-secondary">{ACCESS_LABEL[d.access]}</div>
                   <div className="px-5 py-3"><WorkingOn cases={d.cases} /></div>
                   <div className="px-5 py-3"><MiniComplianceBar pct={d.pct} /></div>
                 </div>

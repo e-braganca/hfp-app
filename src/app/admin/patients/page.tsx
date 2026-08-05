@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ChevronRight } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PharmacyLabel } from "@/components/ui/PharmacyLabel";
 import { StatTile } from "@/components/ui/StatTile";
@@ -17,7 +19,7 @@ export default function PatientsPage() {
   const paused = PATIENTS.filter((p) => p.status === "paused").length;
 
   // scrolls at its natural width below lg; fluid (and truncating) from lg up
-  const cols = "grid-cols-[1.2fr_0.55fr_0.45fr_1.15fr_1.5fr_0.95fr_1fr] [&>*]:min-w-0";
+  const cols = "grid-cols-[1.2fr_0.55fr_0.45fr_1.1fr_1.4fr_0.9fr_0.9fr_110px] [&>*]:min-w-0";
 
   return (
     <>
@@ -45,6 +47,7 @@ export default function PatientsPage() {
                 <Head>Medication / Dose</Head>
                 <Head>Status</Head>
                 <Head>Last Review</Head>
+                <Head className="text-right">Actions</Head>
               </div>
               {PATIENTS.map((p) => {
                 const s = STATUS_PILL[p.status];
@@ -70,6 +73,16 @@ export default function PatientsPage() {
                       </span>
                     </div>
                     <div className="truncate px-4 py-4 text-sm text-text-secondary">{p.lastReview}</div>
+                    {/* actions far right, like every other table */}
+                    <div className="flex justify-end px-4 py-4">
+                      <Link
+                        href={`/admin/patients/${p.ref}`}
+                        className="flex items-center gap-1 whitespace-nowrap text-xs font-bold text-primary-dark hover:underline"
+                      >
+                        View
+                        <ChevronRight width={14} height={14} />
+                      </Link>
+                    </div>
                   </div>
                 );
               })}
@@ -81,9 +94,9 @@ export default function PatientsPage() {
   );
 }
 
-function Head({ children }: { children: React.ReactNode }) {
+function Head({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+    <div className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary ${className}`}>
       {children}
     </div>
   );

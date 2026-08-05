@@ -1,7 +1,7 @@
 // Small, reusable admin doctor UI bits — shared by the Overview team table and
 // the Doctors management page.
 import { RAG_TEXT, complianceRag } from "@/lib/doctor/rag";
-import type { AdminDoctor, DoctorStatus, QueueFilter } from "@/lib/admin/types";
+import type { AdminDoctor, DoctorStatus } from "@/lib/admin/types";
 
 export function DoctorStatusPill({ status }: { status: DoctorStatus }) {
   const map = {
@@ -27,24 +27,28 @@ export function PresencePill({ online, lastSeen }: { online: boolean; lastSeen: 
   );
 }
 
-export function QueueAccessBadge({ filter }: { filter: QueueFilter }) {
-  return filter === "green" ? (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-success-lighter px-2.5 py-1 text-xs font-semibold text-success-darker">
-      <span className="h-1.5 w-1.5 rounded-full bg-success" />
-      Green-only
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-grey-200 px-2.5 py-1 text-xs font-semibold text-text-primary">
-      Full queue
-    </span>
+/** Live presence, small enough to sit beside a name or an avatar anywhere. */
+export function PresenceDot({ online, className = "" }: { online: boolean; className?: string }) {
+  return (
+    <span
+      title={online ? "Online now" : "Offline"}
+      aria-label={online ? "Online now" : "Offline"}
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-background-paper ${
+        online ? "bg-success" : "bg-grey-400"
+      } ${className}`}
+    />
   );
 }
 
 export function DoctorIdentity({ doctor }: { doctor: AdminDoctor }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-lighter text-xs font-bold text-primary-dark">
-        {doctor.initials}
+      <span className="relative shrink-0">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-lighter text-xs font-bold text-primary-dark">
+          {doctor.initials}
+        </span>
+        {/* presence lives on the avatar now, not in its own column */}
+        <PresenceDot online={doctor.online} className="absolute -bottom-0.5 -right-0.5" />
       </span>
       <div className="min-w-0">
         <p className="truncate text-sm font-bold text-text-primary" title={doctor.name}>{doctor.name}</p>

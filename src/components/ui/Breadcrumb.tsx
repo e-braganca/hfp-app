@@ -4,9 +4,12 @@ import { ArrowLeft } from "./icons";
 /** "← Work Queue / New Orders / PT-4471" breadcrumb on detail pages. */
 export function Breadcrumb({
   backHref,
+  backLabel = "Work Queue",
   trail,
 }: {
   backHref: string;
+  /** where "back" goes — not every detail page hangs off the queue */
+  backLabel?: string;
   trail: string[];
 }) {
   return (
@@ -16,7 +19,7 @@ export function Breadcrumb({
         className="flex items-center gap-2 rounded-lg border border-[var(--divider)] bg-background-paper px-3 py-1.5 font-semibold text-text-primary hover:bg-background-neutral"
       >
         <ArrowLeft width={16} height={16} />
-        Work Queue
+        {backLabel}
       </Link>
       <span className="flex items-center gap-2 text-text-secondary">
         {trail.map((t, i) => (
