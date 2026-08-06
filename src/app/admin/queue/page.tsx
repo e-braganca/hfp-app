@@ -1,16 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PresenceDot } from "@/components/admin/doctorBits";
+import { QueueCaseDrawer } from "@/components/admin/QueueCaseDrawer";
+import { Select, type SelectOption } from "@/components/ui/Select";
 import { useClaims, useQueueClock } from "@/components/doctor/queueHooks";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RagPill } from "@/components/ui/StatusPill";
 import { StatTile } from "@/components/ui/StatTile";
 import { Toast } from "@/components/ui/Toast";
-import { ChevronRight } from "@/components/ui/icons";
 import { ADMIN_DOCTORS } from "@/lib/admin/data";
-import type { AdminDoctor, QueueBand } from "@/lib/admin/types";
+import { ACCESS_LABEL, type AdminDoctor, type QueueBand } from "@/lib/admin/types";
 import { CATEGORY_LABEL, type QueueCategory } from "@/lib/doctor/clinicians";
 import { COMPLEX_CASES, ESCALATIONS, NEW_ORDERS, SIMPLE_REPEATS } from "@/lib/doctor/data";
 import { claim, heldFor, holdFor, release } from "@/lib/doctor/queue-claims";
@@ -78,6 +78,7 @@ export default function AdminQueuePage() {
   const now = useQueueClock();
   const [category, setCategory] = useState<QueueCategory | "all">("all");
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
+  const [openCase, setOpenCase] = useState<LiveCase | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const cases = useMemo(() => liveCases(), []);
@@ -232,15 +233,13 @@ export default function AdminQueuePage() {
                           Unassign
                         </button>
                       )}
-                      {c.href && (
-                        <Link
-                          href={c.href}
-                          className="flex items-center gap-1 whitespace-nowrap text-xs font-bold text-primary-dark hover:underline"
-                        >
-                          Open
-                          <ChevronRight width={14} height={14} />
-                        </Link>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setOpenCase(c)}
+                        className="whitespace-nowrap rounded-lg border border-[var(--divider)] px-2.5 py-1.5 text-xs font-bold text-text-primary hover:bg-background-neutral"
+                      >
+                        Open
+                      </button>
                     </div>
                   </div>
                 );
@@ -255,13 +254,44 @@ export default function AdminQueuePage() {
         </section>
       </div>
 
+      <QueueCaseDrawer
+        caseRef={openCase?.ref ?? null}
+        category={openCase?.category ?? "new"}
+        rag={openCase?.rag ?? "green"}
+        hold={openCase ? holdFor(claims, openCase.ref) : null}
+        holder={
+          openCase
+            ? ADMIN_DOCTORS.find((d) => d.name === holdFor(claims, openCase.ref)?.by)
+            : undefined
+        }
+        now={now}
+        assignControl={
+          openCase && (
+            <AssignSelect
+              value={holdFor(claims, openCase.ref)?.by ?? ""}
+              rag={openCase.rag}
+              onPick={(name) => assign(openCase, name)}
+            />
+          )
+        }
+        onUnassign={() => {
+          const h = openCase ? holdFor(claims, openCase.ref) : null;
+          if (openCase && h) unassign(openCase, h.by);
+        }}
+        onClose={() => setOpenCase(null)}
+      />
+
       <Toast message={toast} onDone={() => setToast(null)} />
     </>
   );
 }
 
-/** Send or move a case. Ineligible clinicians stay visible with the reason,
- *  so the admin sees who would need widening rather than an empty list. */
+/**
+ * Send or move a case. Grouped by presence because a case handed to someone
+ * offline sits there — and searchable because this list is six names today
+ * and a hundred later. Ineligible clinicians stay listed with the reason, so
+ * the admin sees who would need widening rather than an empty menu.
+ */
 function AssignSelect({
   value,
   rag,
@@ -271,23 +301,38 @@ function AssignSelect({
   rag: Rag;
   onPick: (name: string) => void;
 }) {
+  const options: SelectOption[] = [...ADMIN_DOCTORS]
+    .sort((a, b) => Number(b.online) - Number(a.online))
+    .map((d) => {
+      const v = canBeAssigned(d, rag);
+      return {
+        value: d.name,
+        label: d.name,
+        hint: v.ok ? `${ACCESS_LABEL[d.access]} · ${d.pct === null ? "onboarding" : `${d.pct}% SOP`}` : v.why,
+        disabled: !v.ok,
+        group: d.online ? "Online now" : "Offline",
+        keywords: d.gmc,
+        leading: (
+          <span className="relative shrink-0">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-lighter text-[10px] font-bold text-primary-dark">
+              {d.initials}
+            </span>
+            <PresenceDot online={d.online} className="absolute -bottom-0.5 -right-0.5 h-2 w-2" />
+          </span>
+        ),
+      };
+    });
+
   return (
-    <select
+    <Select
       value={value}
-      onChange={(e) => onPick(e.target.value)}
-      className="h-8 max-w-[11rem] rounded-lg border border-[var(--divider)] bg-background-paper px-2 text-xs font-semibold text-text-primary focus:border-primary focus:outline-none"
-    >
-      <option value="">{value ? "Move to…" : "Send to…"}</option>
-      {ADMIN_DOCTORS.map((d) => {
-        const v = canBeAssigned(d, rag);
-        return (
-          <option key={d.name} value={d.name} disabled={!v.ok}>
-            {d.online ? "● " : "○ "}
-            {d.name}
-            {v.ok ? "" : ` — ${v.why}`}
-          </option>
-        );
-      })}
-    </select>
+      options={options}
+      placeholder={value ? "Move to…" : "Send to…"}
+      searchable
+      searchPlaceholder="Search clinicians…"
+      align="right"
+      buttonClassName="h-8 text-xs"
+      onChange={onPick}
+    />
   );
 }

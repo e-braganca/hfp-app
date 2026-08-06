@@ -93,7 +93,7 @@ export const ACCESS_LABEL: Record<QueueAccess, string> = {
   green: "Green only",
   amber: "Amber only",
   red: "Red only",
-  all: "All granted bands",
+  all: "All bands",
 };
 export type CaseCategory = "New Order" | "Simple Repeat" | "Complex Repeat";
 

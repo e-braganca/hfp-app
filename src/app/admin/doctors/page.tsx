@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DoctorIdentity, DoctorStatusPill, MiniComplianceBar } from "@/components/admin/doctorBits";
 import { Modal } from "@/components/ui/Modal";
+import { Select, type SelectOption } from "@/components/ui/Select";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Toast } from "@/components/ui/Toast";
 import { PlusIcon } from "@/components/ui/icons";
@@ -242,21 +243,30 @@ function AccessSelect({ doctor, onChange }: { doctor: AdminDoctor; onChange: (a:
   const allowed = (o: QueueAccess) =>
     o === "all" ? doctor.granted.length > 1 : doctor.granted.includes(o as QueueBand);
 
+  const dot = (o: QueueAccess) => (
+    <span
+      className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+        o === "green" ? "bg-success" : o === "amber" ? "bg-warning" : o === "red" ? "bg-error" : "bg-primary"
+      }`}
+    />
+  );
+
+  const options: SelectOption[] = ACCESS_OPTIONS.map((o) => ({
+    value: o,
+    label: ACCESS_LABEL[o],
+    hint: allowed(o) ? undefined : "Not granted at invitation",
+    disabled: !allowed(o),
+    leading: dot(o),
+  }));
+
   return (
     <div>
-      <select
+      <Select
         value={doctor.access}
-        onChange={(e) => onChange(e.target.value as QueueAccess)}
+        options={options}
         disabled={doctor.status !== "active"}
-        className="h-9 w-full rounded-lg border border-[var(--divider)] bg-background-paper px-2.5 text-sm font-semibold text-text-primary focus:border-primary focus:outline-none disabled:opacity-50"
-      >
-        {ACCESS_OPTIONS.map((o) => (
-          <option key={o} value={o} disabled={!allowed(o)}>
-            {ACCESS_LABEL[o]}
-            {allowed(o) ? "" : " — not granted"}
-          </option>
-        ))}
-      </select>
+        onChange={(v) => onChange(v as QueueAccess)}
+      />
       <p className="mt-1 text-[11px] text-text-secondary">
         Granted: {doctor.granted.map((g) => g[0].toUpperCase() + g.slice(1)).join(" · ")}
       </p>
