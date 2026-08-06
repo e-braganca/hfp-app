@@ -1,29 +1,69 @@
-/** Simple SVG area chart for the weight-loss cohort trend. Values 0–100. */
-export function CohortTrendChart({ data }: { data: number[] }) {
-  const W = 640;
-  const H = 180;
-  const pad = 8;
-  const max = 100;
-  const stepX = (W - pad * 2) / (data.length - 1);
-  const x = (i: number) => pad + i * stepX;
-  const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
+"use client";
 
-  const line = data.map((v, i) => `${i === 0 ? "M" : "L"} ${x(i)} ${y(v)}`).join(" ");
-  const area = `${line} L ${x(data.length - 1)} ${H - pad} L ${x(0)} ${H - pad} Z`;
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
+import { CHART, ChartFrame, ChartTooltip, axisProps } from "./chart";
+
+/**
+ * Share of a cohort hitting the 6-month ≥5% weight-loss target, week by week.
+ * The 90% governance target is drawn in, because the number only means
+ * anything against the line it's supposed to clear.
+ */
+export function CohortTrendChart({ data, target = 90 }: { data: number[]; target?: number }) {
+  const rows = data.map((pct, i) => ({ week: i + 1, pct }));
+  const min = Math.max(0, Math.floor(Math.min(...data) / 10) * 10 - 10);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-44 w-full" preserveAspectRatio="none" role="img" aria-label="Cohort weight-loss trend">
-      <defs>
-        <linearGradient id="cohortFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--primary-main)" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="var(--primary-main)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#cohortFill)" />
-      <path d={line} fill="none" stroke="var(--primary-main)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {data.map((v, i) => (
-        <circle key={i} cx={x(i)} cy={y(v)} r="2.5" fill="var(--primary-main)" />
-      ))}
-    </svg>
+    <ChartFrame height={200}>
+      <AreaChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -4 }}>
+        <defs>
+          <linearGradient id="cohortFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={CHART.line} stopOpacity={0.22} />
+            <stop offset="100%" stopColor={CHART.line} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+
+        <CartesianGrid stroke={CHART.grid} strokeDasharray="3 4" vertical={false} />
+        <XAxis dataKey="week" {...axisProps} tickFormatter={(w: number) => `wk ${w}`} interval="preserveStartEnd" />
+        <YAxis {...axisProps} domain={[min, 100]} width={48} tickFormatter={(v: number) => `${v}%`} />
+
+        <ReferenceLine
+          y={target}
+          stroke={CHART.target}
+          strokeDasharray="5 4"
+          strokeWidth={1.5}
+          label={{
+            value: `target ${target}%`,
+            position: "insideTopLeft",
+            fill: "var(--color-secondary-dark)",
+            fontSize: 10,
+            fontFamily: "var(--font-mono)",
+          }}
+        />
+
+        <Area
+          type="monotone"
+          dataKey="pct"
+          stroke={CHART.line}
+          strokeWidth={2.5}
+          fill="url(#cohortFill)"
+          dot={{ r: 2.5, fill: CHART.line, strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: CHART.line, stroke: "var(--background-paper)", strokeWidth: 2 }}
+          isAnimationActive={false}
+        />
+
+        <ChartTooltip
+          format={(d) => ({
+            title: `Cohort week ${d.week}`,
+            rows: [
+              { label: "Meeting target", value: `${d.pct}%`, colour: CHART.line },
+              {
+                label: "vs 90% target",
+                value: `${(d.pct as number) >= target ? "+" : ""}${((d.pct as number) - target).toFixed(0)} pts`,
+              },
+            ],
+          })}
+        />
+      </AreaChart>
+    </ChartFrame>
   );
 }

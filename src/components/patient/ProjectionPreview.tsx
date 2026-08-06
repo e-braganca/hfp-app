@@ -1,3 +1,7 @@
+"use client";
+
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
+import { CHART, ChartFrame, ChartLegend, ChartTooltip, axisProps } from "@/components/ui/chart";
 import { buildProjection, TRIAL_OUTCOMES } from "@/lib/patient/projection";
 
 /* ============================================================================
@@ -27,24 +31,23 @@ export function ProjectionPreview({ startKg, heightCm }: { startKg: number; heig
   const horizon = Math.max(...projections.map((p) => p.horizonWeeks));
   const SIX_MONTHS = 26;
 
-  const w = 560;
-  const h = 170;
-  const padX = 34;
-  const padY = 18;
-  const rightPad = 62;
-  const min = best.targetKg - 2;
-  const max = startKg + 1;
-  const x = (week: number) => padX + (week / horizon) * (w - padX - rightPad);
-  const y = (v: number) => padY + ((max - v) / (max - min || 1)) * (h - padY * 2);
-
-  const curve = (p: (typeof projections)[number]) => {
-    const pts: string[] = [];
-    for (let week = 0; week <= p.horizonWeeks; week += 2) pts.push(`${x(week)},${y(p.at(week))}`);
-    return pts.join(" ");
-  };
-
   const fmt = (n: number) => n.toFixed(1);
   const bmiOf = (kg: number) => kg / (heightCm / 100) ** 2;
+
+  // one row every two weeks; `band` is the range between the two treatments,
+  // which is the honest shape of this estimate before a prescriber picks one
+  const data = Array.from({ length: Math.floor(horizon / 2) + 1 }, (_, i) => {
+    const week = i * 2;
+    return {
+      week,
+      best: best.at(week),
+      gentle: gentle.at(week),
+      band: [best.at(week), gentle.at(week)] as [number, number],
+    };
+  });
+
+  const min = Math.floor(best.targetKg - 2);
+  const max = Math.ceil(startKg + 1);
 
   return (
     <div className="mt-6 rounded-xl border border-[var(--divider)] bg-background-paper p-5">
@@ -53,54 +56,59 @@ export function ProjectionPreview({ startKg, heightCm }: { startKg: number; heig
         <span className="font-mono text-[10px] tracking-wide text-text-secondary">TRIAL AVERAGES · SURMOUNT-1 · STEP-1</span>
       </div>
 
-      <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 w-full" role="img" aria-label={`Projected weight from ${fmt(startKg)} kg to between ${fmt(best.targetKg)} and ${fmt(gentle.targetKg)} kg`}>
-        {/* start / target guide lines */}
-        <line x1={padX} x2={w - rightPad} y1={y(startKg)} y2={y(startKg)} stroke="var(--divider)" strokeDasharray="3 4" />
-        <text x={padX - 6} y={y(startKg) + 4} textAnchor="end" className="fill-[var(--color-text-disabled)] font-mono text-[10px]">
-          {Math.round(startKg)}
-        </text>
-        <line x1={padX} x2={w - rightPad} y1={y(best.targetKg)} y2={y(best.targetKg)} stroke="var(--color-secondary)" strokeWidth="1.2" strokeDasharray="5 4" />
-        <text x={padX - 6} y={y(best.targetKg) + 4} textAnchor="end" className="fill-[var(--color-secondary-dark)] font-mono text-[10px] font-bold">
-          {Math.round(best.targetKg)}
-        </text>
-
-        {/* 6-month marker */}
-        <line x1={x(SIX_MONTHS)} x2={x(SIX_MONTHS)} y1={padY} y2={h - padY} stroke="var(--divider)" strokeDasharray="2 5" />
-        <text x={x(SIX_MONTHS)} y={padY - 5} textAnchor="middle" className="fill-[var(--color-text-disabled)] font-mono text-[9px] font-bold">
-          6 MONTHS
-        </text>
-
-        {/* the range between the two treatments */}
-        <polygon
-          points={`${curve(best)} ${[...Array(Math.floor(gentle.horizonWeeks / 2) + 1)]
-            .map((_, i) => gentle.horizonWeeks - i * 2)
-            .map((week) => `${x(week)},${y(gentle.at(week))}`)
-            .join(" ")}`}
-          fill="var(--primary-main-12)"
-        />
-        {projections.map((p, i) => (
-          <polyline
-            key={meds[i]}
-            points={curve(p)}
-            fill="none"
-            stroke={p === best ? "var(--primary-main)" : "var(--primary-light)"}
-            strokeWidth="2.2"
-            strokeDasharray="5 4"
-            strokeLinecap="round"
+      <ChartFrame height={200}>
+        <ComposedChart data={data} margin={{ top: 16, right: 12, bottom: 0, left: -12 }}>
+          <CartesianGrid stroke={CHART.grid} strokeDasharray="3 4" vertical={false} />
+          <XAxis
+            dataKey="week"
+            {...axisProps}
+            ticks={[0, 26, 52, horizon]}
+            tickFormatter={(w: number) => (w === 0 ? "today" : `wk ${w}`)}
           />
-        ))}
-        {projections.map((p, i) => (
-          <text
-            key={meds[i]}
-            x={x(p.horizonWeeks) + 6}
-            y={y(p.at(p.horizonWeeks)) + 4}
-            className={`font-mono text-[10px] font-bold ${p === best ? "fill-[var(--primary-main)]" : "fill-[var(--primary-light)]"}`}
-          >
-            {meds[i]}
-          </text>
-        ))}
-        <circle cx={x(0)} cy={y(startKg)} r="4" fill="var(--color-text-primary)" />
-      </svg>
+          <YAxis {...axisProps} domain={[min, max]} width={40} />
+
+          <ReferenceLine y={startKg} stroke={CHART.grid} strokeDasharray="3 4" />
+          <ReferenceLine
+            x={26}
+            stroke={CHART.grid}
+            strokeDasharray="2 5"
+            label={{ value: "6 MONTHS", position: "top", fill: "var(--color-text-disabled)", fontSize: 9, fontFamily: "var(--font-mono)" }}
+          />
+          <ReferenceLine
+            y={best.targetKg}
+            stroke={CHART.target}
+            strokeDasharray="5 4"
+            strokeWidth={1.2}
+            label={{ value: `${Math.round(best.targetKg)} kg`, position: "insideBottomLeft", fill: "var(--color-secondary-dark)", fontSize: 10, fontFamily: "var(--font-mono)" }}
+          />
+
+          {/* the spread between the two licensed options */}
+          <Area
+            type="monotone"
+            dataKey="band"
+            stroke="none"
+            fill={CHART.fill}
+            isAnimationActive={false}
+            activeDot={false}
+          />
+          <Line type="monotone" dataKey="best" stroke={CHART.line} strokeWidth={2.2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="gentle" stroke={CHART.lineSoft} strokeWidth={2.2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+
+          <ChartTooltip
+            format={(d) => ({
+              title: (d.week as number) === 0 ? "Today" : `Week ${d.week}`,
+              rows: [
+                { label: meds[0], value: `${fmt(d.best as number)} kg`, colour: CHART.line },
+                { label: meds[1], value: `${fmt(d.gentle as number)} kg`, colour: CHART.lineSoft },
+              ],
+            })}
+          />
+        </ComposedChart>
+      </ChartFrame>
+
+      <ChartLegend
+        items={meds.map((m, i) => ({ label: m, colour: i === 0 ? CHART.line : CHART.lineSoft, dashed: true }))}
+      />
 
       <div className="mt-3 grid gap-px overflow-hidden rounded-lg border border-[var(--divider)] bg-[var(--divider)] sm:grid-cols-2">
         <div className="bg-background-paper p-3.5">
