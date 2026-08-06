@@ -80,6 +80,138 @@ export function ChartTooltip({
   );
 }
 
+/* ---- callouts on the plot -------------------------------------------------
+   The two numbers a reader actually wants — where they are now and where
+   they're heading — printed on the line itself instead of being locked behind
+   a hover. Hover is a pointer affordance: on a phone there is nothing to hover
+   with, so anything only reachable that way is, for half the users, not shown.
+   -------------------------------------------------------------------------- */
+
+const PILL_H = 20;
+/** 11px Inconsolata is monospaced, so character count sizes the box exactly. */
+const CHAR_W = 6.4;
+
+/** A value badge drawn in SVG so it tracks the point through resizes. */
+export function ChartPill({
+  x,
+  y,
+  text,
+  colour,
+  anchor = "middle",
+  solid = false,
+}: {
+  x: number;
+  y: number;
+  text: string;
+  colour: string;
+  anchor?: "start" | "middle" | "end";
+  solid?: boolean;
+}) {
+  const w = Math.round(text.length * CHAR_W + 16);
+  const left = anchor === "start" ? x : anchor === "end" ? x - w : x - w / 2;
+  return (
+    <g>
+      <rect
+        x={left}
+        y={y - PILL_H / 2}
+        width={w}
+        height={PILL_H}
+        rx={PILL_H / 2}
+        fill={solid ? colour : "var(--color-background-paper)"}
+        stroke={colour}
+        strokeWidth={solid ? 0 : 1.25}
+      />
+      <text
+        x={left + w / 2}
+        y={y + 4}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={700}
+        fontFamily="var(--font-mono)"
+        fill={solid ? "#fff" : colour}
+      >
+        {text}
+      </text>
+    </g>
+  );
+}
+
+interface DotArgs {
+  cx?: number;
+  cy?: number;
+  index?: number;
+}
+
+/**
+ * Dot renderer that calls one point out by value. `at` is usually the last
+ * real reading — "you are here" — and the rest of the series keeps whatever
+ * plain dots it had.
+ */
+export function valueDots({
+  at,
+  text,
+  colour,
+  r = 0,
+  dy = -18,
+  anchor = "middle",
+}: {
+  at: number;
+  text: string;
+  colour: string;
+  /** radius for the ordinary points; 0 draws none */
+  r?: number;
+  /** where the pill sits relative to the point — negative is above */
+  dy?: number;
+  anchor?: "start" | "middle" | "end";
+}) {
+  return function Dots({ cx, cy, index }: DotArgs) {
+    // null gaps in the series arrive with no coordinates
+    if (cx == null || cy == null) return <g key={`dot-${index}`} />;
+    return (
+      <g key={`dot-${index}`}>
+        {r > 0 && <circle cx={cx} cy={cy} r={r} fill={colour} />}
+        {index === at && (
+          <>
+            <circle cx={cx} cy={cy} r={4.5} fill={colour} stroke="var(--color-background-paper)" strokeWidth={2} />
+            <ChartPill x={cx} y={cy + dy} text={text} colour={colour} anchor={anchor} solid />
+          </>
+        )}
+      </g>
+    );
+  };
+}
+
+/**
+ * Label for a ReferenceLine, in the same badge idiom. Pass it straight to
+ * `label` — Recharts clones it with the line's viewBox.
+ */
+export function referencePill({
+  text,
+  side = "right",
+  dy = 0,
+  colour = "var(--color-secondary-dark)",
+}: {
+  text: string;
+  side?: "left" | "right";
+  /** nudge off the line — negative sits above it */
+  dy?: number;
+  colour?: string;
+}) {
+  function Label({ viewBox }: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) {
+    const { x = 0, y = 0, width = 0 } = viewBox ?? {};
+    return (
+      <ChartPill
+        x={side === "right" ? x + width - 4 : x + 4}
+        y={y + dy}
+        text={text}
+        colour={colour}
+        anchor={side === "right" ? "end" : "start"}
+      />
+    );
+  }
+  return <Label />;
+}
+
 /** Legend rows, kept out of Recharts so they read as part of the card. */
 export function ChartLegend({ items }: { items: { label: ReactNode; colour: string; dashed?: boolean }[] }) {
   return (

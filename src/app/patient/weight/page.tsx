@@ -10,7 +10,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART, ChartFrame, ChartLegend, ChartTooltip, axisProps } from "@/components/ui/chart";
+import {
+  CHART,
+  ChartFrame,
+  ChartLegend,
+  ChartTooltip,
+  axisProps,
+  referencePill,
+  valueDots,
+} from "@/components/ui/chart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
 import { Toast } from "@/components/ui/Toast";
@@ -222,20 +230,22 @@ function WeightChart({ entries, projection }: { entries: WeightEntry[]; projecti
           />
           <YAxis {...axisProps} domain={[min, max]} width={44} tickFormatter={(v: number) => `${v}`} />
 
-          {targetInView && (
-          <ReferenceLine
-            y={projection.targetKg}
-            stroke={CHART.target}
-            strokeDasharray="5 4"
-            strokeWidth={1.5}
-            label={{
-              value: `target ${projection.targetKg.toFixed(1)}`,
-              position: "insideTopRight",
-              fill: "var(--color-secondary-dark)",
-              fontSize: 10,
-              fontFamily: "var(--font-mono)",
-            }}
-          />
+          {targetInView ? (
+            <ReferenceLine
+              y={projection.targetKg}
+              stroke={CHART.target}
+              strokeDasharray="5 4"
+              strokeWidth={1.5}
+              label={referencePill({ text: `target ${projection.targetKg.toFixed(1)} kg`, dy: -13 })}
+            />
+          ) : (
+            // out of this window — say so on the floor of the plot rather than
+            // rescaling to a target 18 months out and flattening the real line
+            <ReferenceLine
+              y={min}
+              stroke="none"
+              label={referencePill({ text: `target ${projection.targetKg.toFixed(1)} kg ↓`, dy: -14 })}
+            />
           )}
 
           <Area
@@ -256,8 +266,14 @@ function WeightChart({ entries, projection }: { entries: WeightEntry[]; projecti
             stroke={CHART.line}
             strokeWidth={2.5}
             fill="url(#weightFill)"
-            dot={{ r: 3, fill: CHART.line, strokeWidth: 0 }}
-            activeDot={{ r: 5, fill: CHART.line, stroke: "var(--background-paper)", strokeWidth: 2 }}
+            dot={valueDots({
+              at: logged,
+              text: `${entries[logged].kg.toFixed(1)} kg`,
+              colour: CHART.line,
+              r: 3,
+              dy: -20,
+            })}
+            activeDot={{ r: 5, fill: CHART.line, stroke: "var(--color-background-paper)", strokeWidth: 2 }}
             connectNulls={false}
             // the page re-renders on every store tick; Recharts would restart
             // its reveal animation each time and never finish drawing the line

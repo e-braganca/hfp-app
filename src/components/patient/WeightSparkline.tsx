@@ -1,16 +1,16 @@
 "use client";
 
 import { Area, AreaChart, ReferenceLine, XAxis, YAxis } from "recharts";
-import { CHART, ChartFrame, ChartTooltip, axisProps } from "@/components/ui/chart";
+import { CHART, ChartFrame, ChartTooltip, axisProps, referencePill, valueDots } from "@/components/ui/chart";
 import type { Projection } from "@/lib/patient/projection";
 
 /**
  * Dashboard weight sparkline: logged weights continued by the trial
  * projection. Deliberately a near-term window — plotting the whole 72-week
- * horizon squeezes the patient's actual check-ins into a few pixels. The
- * target line only renders once it's inside the visible range; until then the
- * figure lives in the Started / Today / Target row under the chart, and the
- * full horizon is on /patient/weight.
+ * horizon squeezes the patient's actual check-ins into a few pixels; the full
+ * horizon is on /patient/weight. Today's weight and the target are both
+ * labelled on the plot, the target pinned to the floor with a caret when it
+ * falls below the window.
  */
 export function WeightSparkline({ values, projection }: { values: number[]; projection: Projection }) {
   const logged = values.length - 1;
@@ -41,8 +41,22 @@ export function WeightSparkline({ values, projection }: { values: number[]; proj
         <XAxis dataKey="week" hide />
         <YAxis {...axisProps} domain={[min, max]} width={40} tickCount={3} />
 
-        {targetInView && (
-          <ReferenceLine y={projection.targetKg} stroke={CHART.target} strokeDasharray="5 4" strokeWidth={1.5} />
+        {targetInView ? (
+          <ReferenceLine
+            y={projection.targetKg}
+            stroke={CHART.target}
+            strokeDasharray="5 4"
+            strokeWidth={1.5}
+            label={referencePill({ text: `target ${projection.targetKg.toFixed(1)}`, dy: -12 })}
+          />
+        ) : (
+          // the target sits well below a 14-week window; pinning it to the
+          // floor with a caret says where it is without flattening the line
+          <ReferenceLine
+            y={min}
+            stroke="none"
+            label={referencePill({ text: `target ${projection.targetKg.toFixed(1)} ↓`, dy: -14 })}
+          />
         )}
 
         <Area
@@ -63,8 +77,8 @@ export function WeightSparkline({ values, projection }: { values: number[]; proj
           stroke={CHART.line}
           strokeWidth={2.5}
           fill="url(#sparkFill)"
-          dot={false}
-          activeDot={{ r: 4, fill: CHART.line, stroke: "var(--background-paper)", strokeWidth: 2 }}
+          dot={valueDots({ at: logged, text: `${values[logged].toFixed(1)} kg`, colour: CHART.line, dy: -20 })}
+          activeDot={{ r: 4, fill: CHART.line, stroke: "var(--color-background-paper)", strokeWidth: 2 }}
           connectNulls={false}
           isAnimationActive={false}
         />

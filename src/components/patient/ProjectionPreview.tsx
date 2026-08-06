@@ -1,7 +1,7 @@
 "use client";
 
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
-import { CHART, ChartFrame, ChartLegend, ChartTooltip, axisProps } from "@/components/ui/chart";
+import { CHART, ChartFrame, ChartLegend, ChartTooltip, axisProps, referencePill, valueDots } from "@/components/ui/chart";
 import { buildProjection, TRIAL_OUTCOMES } from "@/lib/patient/projection";
 
 /* ============================================================================
@@ -67,20 +67,26 @@ export function ProjectionPreview({ startKg, heightCm }: { startKg: number; heig
           />
           <YAxis {...axisProps} domain={[min, max]} width={40} />
 
-          <ReferenceLine y={startKg} stroke={CHART.grid} strokeDasharray="3 4" />
+          <ReferenceLine
+            y={startKg}
+            stroke={CHART.grid}
+            strokeDasharray="3 4"
+            label={referencePill({
+              text: `today ${fmt(startKg)} kg`,
+              side: "left",
+              dy: 14,
+              colour: "var(--color-text-secondary)",
+            })}
+          />
           <ReferenceLine
             x={26}
             stroke={CHART.grid}
             strokeDasharray="2 5"
             label={{ value: "6 MONTHS", position: "top", fill: "var(--color-text-disabled)", fontSize: 9, fontFamily: "var(--font-mono)" }}
           />
-          <ReferenceLine
-            y={best.targetKg}
-            stroke={CHART.target}
-            strokeDasharray="5 4"
-            strokeWidth={1.2}
-            label={{ value: `${Math.round(best.targetKg)} kg`, position: "insideBottomLeft", fill: "var(--color-secondary-dark)", fontSize: 10, fontFamily: "var(--font-mono)" }}
-          />
+          {/* the line's own value is called out at its end point, so it isn't
+              labelled twice */}
+          <ReferenceLine y={best.targetKg} stroke={CHART.target} strokeDasharray="5 4" strokeWidth={1.2} />
 
           {/* the spread between the two licensed options */}
           <Area
@@ -91,8 +97,24 @@ export function ProjectionPreview({ startKg, heightCm }: { startKg: number; heig
             isAnimationActive={false}
             activeDot={false}
           />
-          <Line type="monotone" dataKey="best" stroke={CHART.line} strokeWidth={2.2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
-          <Line type="monotone" dataKey="gentle" stroke={CHART.lineSoft} strokeWidth={2.2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+          <Line
+            type="monotone"
+            dataKey="best"
+            stroke={CHART.line}
+            strokeWidth={2.2}
+            strokeDasharray="5 4"
+            dot={valueDots({ at: data.length - 1, text: `${fmt(best.targetKg)} kg`, colour: CHART.line, anchor: "end", dy: -16 })}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="gentle"
+            stroke={CHART.lineSoft}
+            strokeWidth={2.2}
+            strokeDasharray="5 4"
+            dot={valueDots({ at: data.length - 1, text: `${fmt(gentle.targetKg)} kg`, colour: CHART.lineSoft, anchor: "end", dy: -16 })}
+            isAnimationActive={false}
+          />
 
           <ChartTooltip
             format={(d) => ({

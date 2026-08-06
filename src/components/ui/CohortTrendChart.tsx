@@ -1,7 +1,7 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
-import { CHART, ChartFrame, ChartTooltip, axisProps } from "./chart";
+import { CHART, ChartFrame, ChartTooltip, axisProps, referencePill, valueDots } from "./chart";
 
 /**
  * Share of a cohort hitting the 6-month ≥5% weight-loss target, week by week.
@@ -31,13 +31,7 @@ export function CohortTrendChart({ data, target = 90 }: { data: number[]; target
           stroke={CHART.target}
           strokeDasharray="5 4"
           strokeWidth={1.5}
-          label={{
-            value: `target ${target}%`,
-            position: "insideTopLeft",
-            fill: "var(--color-secondary-dark)",
-            fontSize: 10,
-            fontFamily: "var(--font-mono)",
-          }}
+          label={referencePill({ text: `target ${target}%`, side: "left", dy: -13 })}
         />
 
         <Area
@@ -46,8 +40,17 @@ export function CohortTrendChart({ data, target = 90 }: { data: number[]; target
           stroke={CHART.line}
           strokeWidth={2.5}
           fill="url(#cohortFill)"
-          dot={{ r: 2.5, fill: CHART.line, strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: CHART.line, stroke: "var(--background-paper)", strokeWidth: 2 }}
+          // latest week called out below the point — above would run into the
+          // target line this series is measured against
+          dot={valueDots({
+            at: rows.length - 1,
+            text: `${rows[rows.length - 1].pct}%`,
+            colour: CHART.line,
+            r: 2.5,
+            dy: 20,
+            anchor: "end",
+          })}
+          activeDot={{ r: 5, fill: CHART.line, stroke: "var(--color-background-paper)", strokeWidth: 2 }}
           isAnimationActive={false}
         />
 
