@@ -9,12 +9,15 @@ export function Modal({
   subtitle,
   onClose,
   children,
+  /** "lg" when the dialog lists records rather than asking a single question */
+  size = "md",
 }: {
   open: boolean;
   title: string;
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
+  size?: "md" | "lg";
 }) {
   if (!open) return null;
   return (
@@ -23,7 +26,9 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-lg bg-background-paper shadow-dialog"
+        className={`w-full overflow-hidden rounded-lg bg-background-paper shadow-dialog ${
+          size === "lg" ? "max-w-2xl" : "max-w-lg"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-primary-darker via-primary-dark to-primary px-6 py-4 text-white">

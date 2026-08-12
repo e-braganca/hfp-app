@@ -333,11 +333,18 @@ function NewOrdersTab({ rows, ...s }: { rows: typeof NEW_ORDERS } & Shared) {
 
 function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shared) {
   const [reviewing, setReviewing] = useState(false);
+  /** cases pulled out of this batch — still claimed, just signed separately */
+  const [dropped, setDropped] = useState<string[]>([]);
   const [done, setDone] = useState(0);
 
   const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.1fr_auto_170px] [&>*]:min-w-0";
   const visible = rows.filter((r) => !s.onlyMine || s.isAvailable(s.state(r.ref, "simple", r.score.rag)));
   const mineHere = rows.filter((r) => s.state(r.ref, "simple", r.score.rag).kind === "mine");
+  const batch = mineHere.filter((r) => !dropped.includes(r.ref));
+  const closeReview = () => {
+    setReviewing(false);
+    setDropped([]);
+  };
 
   if (done > 0) {
     return (
@@ -382,7 +389,10 @@ function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shar
           </div>
           <button
             type="button"
-            onClick={() => setReviewing(true)}
+            onClick={() => {
+              setDropped([]);
+              setReviewing(true);
+            }}
             className="rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
           >
             Review &amp; sign {mineHere.length}
@@ -424,37 +434,98 @@ function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shar
 
       <Modal
         open={reviewing}
+        size="lg"
         title="Review & sign batch"
-        subtitle={`${mineHere.length} Green simple repeats you hold`}
-        onClose={() => setReviewing(false)}
+        subtitle={`${batch.length} Green simple repeat${batch.length === 1 ? "" : "s"} you hold`}
+        onClose={closeReview}
       >
-        <p className="text-sm text-text-secondary">
-          All {mineHere.length} repeats scored Green against their pharmacy SOP (Rule 1.1 eligibility + Rule 2.2
-          titration). Each approval is individually audit-logged.
+        <p className="text-sm leading-relaxed text-text-secondary">
+          All {mineHere.length}{" "}
+          scored Green against their pharmacy SOP. Check each one before signing — drop any you&rsquo;d rather review
+          on its own.
         </p>
+
+        <div className="mt-4 divide-y divide-[var(--divider)] overflow-hidden rounded-xl border border-[var(--divider)]">
+          {batch.map((r) => (
+            <div key={r.ref} className="flex items-center gap-4 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                  <span className="font-mono text-[13px] font-bold text-text-primary">{r.ref}</span>
+                  <PharmacyLabel code={r.pharmacyCode} />
+                </p>
+                <p className="mt-0.5 text-sm font-bold text-text-primary">
+                  {r.med} {r.dose}
+                </p>
+                <p className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <RuleChip>Rule 1.1 eligibility</RuleChip>
+                  <RuleChip>Rule 2.2 titration</RuleChip>
+                  <span className="text-xs text-text-secondary">last review {r.lastReview}</span>
+                </p>
+              </div>
+              <ScorePill score={r.score} />
+              <button
+                type="button"
+                onClick={() => setDropped((d) => [...d, r.ref])}
+                aria-label={`Remove ${r.ref} from this batch`}
+                title="Review this one on its own"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background-neutral text-text-secondary transition-colors hover:bg-grey-300 hover:text-text-primary"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          {batch.length === 0 && (
+            <p className="px-4 py-6 text-center text-sm text-text-secondary">
+              You&rsquo;ve dropped every case — nothing left to sign in this batch.
+            </p>
+          )}
+        </div>
+
+        {dropped.length > 0 && (
+          <p className="mt-2 text-xs text-text-secondary">
+            {dropped.length} dropped — still yours, just not in this batch.
+          </p>
+        )}
+
+        <p className="mt-4 text-xs leading-relaxed text-text-secondary">
+          Each approval is signed and audit-logged individually against the SOP version active now.
+        </p>
+
         <div className="mt-5 flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => setReviewing(false)}
+            onClick={closeReview}
             className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-neutral"
           >
             Cancel
           </button>
           <button
             type="button"
+            disabled={batch.length === 0}
             onClick={() => {
-              const n = mineHere.length;
-              mineHere.forEach((r) => s.drop(r.ref));
-              setReviewing(false);
+              const n = batch.length;
+              batch.forEach((r) => s.drop(r.ref));
+              closeReview();
               setDone(n);
             }}
-            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-dark disabled:opacity-40"
           >
-            Sign {mineHere.length} prescriptions
+            Sign {batch.length} prescription{batch.length === 1 ? "" : "s"}
           </button>
         </div>
       </Modal>
     </>
+  );
+}
+
+/** The SOP rules a simple repeat was auto-scored against, named on the case. */
+function RuleChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-md bg-success-lighter px-2 py-0.5 text-[11px] font-bold text-success-dark">
+      {children}
+    </span>
   );
 }
 
