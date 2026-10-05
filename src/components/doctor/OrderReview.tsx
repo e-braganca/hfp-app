@@ -10,10 +10,11 @@ import { consultationFor } from "@/lib/doctor/consultation";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
-import { useCaseHold } from "./queueHooks";
+import { useCaseHold, useNextCase } from "./queueHooks";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
+import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
 import { CameraIcon, IdIcon, WarnIcon } from "@/components/ui/icons";
 
 type Decision = null | "approved" | "declined" | "info" | "escalated";
@@ -25,6 +26,7 @@ export function OrderReview({ order }: { order: NewOrder }) {
   const [toast, setToast] = useState<string | null>(null);
   const isDecline = order.verdict === "decline";
   const hold = useCaseHold(order.ref);
+  const upNext = useNextCase(order.ref);
 
   const approve = () => {
     setDecision(isDecline ? "declined" : "approved");
@@ -33,6 +35,9 @@ export function OrderReview({ order }: { order: NewOrder }) {
   const requestInfo = (subject: string) => {
     setEmailing(false);
     setDecision("info");
+    // parks the case: it leaves the claimable tabs for Awaiting info, and the
+    // admin's waiting clock stops and resets — the delay is the patient's now
+    recordInfoRequest(order.ref, hold.me.name, subject);
     setToast(`Email sent to ${order.patientName} — "${subject}"`);
   };
   const escalate = () => {
@@ -54,6 +59,8 @@ export function OrderReview({ order }: { order: NewOrder }) {
             secondsLeft={hold.secondsLeft}
             onClaim={hold.claimCase}
             onRelease={hold.releaseCase}
+            onSkip={upNext.hasNext ? () => hold.skipTo(upNext.href) : undefined}
+            skipLabel={upNext.next ? `Skip to ${upNext.next.ref}` : undefined}
           />
         }
         left={
@@ -132,7 +139,12 @@ export function OrderReview({ order }: { order: NewOrder }) {
             ai={order.ai}
             actions={
               decision ? (
-                <OrderOutcome decision={decision} order={order} />
+                <OrderOutcome
+                  decision={decision}
+                  order={order}
+                  onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined}
+                  nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined}
+                />
               ) : (
                 <>
                   <div className="flex flex-wrap gap-3">
@@ -237,7 +249,17 @@ function VerifyTile({ icon, title, caption }: { icon: React.ReactNode; title: st
   );
 }
 
-function OrderOutcome({ decision, order }: { decision: Exclude<Decision, null>; order: NewOrder }) {
+function OrderOutcome({
+  decision,
+  order,
+  onNext,
+  nextLabel,
+}: {
+  decision: Exclude<Decision, null>;
+  order: NewOrder;
+  onNext?: () => void;
+  nextLabel?: string;
+}) {
   const map = {
     approved: {
       tone: "success" as const,
@@ -261,17 +283,22 @@ function OrderOutcome({ decision, order }: { decision: Exclude<Decision, null>; 
     },
   }[decision];
 
-  return <OutcomePanel {...map} />;
+  return <OutcomePanel {...map} onNext={onNext} nextLabel={nextLabel} />;
 }
 
 export function OutcomePanel({
   tone,
   title,
   body,
+  onNext,
+  nextLabel,
 }: {
   tone: "success" | "error" | "warning" | "slate";
   title: string;
   body: string;
+  /** keep working without passing through the queue */
+  onNext?: () => void;
+  nextLabel?: string;
 }) {
   const toneCls = {
     success: "bg-success-lighter text-success-dark",
@@ -288,12 +315,29 @@ export function OutcomePanel({
       </div>
       <h3 className="mt-3 text-base font-bold text-text-primary">{title}</h3>
       <p className="mx-auto mt-1 max-w-md text-sm text-text-secondary">{body}</p>
-      <a
-        href="/doctor/queue"
-        className="mt-5 inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
-      >
-        Back to Work Queue
-      </a>
+      {/* next case leads, because the common path after deciding one case is
+          deciding another — the queue is the way out, not the way on */}
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        {onNext && (
+          <button
+            type="button"
+            onClick={onNext}
+            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
+          >
+            {nextLabel ?? "Next case"} &rarr;
+          </button>
+        )}
+        <a
+          href="/doctor/queue"
+          className={`rounded-lg px-5 py-2.5 text-sm font-bold ${
+            onNext
+              ? "border border-[var(--divider)] text-text-primary hover:bg-background-neutral"
+              : "bg-primary text-white hover:bg-primary-dark"
+          }`}
+        >
+          Back to Work Queue
+        </a>
+      </div>
     </div>
   );
 }

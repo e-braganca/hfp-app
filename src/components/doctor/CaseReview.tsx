@@ -13,7 +13,7 @@ import { RagPill } from "@/components/ui/StatusPill";
 import { MedicationTimeline } from "./MedicationTimeline";
 import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
-import { useCaseHold } from "./queueHooks";
+import { useCaseHold, useNextCase } from "./queueHooks";
 import { Toast } from "@/components/ui/Toast";
 
 type Decision = null | "approved" | "overriding" | "overridden" | "escalated";
@@ -31,6 +31,7 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
   const [reason, setReason] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const hold = useCaseHold(case_.ref);
+  const upNext = useNextCase(case_.ref);
 
   const approve = () => {
     setDecision("approved");
@@ -59,6 +60,8 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
             secondsLeft={hold.secondsLeft}
             onClaim={hold.claimCase}
             onRelease={hold.releaseCase}
+            onSkip={upNext.hasNext ? () => hold.skipTo(upNext.href) : undefined}
+            skipLabel={upNext.next ? `Skip to ${upNext.next.ref}` : undefined}
           />
         }
         left={
@@ -108,11 +111,11 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
             sop={case_.sopCitation}
             actions={
                 decision === "approved" ? (
-                  <OutcomePanel tone="success" title="Recommendation approved" body={`${case_.ai.recommendedRx} confirmed. Decision and SOP ${case_.sopCitation.version} recorded to the audit trail.`} />
+                  <OutcomePanel tone="success" title="Recommendation approved" body={`${case_.ai.recommendedRx} confirmed. Decision and SOP ${case_.sopCitation.version} recorded to the audit trail.`} onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined} nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined} />
                 ) : decision === "overridden" ? (
-                  <OutcomePanel tone="warning" title="Recommendation overridden" body="Your clinical override and justification were recorded and audit-logged against the active SOP version." />
+                  <OutcomePanel tone="warning" title="Recommendation overridden" body="Your clinical override and justification were recorded and audit-logged against the active SOP version." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined} nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined} />
                 ) : decision === "escalated" ? (
-                  <OutcomePanel tone="slate" title="Escalated to senior review" body="Removed from your queue and routed to senior clinical review." />
+                  <OutcomePanel tone="slate" title="Escalated to senior review" body="Removed from your queue and routed to senior clinical review." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined} nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined} />
                 ) : decision === "overriding" ? (
                   <OverridePanel
                     reason={reason}

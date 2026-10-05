@@ -5,17 +5,27 @@
  * for as long as it takes to decide whether to work it — press Claim and it's
  * yours, do nothing and it goes back. Until it's claimed the decision actions
  * on the page stay locked, so the reservation can't quietly become a decision.
+ *
+ * Skip is the third answer, and the honest one for "not this, but keep going":
+ * it hands the case back immediately rather than parking it for the rest of
+ * the minute, and opens the next one so the clinician never passes through the
+ * list to carry on working.
  */
 export function ReservationBanner({
   claimed,
   secondsLeft,
   onClaim,
   onRelease,
+  onSkip,
+  skipLabel,
 }: {
   claimed: boolean;
   secondsLeft: number;
   onClaim: () => void;
   onRelease: () => void;
+  /** hand this one back and open the next, without going via the queue */
+  onSkip?: () => void;
+  skipLabel?: string;
 }) {
   if (claimed) {
     return (
@@ -45,15 +55,31 @@ export function ReservationBanner({
         <span className="font-bold">Reserved while you look.</span> Claim it to keep it — otherwise it returns to the
         queue and the decision stays locked.
       </p>
-      <button
-        type="button"
-        onClick={onClaim}
-        className={`shrink-0 rounded-lg px-4 py-2 text-sm font-bold text-white ${
-          urgent ? "bg-error hover:bg-error-dark" : "bg-warning-dark hover:opacity-90"
-        }`}
-      >
-        Claim case · {secondsLeft}s
-      </button>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            title="Put it back on the board and open the next case"
+            className={`rounded-lg border bg-background-paper px-4 py-2 text-sm font-bold ${
+              urgent
+                ? "border-error/40 text-error-dark hover:bg-error-lighter"
+                : "border-warning/50 text-warning-darker hover:bg-warning-lighter"
+            }`}
+          >
+            {skipLabel ?? "Skip"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onClaim}
+          className={`rounded-lg px-4 py-2 text-sm font-bold text-white ${
+            urgent ? "bg-error hover:bg-error-dark" : "bg-warning-dark hover:opacity-90"
+          }`}
+        >
+          Claim case · {secondsLeft}s
+        </button>
+      </div>
     </div>
   );
 }

@@ -19,6 +19,21 @@ import {
   subscribeClaims,
   sweepExpired,
 } from "@/lib/doctor/queue-claims";
+import {
+  getInfoRequestsServerSnapshot,
+  getInfoRequestsSnapshot,
+  subscribeInfoRequests,
+} from "@/lib/doctor/info-requests";
+import { clearSkipped, markSkipped, nextCase } from "@/lib/doctor/case-order";
+import {
+  SEED_PAUSED,
+  SEED_WAIT_HOURS,
+  getBoardClockServerSnapshot,
+  getBoardClockSnapshot,
+  subscribeBoardClock,
+  syncBoardClock,
+} from "@/lib/shared/board-clock";
+import { liveCases } from "@/lib/shared/live-cases";
 import type { Clinician } from "@/lib/doctor/clinicians";
 
 /** The board, live across tabs. */
@@ -53,21 +68,38 @@ export function useCaseHold(ref: string) {
   // we've held it, losing the hold means the 60 s lapsed — go back to the
   // queue rather than silently reserving it again, which would make the
   // countdown immortal.
-  const everHeld = useRef(false);
+  /**
+   * Both flags are keyed to the ref, not booleans.
+   *
+   * Next reuses this component across /doctor/orders/[ref], so a plain boolean
+   * survived the navigation: after skipping, the hook arrived at the next case
+   * still believing it had already held it, decided the reservation must have
+   * lapsed, and bounced straight back to the queue. Keyed to the ref, the hook
+   * is correct whether the component remounts or is reused.
+   */
+  const heldRef = useRef<string | null>(null);
+  const leavingRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (leavingRef.current === ref) return;
     if (hold && mine) {
-      everHeld.current = true;
+      heldRef.current = ref;
       return;
     }
     if (hold && !mine) {
       router.replace("/doctor/queue");
       return;
     }
-    if (everHeld.current) {
+    // "we held this and lost it" has to be judged against the live store, not
+    // the render's snapshot. The snapshot lags the reservation we just took by
+    // a tick, so a second effect pass would read null, conclude the 60 s had
+    // lapsed and bounce — which is exactly what happens on every client-side
+    // hop between two cases, where this component is reused.
+    if (heldRef.current === ref && !holdFor(getClaimsSnapshot(), ref)) {
       router.replace("/doctor/queue");
       return;
     }
-    if (reserve(ref, me.name, me.initials)) everHeld.current = true;
+    if (reserve(ref, me.name, me.initials)) heldRef.current = ref;
     else router.replace("/doctor/queue");
   }, [hold, mine, ref, me.name, me.initials, router]);
 
@@ -78,8 +110,23 @@ export function useCaseHold(ref: string) {
     secondsLeft,
     claimCase: () => claim(ref, me.name, me.initials),
     releaseCase: () => {
+      leavingRef.current = ref;
+      // going back to the list ends the sitting — the run of skips with it
+      clearSkipped();
       release(ref, me.name);
       router.push("/doctor/queue");
+    },
+    /** Hand the case back and open another one — skipping, not deciding. */
+    skipTo: (href: string) => {
+      leavingRef.current = ref;
+      markSkipped(ref);
+      release(ref, me.name);
+      router.push(href);
+    },
+    /** Already decided; the hold can stay as it is. */
+    leaveTo: (href: string) => {
+      leavingRef.current = ref;
+      router.push(href);
     },
   };
 }
@@ -100,4 +147,37 @@ export function useQueueClock(active = true): number {
     return () => window.clearInterval(id);
   }, [active]);
   return now;
+}
+
+/**
+ * Where "next case" goes, and how to get there.
+ *
+ * Also keeps the waiting clock ticking on the prescriber side. It used to be
+ * wound only by the admin screens, which meant a clinician who never opened
+ * Oversight was ordering their work by a clock nobody had started.
+ */
+export function useNextCase(currentRef: string) {
+  const claims = useClaims();
+  const [me] = useActing();
+  const now = useQueueClock();
+  const timers = useSyncExternalStore(
+    subscribeBoardClock,
+    getBoardClockSnapshot,
+    getBoardClockServerSnapshot,
+  );
+  const infoRequests = useSyncExternalStore(
+    subscribeInfoRequests,
+    getInfoRequestsSnapshot,
+    getInfoRequestsServerSnapshot,
+  );
+
+  useEffect(() => {
+    const refs = [...new Set(liveCases().map((c) => c.ref))];
+    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || infoRequests[r]));
+    syncBoardClock(refs, parked, SEED_WAIT_HOURS);
+  }, [infoRequests, now]);
+
+  const next = nextCase(currentRef, { timers, now, claims, infoRequests, me });
+
+  return { next, href: next?.href ?? "/doctor/queue", hasNext: next !== null };
 }
