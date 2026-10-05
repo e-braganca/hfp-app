@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { ActingAsBar } from "@/components/doctor/ActingAsBar";
 import { MetricCard } from "@/components/doctor/MetricCard";
 import { ClaimCell, rowState, rowTone, type RowState } from "@/components/doctor/QueueRowState";
 import { useActing, useClaims, useQueueClock } from "@/components/doctor/queueHooks";
@@ -81,7 +80,7 @@ function seedBoard() {
 
 export default function WorkQueuePage() {
   const router = useRouter();
-  const [me, setMe] = useActing();
+  const [me] = useActing();
   const claims = useClaims();
   const now = useQueueClock();
   const infoRequests = useSyncExternalStore(
@@ -185,9 +184,7 @@ export default function WorkQueuePage() {
       />
 
       <div className="px-6 py-6 lg:px-8">
-        <ActingAsBar me={me} onChange={setMe} holding={holding} />
-
-        <div className="mt-5 grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           {QUEUE_METRICS.map((m) => (
             <MetricCard key={m.label} metric={m} />
           ))}
