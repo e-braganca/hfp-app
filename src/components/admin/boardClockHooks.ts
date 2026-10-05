@@ -1,30 +1,30 @@
 "use client";
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { useClaims, useQueueClock } from "@/components/doctor/queueHooks";
+import { useQueueClock } from "@/components/doctor/queueHooks";
 import {
+  SEED_PAUSED,
+  SEED_WAIT_HOURS,
   getBoardClockServerSnapshot,
   getBoardClockSnapshot,
-  seedBoardClockIfEmpty,
   subscribeBoardClock,
   syncBoardClock,
   waitedHours,
-} from "@/lib/admin/board-clock";
+  type BoardPauseReason,
+} from "@/lib/shared/board-clock";
 import {
   getSettingsServerSnapshot,
   getSettingsSnapshot,
   subscribeSettings,
   type PlatformSettings,
 } from "@/lib/admin/platform-settings";
+import { waitFlagFor, type WaitFlag } from "@/lib/admin/queue-sla";
 import {
-  SEED_PAUSED,
-  SEED_WAIT_HOURS,
-  waitFlagFor,
-  type BoardPauseReason,
-  type WaitFlag,
-} from "@/lib/admin/queue-sla";
-import { holdFor } from "@/lib/doctor/queue-claims";
-import type { LiveCase } from "@/lib/admin/live-cases";
+  getInfoRequestsServerSnapshot,
+  getInfoRequestsSnapshot,
+  subscribeInfoRequests,
+} from "@/lib/doctor/info-requests";
+import type { LiveCase } from "@/lib/shared/live-cases";
 
 /** Thresholds, live across tabs. */
 export function usePlatformSettings(): PlatformSettings {
@@ -34,47 +34,51 @@ export function usePlatformSettings(): PlatformSettings {
 export interface WaitClock {
   now: number;
   settings: PlatformSettings;
-  /** hours free on the board, accumulated across every spell */
+  /** hours the patient has been waiting on a decision */
   hoursFor: (ref: string) => number;
   flagFor: (ref: string) => WaitFlag;
-  /** why the clock is parked, or null when it is running / held */
+  /** why the clock is parked on the patient, or null when it is running */
   pausedReason: (ref: string) => BoardPauseReason | null;
   flagged: (c: LiveCase) => WaitFlag;
 }
 
 /**
- * The waiting clock, reconciled against the live board on every tick.
+ * The waiting clock, reconciled against the live queue on every tick.
  *
  * Reconciliation runs in an effect rather than during render because it
- * writes: a case that just came free needs its spell opened, and doing that
- * mid-render would be a store mutation inside a render pass. It is a no-op
- * once the board is steady, so the 1 s tick costs nothing.
+ * writes, and a store mutation inside a render pass is a bug waiting to
+ * happen. It is a no-op once the queue is steady, so the 1 s tick costs
+ * nothing.
  */
 export function useWaitClock(cases: LiveCase[]): WaitClock {
-  const claims = useClaims();
   const now = useQueueClock();
   const settings = usePlatformSettings();
   const timers = useSyncExternalStore(subscribeBoardClock, getBoardClockSnapshot, getBoardClockServerSnapshot);
-
-  useEffect(() => {
-    seedBoardClockIfEmpty(SEED_WAIT_HOURS);
-  }, []);
+  const infoRequests = useSyncExternalStore(
+    subscribeInfoRequests,
+    getInfoRequestsSnapshot,
+    getInfoRequestsServerSnapshot,
+  );
 
   const refs = useMemo(() => [...new Set(cases.map((c) => c.ref))], [cases]);
 
   useEffect(() => {
-    const free = new Set(refs.filter((r) => !holdFor(claims, r) && !SEED_PAUSED[r]));
-    syncBoardClock(refs, free);
-  }, [refs, claims, now]);
+    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || infoRequests[r]));
+    syncBoardClock(refs, parked, SEED_WAIT_HOURS);
+  }, [refs, infoRequests, now]);
 
   const hoursFor = (ref: string) => waitedHours(timers, ref, now);
-  const pausedReason = (ref: string) => (holdFor(claims, ref) ? null : (SEED_PAUSED[ref] ?? null));
+  const pausedReason = (ref: string): BoardPauseReason | null =>
+    infoRequests[ref] ? "patient-reply" : (SEED_PAUSED[ref] ?? null);
 
-  /** Claimed clears the flag outright — the story's rule, and the honest one. */
-  const flagFor = (ref: string): WaitFlag => {
-    if (holdFor(claims, ref)) return "none";
-    return waitFlagFor(hoursFor(ref), settings);
-  };
+  /**
+   * Claiming does not clear the flag. The patient is still waiting, and a case
+   * sat on for a day by one prescriber has failed them as badly as one nobody
+   * picked up. Only a decision — or an information request, which resets the
+   * clock — ends the wait.
+   */
+  const flagFor = (ref: string): WaitFlag =>
+    pausedReason(ref) ? "none" : waitFlagFor(hoursFor(ref), settings);
 
   return { now, settings, hoursFor, flagFor, pausedReason, flagged: (c) => flagFor(c.ref) };
 }

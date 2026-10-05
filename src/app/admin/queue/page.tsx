@@ -11,12 +11,12 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Toast } from "@/components/ui/Toast";
 import { ADMIN_DOCTORS, ADMIN_SELF } from "@/lib/admin/data";
 import { useWaitClock } from "@/components/admin/boardClockHooks";
-import { ClockIcon, WaitChip } from "@/components/admin/WaitFlag";
-import { ThresholdSettings } from "@/components/admin/ThresholdSettings";
-import { PAUSE_LABEL, waitedLabel } from "@/lib/admin/queue-sla";
+import { WaitChip } from "@/components/admin/WaitFlag";
+import { QueueFilters } from "@/components/admin/QueueFilters";
+import { PAUSE_LABEL } from "@/lib/admin/queue-sla";
 import { ACCESS_LABEL, type AdminDoctor, type QueueBand } from "@/lib/admin/types";
 import { CATEGORY_LABEL, type QueueCategory } from "@/lib/doctor/clinicians";
-import { liveCases, type LiveCase } from "@/lib/admin/live-cases";
+import { liveCases, type LiveCase } from "@/lib/shared/live-cases";
 import { claim, heldFor, holdFor, release } from "@/lib/doctor/queue-claims";
 import type { Rag } from "@/lib/doctor/types";
 
@@ -31,11 +31,15 @@ import type { Rag } from "@/lib/doctor/types";
    Band is checked before an assignment goes through — handing a Red to a
    Green-only clinician is the mistake this page exists to prevent.
 
-   The Running Late tab is the other half of the job. A case nobody claims is
-   invisible on the prescriber side — their board looks identical at ten
-   minutes and at two days — so the admin is the only person who can see it
-   stalling, and the only one who can act: route it to someone with capacity,
-   or take it off the board personally.
+   The Running Late tab is the other half of the job. How long a case has been
+   waiting is invisible on the prescriber side — their board looks identical at
+   ten minutes and at two days — so the admin is the only person who can see
+   one stalling, and the only one who can act: route it to someone with
+   capacity, or take it and decide it personally.
+
+   Assigning a case does not take it out of that tab. The patient is waiting
+   until somebody decides, and a case sat on for a day by one prescriber has
+   failed them as badly as one nobody picked up.
    ============================================================================ */
 
 /** Category tabs plus the two that cut across them. */
@@ -113,7 +117,11 @@ export default function AdminQueuePage() {
     setToast(`${c.ref} sent to ${d.name} — it's off everyone else's board`);
   };
 
-  /** The admin takes the case themselves rather than chasing someone for it. */
+  /**
+   * Take it = become the responsible clinician and open the case. It does not
+   * stop the clock: the patient is still waiting until someone decides, so
+   * the case stays flagged and stays in Running Late until it is resolved.
+   */
   const takeIt = (c: LiveCase) => {
     const verdict = canBeAssigned(ADMIN_SELF, c.rag);
     if (!verdict.ok) {
@@ -121,7 +129,7 @@ export default function AdminQueuePage() {
       return;
     }
     claim(c.ref, ADMIN_SELF.name, ADMIN_SELF.initials);
-    setToast(`${c.ref} is yours — it's off the shared board and in your queue`);
+    setOpenCase(c);
   };
 
   const unassign = (c: LiveCase, by: string) => {
@@ -182,58 +190,16 @@ export default function AdminQueuePage() {
               );
             })}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                <input
-                  type="checkbox"
-                  checked={onlyUnassigned}
-                  onChange={(e) => setOnlyUnassigned(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--divider)] accent-[var(--primary)]"
-                />
-                Unassigned only
-              </label>
-              <label
-                className="flex items-center gap-2 text-sm font-semibold text-text-secondary"
-                title={tab === "late" ? "The Running Late tab is always sorted longest-waiting first" : undefined}
-              >
-                <input
-                  type="checkbox"
-                  checked={longestFirst || tab === "late"}
-                  disabled={tab === "late"}
-                  onChange={(e) => setLongestFirst(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--divider)] accent-[var(--primary)] disabled:opacity-60"
-                />
-                Longest waiting first
-              </label>
-            <ThresholdSettings />
-          </div>
+          <QueueFilters
+            onlyUnassigned={onlyUnassigned}
+            onOnlyUnassigned={setOnlyUnassigned}
+            longestFirst={longestFirst}
+            onLongestFirst={setLongestFirst}
+            sortLocked={tab === "late"}
+          />
         </div>
 
         <section className="rounded-lg bg-background-paper shadow-card">
-          {tab === "late" && (
-            <div className="flex flex-wrap items-center gap-3 rounded-t-lg border-b border-[var(--divider)] bg-warning-lighter/30 px-4 py-3">
-              <ClockIcon className="text-warning-dark" />
-              <p className="text-sm text-text-primary">
-                {lateCount === 0 ? (
-                  <>
-                    Nothing has been sitting unclaimed past {clock.settings.waitAmberHours}h. The board is keeping up.
-                  </>
-                ) : (
-                  <>
-                    <span className="font-bold">
-                      {redCount > 0 && `${redCount} red`}
-                      {redCount > 0 && amberCount > 0 && ", "}
-                      {amberCount > 0 && `${amberCount} amber`}
-                    </span>{" "}
-                    — unclaimed past {clock.settings.waitAmberHours}h and {clock.settings.waitRedHours}h. This is
-                    waiting time, not a clinical score: a green case can be red here. Send one to a clinician with
-                    capacity, or take it yourself.
-                  </>
-                )}
-              </p>
-            </div>
-          )}
-
           <div className="overflow-x-auto lg:overflow-x-visible">
             <div className="min-w-[1020px] lg:min-w-0">
               <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
@@ -322,6 +288,7 @@ export default function AdminQueuePage() {
                             <button
                               type="button"
                               onClick={() => takeIt(c)}
+                              title="Assign it to you and open it now"
                               className="h-9 shrink-0 whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-bold text-white hover:bg-primary-dark"
                             >
                               Take it
@@ -331,22 +298,23 @@ export default function AdminQueuePage() {
                       </div>
 
                       {/* one line, always — rows stay the same height whatever
-                          state the case is in */}
-                      <div className="mt-1.5 flex h-6 items-center">
-                        {hold ? (
-                          <span className="truncate text-[11px] text-text-secondary">
-                            {doctor && (
-                              <PresenceDot online={doctor.online} className="mr-1.5 inline-block align-middle" />
-                            )}
-                            {hold.kind === "reserved" ? "reviewing now" : `holding · ${heldFor(hold, now)}`}
-                            {waited >= 1 && ` · waited ${waitedLabel(waited)} first`}
-                          </span>
-                        ) : paused ? (
-                          <span className="truncate text-[11px] text-text-secondary">
-                            {PAUSE_LABEL[paused]} · paused at {waitedLabel(waited)}
-                          </span>
+                          state the case is in. The chip stays up once claimed:
+                          the patient is still waiting. */}
+                      <div className="mt-1.5 flex h-6 items-center gap-2">
+                        {paused ? (
+                          <span className="truncate text-[11px] text-text-secondary">{PAUSE_LABEL[paused]}</span>
                         ) : (
-                          <WaitChip hours={waited} flag={flag} />
+                          <>
+                            <WaitChip hours={waited} flag={flag} />
+                            {hold && (
+                              <span className="truncate text-[11px] text-text-secondary">
+                                {doctor && (
+                                  <PresenceDot online={doctor.online} className="mr-1 inline-block align-middle" />
+                                )}
+                                {hold.kind === "reserved" ? "reviewing" : `held ${heldFor(hold, now)}`}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -358,7 +326,7 @@ export default function AdminQueuePage() {
 
           <p className="border-t border-[var(--divider)] px-4 py-3 text-xs text-text-secondary">
             Showing {rows.length} of {cases.length}. Clinicians who aren&rsquo;t cleared for a case&rsquo;s band are
-            listed but can&rsquo;t be picked. A case stops counting as late the moment someone claims it.
+            listed but can&rsquo;t be picked. The clock runs until the case is decided — claiming it doesn&rsquo;t stop it.
           </p>
         </section>
       </div>

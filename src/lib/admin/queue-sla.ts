@@ -1,5 +1,6 @@
 // ============================================================================
-// Waiting flags — the attention signal for a case nobody has picked up.
+// Waiting flags — the attention signal for a case the patient is still
+// waiting on.
 //
 // Deliberately NOT a RAG score. The Auto-Score says how risky the case is;
 // this says how long it has been ignored. A green case left for two days is
@@ -14,6 +15,7 @@
 // ============================================================================
 
 import type { PlatformSettings } from "./platform-settings";
+import type { BoardPauseReason } from "@/lib/shared/board-clock";
 
 export type WaitFlag = "none" | "amber" | "red";
 
@@ -53,38 +55,7 @@ export const WAIT_FLAG_TEXT: Record<Exclude<WaitFlag, "none">, string> = {
   red: "text-error",
 };
 
-/**
- * Why a case is off the board with its clock paused. The patient owes us
- * something in both cases, so the panel is not accountable for the delay.
- */
-export type BoardPauseReason = "photos" | "patient-reply";
-
 export const PAUSE_LABEL: Record<BoardPauseReason, string> = {
   photos: "On hold · weight photo & ID",
   "patient-reply": "On hold · awaiting patient reply",
-};
-
-/**
- * Hours each case had already spent on the board when the demo data was
- * written, used once to seed the clock. The prototype's source records carry
- * display strings ("10:24 today") rather than timestamps, so there is nothing
- * to subtract from; a real deployment starts every clock at creation and needs
- * none of this.
- */
-export const SEED_WAIT_HOURS: Record<string, number> = {
-  "PT-4462": 31,
-  "PT-3129": 27,
-  "PT-4465": 19,
-  "PT-2110": 14,
-  "PT-3128": 13,
-  "PT-4463": 9,
-  "PT-4464": 4,
-  "PT-3127": 6,
-  "PT-2123": 7,
-};
-
-/** Cases parked off the board — their clocks stay frozen until they return. */
-export const SEED_PAUSED: Record<string, BoardPauseReason> = {
-  "PT-4470": "photos",
-  "PT-3126": "patient-reply",
 };

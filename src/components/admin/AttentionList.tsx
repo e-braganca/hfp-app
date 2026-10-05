@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { CATEGORY_SINGULAR, liveCases } from "@/lib/admin/live-cases";
+import { CATEGORY_SINGULAR, liveCases } from "@/lib/shared/live-cases";
 import { waitedLabel } from "@/lib/admin/queue-sla";
 import { useWaitClock } from "./boardClockHooks";
 import { ClockIcon } from "./WaitFlag";
@@ -13,10 +13,9 @@ import type { Rag } from "@/lib/doctor/types";
 /* ============================================================================
    Requires your attention.
 
-   Client-side because half the list is derived from the live claim board: a
-   case stops being "nobody has picked this up" the moment someone claims it,
-   and a static render would keep accusing the panel of ignoring work that is
-   already being done.
+   Client-side because half the list is derived from the live clock, which
+   only exists in the browser. The rows are cases the patient is still waiting
+   on — claimed or not, since claiming is not an answer.
 
    Seeded rows (escalations, overdue info requests, compliance) come in as
    props from the server; the unclaimed ones are computed here and merged.
@@ -30,17 +29,17 @@ const RAG_TEXT: Record<Rag, string> = {
 };
 
 const KIND_BADGE: Record<AttentionKind, { label: string; cls: string; clock?: boolean }> = {
-  critical: { label: "Unclaimed", cls: "border border-error bg-error-lighter/40 text-error-dark", clock: true },
+  critical: { label: "Late", cls: "border border-error bg-error-lighter/40 text-error-dark", clock: true },
   escalated: { label: "Escalated", cls: "bg-primary-dark text-white" },
-  late: { label: "Unclaimed", cls: "border border-warning bg-warning-lighter/40 text-warning-darker", clock: true },
+  late: { label: "Late", cls: "border border-warning bg-warning-lighter/40 text-warning-darker", clock: true },
   overdue: { label: "Overdue", cls: "bg-warning-lighter text-warning-darker" },
   compliance: { label: "Compliance", cls: "bg-warning-lighter text-warning-darker" },
 };
 
 /**
- * Worst first. A case nobody has even opened outranks an escalation, which at
- * least has a clinician's eyes on it — the escalation is waiting for judgement,
- * the unclaimed one is waiting for a human.
+ * Worst first. A case past the red threshold outranks an escalation: the
+ * escalation is in someone's hands awaiting judgement, while a red-flagged one
+ * has had no answer at all for a day, claimed or not.
  */
 const KIND_RANK: Record<AttentionKind, number> = {
   critical: 0,
@@ -60,7 +59,7 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
     .sort((a, b) => clock.hoursFor(b.c.ref) - clock.hoursFor(a.c.ref))
     .map(({ c, flag }) => ({
       kind: (flag === "red" ? "critical" : "late") as AttentionKind,
-      title: `${c.ref} — unclaimed ${CATEGORY_SINGULAR[c.category]}`,
+      title: `${c.ref} — ${CATEGORY_SINGULAR[c.category]} still undecided`,
       sub: `${pharmacyName(c.pharmacyCode)} · ${c.med} ${c.dose}`,
       waited: `Waiting ${waitedLabel(clock.hoursFor(c.ref))}`,
       waitedRag: flag === "red" ? ("red" as Rag) : ("amber" as Rag),
@@ -80,7 +79,7 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
         </span>
         {unclaimed.length > 0 && (
           <span className="text-xs text-text-secondary">
-            {unclaimed.length} waiting on a clinician to pick {unclaimed.length === 1 ? "it" : "them"} up
+            {unclaimed.length} still waiting on a decision
           </span>
         )}
       </div>
