@@ -59,7 +59,12 @@ export interface OverviewKpi {
   danger?: boolean;
 }
 
-export type AttentionKind = "escalated" | "overdue" | "compliance";
+/**
+ * Why a row is on the oversight list. `late`/`critical` are generated from
+ * the live board rather than seeded: a case nobody claimed for long enough
+ * is an operational miss only the admin can see.
+ */
+export type AttentionKind = "escalated" | "overdue" | "compliance" | "late" | "critical";
 
 export interface AttentionRow {
   kind: AttentionKind;

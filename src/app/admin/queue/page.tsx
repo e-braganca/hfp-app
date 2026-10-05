@@ -4,15 +4,19 @@ import { useMemo, useState } from "react";
 import { PresenceDot } from "@/components/admin/doctorBits";
 import { QueueCaseDrawer } from "@/components/admin/QueueCaseDrawer";
 import { Select, type SelectOption } from "@/components/ui/Select";
-import { useClaims, useQueueClock } from "@/components/doctor/queueHooks";
+import { useClaims } from "@/components/doctor/queueHooks";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RagPill } from "@/components/ui/StatusPill";
 import { StatTile } from "@/components/ui/StatTile";
 import { Toast } from "@/components/ui/Toast";
-import { ADMIN_DOCTORS } from "@/lib/admin/data";
+import { ADMIN_DOCTORS, ADMIN_SELF } from "@/lib/admin/data";
+import { useWaitClock } from "@/components/admin/boardClockHooks";
+import { ClockIcon, WaitChip } from "@/components/admin/WaitFlag";
+import { ThresholdSettings } from "@/components/admin/ThresholdSettings";
+import { PAUSE_LABEL, waitedLabel } from "@/lib/admin/queue-sla";
 import { ACCESS_LABEL, type AdminDoctor, type QueueBand } from "@/lib/admin/types";
 import { CATEGORY_LABEL, type QueueCategory } from "@/lib/doctor/clinicians";
-import { COMPLEX_CASES, ESCALATIONS, NEW_ORDERS, SIMPLE_REPEATS } from "@/lib/doctor/data";
+import { liveCases, type LiveCase } from "@/lib/admin/live-cases";
 import { claim, heldFor, holdFor, release } from "@/lib/doctor/queue-claims";
 import type { Rag } from "@/lib/doctor/types";
 
@@ -26,42 +30,24 @@ import type { Rag } from "@/lib/doctor/types";
 
    Band is checked before an assignment goes through — handing a Red to a
    Green-only clinician is the mistake this page exists to prevent.
+
+   The Running Late tab is the other half of the job. A case nobody claims is
+   invisible on the prescriber side — their board looks identical at ten
+   minutes and at two days — so the admin is the only person who can see it
+   stalling, and the only one who can act: route it to someone with capacity,
+   or take it off the board personally.
    ============================================================================ */
 
-const ESCALATION_RAG: Rag = "red";
+/** Category tabs plus the two that cut across them. */
+type Tab = QueueCategory | "all" | "late";
 
-interface LiveCase {
-  ref: string;
-  category: QueueCategory;
-  rag: Rag;
-  nhs: string;
-  med: string;
-  dose: string;
-  pharmacyCode: string;
-  detail: string;
-  href?: string;
-}
+const TABS: Tab[] = ["all", "new", "simple", "complex", "escalated", "late"];
 
-function liveCases(): LiveCase[] {
-  return [
-    ...NEW_ORDERS.map((o) => ({
-      ref: o.ref, category: "new" as QueueCategory, rag: o.score.rag, nhs: o.nhs, med: o.med, dose: o.dose,
-      pharmacyCode: o.pharmacyCode, detail: o.eligibility, href: `/doctor/orders/${o.ref}`,
-    })),
-    ...SIMPLE_REPEATS.map((r) => ({
-      ref: r.ref, category: "simple" as QueueCategory, rag: r.score.rag, nhs: r.nhs, med: r.med, dose: r.dose,
-      pharmacyCode: r.pharmacyCode, detail: `Last review ${r.lastReview}`,
-    })),
-    ...COMPLEX_CASES.map((c) => ({
-      ref: c.ref, category: "complex" as QueueCategory, rag: c.score.rag, nhs: c.nhs, med: c.med, dose: c.dose,
-      pharmacyCode: c.pharmacyCode, detail: c.flagReason, href: `/doctor/cases/${c.ref}`,
-    })),
-    ...ESCALATIONS.map((e) => ({
-      ref: e.ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG, nhs: e.nhs, med: e.med, dose: e.dose,
-      pharmacyCode: e.pharmacyCode, detail: e.reason,
-    })),
-  ];
-}
+const TAB_LABEL: Record<Tab, string> = {
+  all: "Everything",
+  ...CATEGORY_LABEL,
+  late: "Running Late",
+};
 
 /** Can this clinician be handed this band right now? */
 function canBeAssigned(d: AdminDoctor, rag: Rag): { ok: boolean; why?: string } {
@@ -75,20 +61,42 @@ function canBeAssigned(d: AdminDoctor, rag: Rag): { ok: boolean; why?: string } 
 
 export default function AdminQueuePage() {
   const claims = useClaims();
-  const now = useQueueClock();
-  const [category, setCategory] = useState<QueueCategory | "all">("all");
+  const [tab, setTab] = useState<Tab>("all");
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
+  const [longestFirst, setLongestFirst] = useState(false);
   const [openCase, setOpenCase] = useState<LiveCase | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const cases = useMemo(() => liveCases(), []);
-  const rows = cases.filter((c) => {
-    if (category !== "all" && c.category !== category) return false;
-    if (onlyUnassigned && holdFor(claims, c.ref)) return false;
-    return true;
-  });
+  const clock = useWaitClock(cases);
+  const now = clock.now;
+
+  const flagged = cases.filter((c) => clock.flagFor(c.ref) !== "none");
+  const lateCount = flagged.length;
+
+  const inTab = (c: LiveCase, t: Tab) =>
+    t === "all" ? true : t === "late" ? clock.flagFor(c.ref) !== "none" : c.category === t;
+
+  const rows = cases
+    .filter((c) => {
+      if (!inTab(c, tab)) return false;
+      if (onlyUnassigned && holdFor(claims, c.ref)) return false;
+      return true;
+    })
+    // the late tab is always worst-first; elsewhere it's opt-in
+    .sort((a, b) =>
+      longestFirst || tab === "late" ? clock.hoursFor(b.ref) - clock.hoursFor(a.ref) : 0,
+    );
+
+  const counts = Object.fromEntries(
+    TABS.map((t) => [t, cases.filter((c) => inTab(c, t)).length]),
+  ) as Record<Tab, number>;
+
+  const redCount = flagged.filter((c) => clock.flagFor(c.ref) === "red").length;
+  const amberCount = flagged.length - redCount;
 
   const assigned = cases.filter((c) => holdFor(claims, c.ref)).length;
+  const pausedCount = cases.filter((c) => clock.pausedReason(c.ref)).length;
   const workingNow = new Set(
     Object.values(claims).filter((h) => holdFor(claims, h.ref)).map((h) => h.by),
   ).size;
@@ -105,64 +113,132 @@ export default function AdminQueuePage() {
     setToast(`${c.ref} sent to ${d.name} — it's off everyone else's board`);
   };
 
+  /** The admin takes the case themselves rather than chasing someone for it. */
+  const takeIt = (c: LiveCase) => {
+    const verdict = canBeAssigned(ADMIN_SELF, c.rag);
+    if (!verdict.ok) {
+      setToast(`Can't take ${c.ref} — ${verdict.why}`);
+      return;
+    }
+    claim(c.ref, ADMIN_SELF.name, ADMIN_SELF.initials);
+    setToast(`${c.ref} is yours — it's off the shared board and in your queue`);
+  };
+
   const unassign = (c: LiveCase, by: string) => {
     release(c.ref, by);
     setToast(`${c.ref} returned to the shared board`);
   };
 
-  const cols = "grid-cols-[100px_0.9fr_1.3fr_1.2fr_auto_1.5fr_150px] [&>*]:min-w-0";
+  const cols = "grid-cols-[108px_136px_1.1fr_1fr_84px_300px] [&>*]:min-w-0";
 
   return (
     <>
       <PageHeader title="Current queue" subtitle="Every live case and who is holding it, across the whole panel" />
 
       <div className="space-y-6 px-6 py-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <StatTile value={cases.length} label="Cases live now" />
           <StatTile value={assigned} label="Claimed by a clinician" tone="success" />
-          <StatTile value={cases.length - assigned} label="Waiting on the board" tone="warning" />
+          <StatTile
+            value={cases.length - assigned - pausedCount}
+            label={pausedCount > 0 ? `Waiting on the board · ${pausedCount} on hold` : "Waiting on the board"}
+            tone="warning"
+          />
+          <StatTile
+            value={lateCount}
+            label={`Flagged for waiting · ${redCount} red, ${amberCount} amber`}
+            tone={redCount > 0 ? "error" : lateCount > 0 ? "warning" : "muted"}
+          />
           <StatTile value={workingNow} label="Clinicians holding work" tone="muted" />
         </div>
 
-        <section className="rounded-lg bg-background-paper shadow-card">
-          <div className="flex flex-wrap items-center gap-3 border-b border-[var(--divider)] p-4">
-            <div className="flex flex-wrap gap-1">
-              {(["all", "new", "simple", "complex", "escalated"] as const).map((c) => (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap gap-1 border-b border-[var(--divider)]">
+            {TABS.map((t) => {
+              const on = tab === t;
+              const alarming = t === "late" && redCount > 0;
+              return (
                 <button
-                  key={c}
+                  key={t}
                   type="button"
-                  onClick={() => setCategory(c)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                    category === c
-                      ? "bg-primary text-white"
-                      : "bg-background-neutral text-text-secondary hover:text-text-primary"
+                  onClick={() => setTab(t)}
+                  className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
+                    on
+                      ? alarming
+                        ? "border-error text-text-primary"
+                        : "border-primary text-text-primary"
+                      : "border-transparent text-text-secondary hover:text-text-primary"
                   }`}
                 >
-                  {c === "all" ? "Everything" : CATEGORY_LABEL[c]}
+                  {TAB_LABEL[t]}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                      on ? "bg-primary-main-16 text-primary-dark" : "bg-grey-200 text-text-secondary"
+                    }`}
+                  >
+                    {counts[t]}
+                  </span>
                 </button>
-              ))}
-            </div>
-            <label className="ml-auto flex items-center gap-2 text-sm font-semibold text-text-secondary">
-              <input
-                type="checkbox"
-                checked={onlyUnassigned}
-                onChange={(e) => setOnlyUnassigned(e.target.checked)}
-                className="h-4 w-4 rounded border-[var(--divider)] accent-[var(--primary)]"
-              />
-              Unassigned only
-            </label>
+              );
+            })}
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={onlyUnassigned}
+                  onChange={(e) => setOnlyUnassigned(e.target.checked)}
+                  className="h-4 w-4 rounded border-[var(--divider)] accent-[var(--primary)]"
+                />
+                Unassigned only
+              </label>
+              <label
+                className="flex items-center gap-2 text-sm font-semibold text-text-secondary"
+                title={tab === "late" ? "The Running Late tab is always sorted longest-waiting first" : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={longestFirst || tab === "late"}
+                  disabled={tab === "late"}
+                  onChange={(e) => setLongestFirst(e.target.checked)}
+                  className="h-4 w-4 rounded border-[var(--divider)] accent-[var(--primary)] disabled:opacity-60"
+                />
+                Longest waiting first
+              </label>
+            <ThresholdSettings />
+          </div>
+        </div>
+
+        <section className="rounded-lg bg-background-paper shadow-card">
+          {tab === "late" && (
+            <div className="flex flex-wrap items-center gap-3 rounded-t-lg border-b border-[var(--divider)] bg-warning-lighter/30 px-4 py-3">
+              <ClockIcon className="text-warning-dark" />
+              <p className="text-sm text-text-primary">
+                {lateCount === 0 ? (
+                  <>
+                    Nothing has been sitting unclaimed past {clock.settings.waitAmberHours}h. The board is keeping up.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-bold">
+                      {redCount > 0 && `${redCount} red`}
+                      {redCount > 0 && amberCount > 0 && ", "}
+                      {amberCount > 0 && `${amberCount} amber`}
+                    </span>{" "}
+                    — unclaimed past {clock.settings.waitAmberHours}h and {clock.settings.waitRedHours}h. This is
+                    waiting time, not a clinical score: a green case can be red here. Send one to a clinician with
+                    capacity, or take it yourself.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
 
           <div className="overflow-x-auto lg:overflow-x-visible">
             <div className="min-w-[1020px] lg:min-w-0">
               <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
-                {["Ref", "Type", "Medication", "Detail", "Score", "Assigned to", "Actions"].map((h) => (
-                  <div
-                    key={h}
-                    className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary ${
-                      h === "Actions" ? "text-right" : ""
-                    }`}
-                  >
+                {["Ref", "Type", "Medication", "Detail", "Score", "Assigned to"].map((h) => (
+                  <div key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
                     {h}
                   </div>
                 ))}
@@ -175,8 +251,24 @@ export default function AdminQueuePage() {
               {rows.map((c) => {
                 const hold = holdFor(claims, c.ref);
                 const doctor = hold ? ADMIN_DOCTORS.find((d) => d.name === hold.by) : undefined;
+                const flag = clock.flagFor(c.ref);
+                const paused = clock.pausedReason(c.ref);
+                const waited = clock.hoursFor(c.ref);
                 return (
-                  <div key={`${c.category}-${c.ref}`} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0`}>
+                  <div
+                    key={`${c.category}-${c.ref}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenCase(c)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setOpenCase(c);
+                      }
+                    }}
+                    aria-label={`Open ${c.ref}`}
+                    className={`grid ${cols} h-[84px] cursor-pointer items-center border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-background-neutral focus:bg-background-neutral focus:outline-none`}
+                  >
                     <div className="px-4 py-3">
                       <p className="font-mono text-xs font-bold text-text-primary">{c.ref}</p>
                       <p className="font-mono text-[10px] text-text-disabled">{c.nhs}</p>
@@ -190,56 +282,73 @@ export default function AdminQueuePage() {
                       <p className="truncate text-sm font-bold text-text-primary" title={c.med}>{c.med}</p>
                       <p className="truncate text-xs text-text-secondary">{c.dose}</p>
                     </div>
-                    <div className="px-4 py-3 text-sm text-text-secondary">{c.detail}</div>
+                    <div className="px-4 py-3">
+                      <p className="line-clamp-2 text-sm text-text-secondary" title={c.detail}>{c.detail}</p>
+                    </div>
                     <div className="px-4 py-3">
                       <RagPill rag={c.rag} />
                     </div>
 
-                    <div className="px-4 py-3">
-                      {hold && doctor ? (
-                        <span className="flex items-center gap-2">
-                          <span className="relative shrink-0">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-lighter text-[10px] font-bold text-primary-dark">
-                              {doctor.initials}
-                            </span>
-                            <PresenceDot online={doctor.online} className="absolute -bottom-0.5 -right-0.5" />
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-xs font-bold text-text-primary">{doctor.name}</span>
-                            <span className="block text-[11px] text-text-secondary">
-                              {hold.kind === "reserved" ? "reviewing now" : `holding · ${heldFor(hold, now)}`}
-                            </span>
-                          </span>
-                        </span>
-                      ) : hold ? (
-                        <span className="text-xs text-text-secondary">{hold.by}</span>
-                      ) : (
-                        <span className="text-xs font-semibold text-warning-dark">On the shared board</span>
-                      )}
-                    </div>
+                    {/* Assignment lives with who holds it: the select already
+                        renders the holder, so a separate identity block was
+                        printing the same name twice. Clicks stop here — the
+                        row behind them opens the case. */}
+                    <div
+                      className="px-4 py-3"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      role="presentation"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <AssignSelect
+                          value={hold?.by ?? ""}
+                          rag={c.rag}
+                          onPick={(name) => assign(c, name)}
+                        />
+                        {hold ? (
+                          <button
+                            type="button"
+                            onClick={() => unassign(c, hold.by)}
+                            aria-label={`Return ${c.ref} to the shared board`}
+                            title="Return to the shared board"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--divider)] text-text-secondary hover:border-error hover:text-error"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                              <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        ) : (
+                          flag !== "none" && (
+                            <button
+                              type="button"
+                              onClick={() => takeIt(c)}
+                              className="h-9 shrink-0 whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-bold text-white hover:bg-primary-dark"
+                            >
+                              Take it
+                            </button>
+                          )
+                        )}
+                      </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3">
-                      <AssignSelect
-                        value={hold?.by ?? ""}
-                        rag={c.rag}
-                        onPick={(name) => assign(c, name)}
-                      />
-                      {hold && (
-                        <button
-                          type="button"
-                          onClick={() => unassign(c, hold.by)}
-                          className="whitespace-nowrap text-xs font-bold text-text-secondary underline hover:text-text-primary"
-                        >
-                          Unassign
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setOpenCase(c)}
-                        className="whitespace-nowrap rounded-lg border border-[var(--divider)] px-2.5 py-1.5 text-xs font-bold text-text-primary hover:bg-background-neutral"
-                      >
-                        Open
-                      </button>
+                      {/* one line, always — rows stay the same height whatever
+                          state the case is in */}
+                      <div className="mt-1.5 flex h-6 items-center">
+                        {hold ? (
+                          <span className="truncate text-[11px] text-text-secondary">
+                            {doctor && (
+                              <PresenceDot online={doctor.online} className="mr-1.5 inline-block align-middle" />
+                            )}
+                            {hold.kind === "reserved" ? "reviewing now" : `holding · ${heldFor(hold, now)}`}
+                            {waited >= 1 && ` · waited ${waitedLabel(waited)} first`}
+                          </span>
+                        ) : paused ? (
+                          <span className="truncate text-[11px] text-text-secondary">
+                            {PAUSE_LABEL[paused]} · paused at {waitedLabel(waited)}
+                          </span>
+                        ) : (
+                          <WaitChip hours={waited} flag={flag} />
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -249,7 +358,7 @@ export default function AdminQueuePage() {
 
           <p className="border-t border-[var(--divider)] px-4 py-3 text-xs text-text-secondary">
             Showing {rows.length} of {cases.length}. Clinicians who aren&rsquo;t cleared for a case&rsquo;s band are
-            listed but can&rsquo;t be picked.
+            listed but can&rsquo;t be picked. A case stops counting as late the moment someone claims it.
           </p>
         </section>
       </div>
@@ -331,7 +440,7 @@ function AssignSelect({
       searchable
       searchPlaceholder="Search clinicians…"
       align="right"
-      buttonClassName="h-8 text-xs"
+      buttonClassName="h-9 text-xs"
       onChange={onPick}
     />
   );

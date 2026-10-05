@@ -218,6 +218,14 @@ export const ADMIN_DOCTORS: AdminDoctor[] = [
   { name: "Dr. Hannah Cole", initials: "HC", gmc: "pending", pct: null, granted: ["green"], access: "green", status: "onboarding", online: false, lastSeen: "Never signed in", cases: [] },
 ];
 
+/**
+ * The signed-in admin — the same person as ADMIN_NAV.identity in lib/nav.tsx,
+ * and a prescriber in her own right, so she can take a case off the board
+ * herself rather than only route it to someone else.
+ */
+export const ADMIN_SELF = ADMIN_DOCTORS[0];
+
+
 // ---- Pharmacies & SOPs ----------------------------------------------------
 
 const ORDERS_TOTAL: Record<string, number> = {

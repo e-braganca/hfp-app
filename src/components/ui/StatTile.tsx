@@ -6,12 +6,13 @@ export function StatTile({
 }: {
   value: number | string;
   label: string;
-  tone?: "default" | "success" | "warning" | "muted";
+  tone?: "default" | "success" | "warning" | "error" | "muted";
 }) {
   const toneCls = {
     default: "text-text-primary",
     success: "text-success-dark",
     warning: "text-warning-dark",
+    error: "text-error",
     muted: "text-text-secondary",
   }[tone];
   return (
