@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ActingAsBar } from "@/components/doctor/ActingAsBar";
 import { MetricCard } from "@/components/doctor/MetricCard";
 import { ClaimCell, rowState, rowTone, type RowState } from "@/components/doctor/QueueRowState";
@@ -15,6 +15,14 @@ import { Toast } from "@/components/ui/Toast";
 import { WarnIcon } from "@/components/ui/icons";
 import { CATEGORY_LABEL, RAG_ORDER, canTake, type QueueCategory } from "@/lib/doctor/clinicians";
 import { claim, claimMany, holdFor, release, reserve, seedIfEmpty } from "@/lib/doctor/queue-claims";
+import {
+  askedAgo,
+  getInfoRequestsServerSnapshot,
+  getInfoRequestsSnapshot,
+  seedInfoRequestsIfEmpty,
+  subscribeInfoRequests,
+  type InfoRequest,
+} from "@/lib/doctor/info-requests";
 import {
   COMPLEX_CASES,
   ESCALATIONS,
@@ -36,7 +44,22 @@ import type { Rag } from "@/lib/doctor/types";
    clearance, or open a single case, which reserves it while you look.
    ============================================================================ */
 
-type Tab = QueueCategory | "mine";
+type Tab = QueueCategory | "mine" | "info";
+
+/**
+ * Two groups, because these are two different questions. On the left, "what
+ * kind of work is there?" — the queues a clinician picks from. On the right,
+ * the cases that are already somebody's or nobody's to do: escalated away,
+ * held by me, or parked on a patient who owes us an answer.
+ */
+const LEFT_TABS: Tab[] = ["new", "simple", "complex"];
+const RIGHT_TABS: Tab[] = ["escalated", "mine", "info"];
+
+const TAB_LABEL: Record<Tab, string> = {
+  ...CATEGORY_LABEL,
+  mine: "Mine",
+  info: "Awaiting info",
+};
 const BULK_SIZE = 5;
 
 /** Escalations carry no RAG of their own — they are senior work by definition. */
@@ -50,6 +73,10 @@ function seedBoard() {
     { ref: "PT-3122", by: "Dr. Julia Reyes", initials: "JR", kind: "claimed", at: t - 21 * 60000, expiresAt: null },
     { ref: "PT-2095", by: "Dr. Sofia Patel", initials: "SP", kind: "reserved", at: t, expiresAt: t + 45000 },
   ]);
+  seedInfoRequestsIfEmpty([
+    { ref: "PT-4468", by: "Dr. Raymond Okafor", subject: "Weight photo unreadable — please retake", at: t - 26 * 3600000 },
+    { ref: "PT-2110", by: "Dr. Sofia Patel", subject: "Tell us more about the GI side effects", at: t - 5 * 3600000 },
+  ]);
 }
 
 export default function WorkQueuePage() {
@@ -57,6 +84,11 @@ export default function WorkQueuePage() {
   const [me, setMe] = useActing();
   const claims = useClaims();
   const now = useQueueClock();
+  const infoRequests = useSyncExternalStore(
+    subscribeInfoRequests,
+    getInfoRequestsSnapshot,
+    getInfoRequestsServerSnapshot,
+  );
 
   useEffect(seedBoard, []);
 
@@ -140,6 +172,7 @@ export default function WorkQueuePage() {
     complex: COMPLEX_CASES.length,
     escalated: ESCALATIONS.length,
     mine: holding,
+    info: Object.keys(infoRequests).length,
   };
 
   const shared = { state, now, onlyMine, isAvailable, takeOne, open, drop };
@@ -178,45 +211,20 @@ export default function WorkQueuePage() {
           </button>
         </div>
 
-        {/* tabs */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap gap-1 border-b border-[var(--divider)]">
-            {(["new", "simple", "complex", "escalated", "mine"] as Tab[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
-                  tab === t
-                    ? "border-primary text-text-primary"
-                    : "border-transparent text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                {t === "mine" ? "Mine" : CATEGORY_LABEL[t]}
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                    tab === t ? "bg-primary-main-16 text-primary-dark" : "bg-grey-200 text-text-secondary"
-                  }`}
-                >
-                  {counts[t]}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {tab !== "mine" && (
-              <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                <input
-                  type="checkbox"
-                  checked={onlyMine}
-                  onChange={(e) => setOnlyMine(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--divider)] accent-[var(--primary)]"
-                />
-                Available to me
-              </label>
-            )}
-            <PharmacyFilter value={pharmacy} onChange={setPharmacy} />
+        {/* tabs — queues to pick from on the left, everything already spoken
+            for on the right */}
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <TabStrip tabs={LEFT_TABS} active={tab} counts={counts} onPick={setTab} />
+          <div className="flex flex-wrap items-end gap-4">
+            <TabStrip tabs={RIGHT_TABS} active={tab} counts={counts} onPick={setTab} />
+            <div className="pb-2">
+              <PharmacyFilter
+                value={pharmacy}
+                onChange={setPharmacy}
+                onlyMine={tab === "mine" || tab === "info" ? undefined : onlyMine}
+                onOnlyMine={tab === "mine" || tab === "info" ? undefined : setOnlyMine}
+              />
+            </div>
           </div>
         </div>
 
@@ -226,6 +234,20 @@ export default function WorkQueuePage() {
           {tab === "complex" && <ComplexRepeatsTab rows={byPharmacy(COMPLEX_CASES)} {...shared} />}
           {tab === "escalated" && <EscalatedTab rows={byPharmacy(ESCALATIONS)} {...shared} />}
           {tab === "mine" && <MineTab refs={mine.map((h) => h.ref)} {...shared} />}
+          {tab === "info" && (
+            <AwaitingInfoTab
+              requests={byPharmacy(
+                Object.values(infoRequests)
+                  .map((r) => {
+                    const c = resolveCase(r.ref);
+                    // a request can outlive the case leaving the live queue
+                    return c ? { ...r, ...c } : null;
+                  })
+                  .filter((r): r is NonNullable<typeof r> => r !== null),
+              )}
+              now={now}
+            />
+          )}
         </div>
       </div>
 
@@ -621,17 +643,7 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
   const cols = "grid-cols-[1.1fr_1fr_1.5fr_1.3fr_auto_170px] [&>*]:min-w-0";
 
   const items = refs
-    .map((ref) => {
-      const o = NEW_ORDERS.find((x) => x.ref === ref);
-      if (o) return { ref, category: "new" as QueueCategory, rag: o.score.rag, nhs: o.nhs, med: o.med, dose: o.dose, pharmacyCode: o.pharmacyCode, detail: o.eligibility, href: `/doctor/orders/${ref}` };
-      const r = SIMPLE_REPEATS.find((x) => x.ref === ref);
-      if (r) return { ref, category: "simple" as QueueCategory, rag: r.score.rag, nhs: r.nhs, med: r.med, dose: r.dose, pharmacyCode: r.pharmacyCode, detail: `Last review ${r.lastReview}`, href: undefined };
-      const c = COMPLEX_CASES.find((x) => x.ref === ref);
-      if (c) return { ref, category: "complex" as QueueCategory, rag: c.score.rag, nhs: c.nhs, med: c.med, dose: c.dose, pharmacyCode: c.pharmacyCode, detail: c.flagReason, href: `/doctor/cases/${ref}` };
-      const e = ESCALATIONS.find((x) => x.ref === ref);
-      if (e) return { ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG, nhs: e.nhs, med: e.med, dose: e.dose, pharmacyCode: e.pharmacyCode, detail: e.reason, href: undefined };
-      return null;
-    })
+    .map(resolveCase)
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
   if (items.length === 0) {
@@ -680,6 +692,122 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
           </div>
         );
       })}
+    </TableCard>
+  );
+}
+
+/** Find a case by ref across the four queues it could be sitting in. */
+function resolveCase(ref: string) {
+  const o = NEW_ORDERS.find((x) => x.ref === ref);
+  if (o) return { ref, category: "new" as QueueCategory, rag: o.score.rag, nhs: o.nhs, med: o.med, dose: o.dose, pharmacyCode: o.pharmacyCode, detail: o.eligibility, href: `/doctor/orders/${ref}` };
+  const r = SIMPLE_REPEATS.find((x) => x.ref === ref);
+  if (r) return { ref, category: "simple" as QueueCategory, rag: r.score.rag, nhs: r.nhs, med: r.med, dose: r.dose, pharmacyCode: r.pharmacyCode, detail: `Last review ${r.lastReview}`, href: undefined };
+  const c = COMPLEX_CASES.find((x) => x.ref === ref);
+  if (c) return { ref, category: "complex" as QueueCategory, rag: c.score.rag, nhs: c.nhs, med: c.med, dose: c.dose, pharmacyCode: c.pharmacyCode, detail: c.flagReason, href: `/doctor/cases/${ref}` };
+  const e = ESCALATIONS.find((x) => x.ref === ref);
+  if (e) return { ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG, nhs: e.nhs, med: e.med, dose: e.dose, pharmacyCode: e.pharmacyCode, detail: e.reason, href: undefined };
+  return null;
+}
+
+/** One underlined group of tabs. Two of these sit on the queue toolbar. */
+function TabStrip({
+  tabs,
+  active,
+  counts,
+  onPick,
+}: {
+  tabs: Tab[];
+  active: Tab;
+  counts: Record<Tab, number>;
+  onPick: (t: Tab) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1 border-b border-[var(--divider)]">
+      {tabs.map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => onPick(t)}
+          className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
+            active === t
+              ? "border-primary text-text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          {TAB_LABEL[t]}
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+              active === t ? "bg-primary-main-16 text-primary-dark" : "bg-grey-200 text-text-secondary"
+            }`}
+          >
+            {counts[t]}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Cases waiting on the patient. Nothing here is claimable — the answer has to
+ * arrive first — so the row shows what was asked and how long ago instead of a
+ * claim control. Chasing is the only action, and that belongs with whoever
+ * asked.
+ */
+function AwaitingInfoTab({
+  requests,
+  now,
+}: {
+  requests: (InfoRequest & { category: QueueCategory; med: string; dose: string; nhs: string; pharmacyCode: string })[];
+  now: number;
+}) {
+  const cols = "grid-cols-[1.1fr_1fr_1.4fr_2fr_auto] [&>*]:min-w-0";
+
+  if (requests.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-[var(--divider)] px-4 py-12 text-center">
+        <p className="text-sm font-semibold text-text-primary">Nothing is waiting on a patient</p>
+        <p className="mt-1 text-sm text-text-secondary">
+          Cases land here when a prescriber asks the patient for something, and leave when they reply.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <TableCard>
+      <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
+        <HeadCell>Patient</HeadCell>
+        <HeadCell>Type</HeadCell>
+        <HeadCell>Medication / Dose</HeadCell>
+        <HeadCell>What was asked</HeadCell>
+        <HeadCell>Pharmacy</HeadCell>
+      </div>
+      {[...requests]
+        .sort((a, b) => a.at - b.at)
+        .map((r) => (
+          <div key={r.ref} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0`}>
+            <PatientCell ref_={r.ref} nhs={r.nhs} />
+            <div className="px-4 py-4">
+              <span className="rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary">
+                {CATEGORY_LABEL[r.category]}
+              </span>
+            </div>
+            <div className="px-4 py-4">
+              <p className="truncate text-sm font-bold text-text-primary">{r.med}</p>
+              <p className="truncate text-xs text-text-secondary">{r.dose}</p>
+            </div>
+            <div className="px-4 py-4">
+              <p className="truncate text-sm text-text-primary" title={r.subject}>{r.subject}</p>
+              <p className="truncate text-xs text-text-secondary">
+                {r.by} · asked {askedAgo(r, now)}
+              </p>
+            </div>
+            <div className="px-4 py-4">
+              <PharmacyLabel code={r.pharmacyCode} />
+            </div>
+          </div>
+        ))}
     </TableCard>
   );
 }
