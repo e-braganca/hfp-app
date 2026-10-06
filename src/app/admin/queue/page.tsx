@@ -17,7 +17,7 @@ import { PAUSE_LABEL } from "@/lib/admin/queue-sla";
 import { ACCESS_LABEL, type AdminDoctor, type QueueBand } from "@/lib/admin/types";
 import { CATEGORY_LABEL, type QueueCategory } from "@/lib/doctor/clinicians";
 import { liveCases, type LiveCase } from "@/lib/shared/live-cases";
-import { claim, heldFor, holdFor, release } from "@/lib/doctor/queue-claims";
+import { claim, holdFor, release } from "@/lib/doctor/queue-claims";
 import type { Rag } from "@/lib/doctor/types";
 
 /* ============================================================================
@@ -216,7 +216,6 @@ export default function AdminQueuePage() {
 
               {rows.map((c) => {
                 const hold = holdFor(claims, c.ref);
-                const doctor = hold ? ADMIN_DOCTORS.find((d) => d.name === hold.by) : undefined;
                 const flag = clock.flagFor(c.ref);
                 const paused = clock.pausedReason(c.ref);
                 const waited = clock.hoursFor(c.ref);
@@ -298,23 +297,19 @@ export default function AdminQueuePage() {
                       </div>
 
                       {/* one line, always — rows stay the same height whatever
-                          state the case is in. The chip stays up once claimed:
-                          the patient is still waiting. */}
-                      <div className="mt-1.5 flex h-6 items-center gap-2">
+                          state the case is in.
+
+                          Only the patient's wait is shown. How long the current
+                          holder has had it is a second clock that reads as a
+                          contradiction next to the first: time held can exceed
+                          time waited only if one of them is lying, and the one
+                          that matters is the patient's. Who is holding it is
+                          already on the select above. */}
+                      <div className="mt-1.5 flex h-6 items-center">
                         {paused ? (
                           <span className="truncate text-[11px] text-text-secondary">{PAUSE_LABEL[paused]}</span>
                         ) : (
-                          <>
-                            <WaitChip hours={waited} flag={flag} />
-                            {hold && (
-                              <span className="truncate text-[11px] text-text-secondary">
-                                {doctor && (
-                                  <PresenceDot online={doctor.online} className="mr-1 inline-block align-middle" />
-                                )}
-                                {hold.kind === "reserved" ? "reviewing" : `held ${heldFor(hold, now)}`}
-                              </span>
-                            )}
-                          </>
+                          <WaitChip hours={waited} flag={flag} />
                         )}
                       </div>
                     </div>
