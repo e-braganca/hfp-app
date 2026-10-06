@@ -22,6 +22,7 @@ import {
 import {
   getInfoRequestsServerSnapshot,
   getInfoRequestsSnapshot,
+  isAwaitingPatient,
   subscribeInfoRequests,
 } from "@/lib/doctor/info-requests";
 import { clearSkipped, markSkipped, nextCase } from "@/lib/doctor/case-order";
@@ -152,6 +153,14 @@ export function useQueueClock(active = true): number {
 /**
  * Where "next case" goes, and how to get there.
  *
+ * The destination is resolved when the button is pressed, never when it is
+ * drawn. A clinician can sit on a finished case for minutes, and in that time
+ * another prescriber may claim whatever was next — naming it on the button
+ * would promise a case we no longer have, and send them to a screen that
+ * bounces them straight back. `hasNext` is only for deciding whether to offer
+ * the button at all; if the queue empties in between, the click lands on the
+ * work queue, which is the honest answer.
+ *
  * Also keeps the waiting clock ticking on the prescriber side. It used to be
  * wound only by the admin screens, which meant a clinician who never opened
  * Oversight was ordering their work by a clock nobody had started.
@@ -173,11 +182,24 @@ export function useNextCase(currentRef: string) {
 
   useEffect(() => {
     const refs = [...new Set(liveCases().map((c) => c.ref))];
-    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || infoRequests[r]));
+    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || isAwaitingPatient(infoRequests[r])));
     syncBoardClock(refs, parked, SEED_WAIT_HOURS);
   }, [infoRequests, now]);
 
-  const next = nextCase(currentRef, { timers, now, claims, infoRequests, me });
+  /** Read the board as it is right now, not as it was when we rendered. */
+  const resolveHref = () => {
+    const live = nextCase(currentRef, {
+      timers: getBoardClockSnapshot(),
+      now: Date.now(),
+      claims: getClaimsSnapshot(),
+      infoRequests: getInfoRequestsSnapshot(),
+      me,
+    });
+    return live?.href ?? "/doctor/queue";
+  };
 
-  return { next, href: next?.href ?? "/doctor/queue", hasNext: next !== null };
+  return {
+    hasNext: nextCase(currentRef, { timers, now, claims, infoRequests, me }) !== null,
+    resolveHref,
+  };
 }

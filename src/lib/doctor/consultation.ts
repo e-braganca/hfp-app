@@ -13,7 +13,6 @@
 // ============================================================================
 
 import { ETHNICITIES } from "@/lib/onboarding/constants";
-import { SAFETY_QUESTIONS } from "@/lib/onboarding/constants";
 
 export interface ConsultationAnswers {
   submittedAt: string;
@@ -88,6 +87,12 @@ const WRITTEN: Record<string, Partial<ConsultationAnswers>> = {
     otherMeds: ["Ramipril", "Naproxen"],
     treatmentPreference: "Wegovy (semaglutide)",
   },
+  "PT-4465": {
+    submittedAt: "5 Oct 2026 · 09:40",
+    conditions: [],
+    medsAnswer: "None of these",
+    treatmentPreference: "Wegovy (semaglutide)",
+  },
   "PT-4461": {
     submittedAt: "28 Jul 2026 · 21:05",
     conditions: [],
@@ -97,8 +102,22 @@ const WRITTEN: Record<string, Partial<ConsultationAnswers>> = {
 };
 
 /**
+ * Fields the declared record asserts over whatever the caller knows.
+ *
+ * Normally the caller's values win, so this card can't contradict the row
+ * above it. PT-4465 is the exception that proves why the card exists: the
+ * patient declared 94 kg, the verified capture returned 78.8 kg, and the case
+ * turns on the gap. Showing the verified figure here would erase the very
+ * thing the prescriber is being asked to look at.
+ */
+const DECLARED: Record<string, Partial<ConsultationAnswers>> = {
+  "PT-4465": { heightCm: 174, weightKg: 94, bmi: 31.2 },
+};
+
+/**
  * The consultation behind a case. Pass whatever the calling record already
- * knows — those values win, so the drawer never contradicts the row above it.
+ * knows — those values win, so the drawer never contradicts the row above it,
+ * unless DECLARED says otherwise for that case.
  */
 export function consultationFor(
   ref: string,
@@ -131,12 +150,30 @@ export function consultationFor(
     derived.otherMeds = OTHER_MED_POOL[Math.floor(rnd() * OTHER_MED_POOL.length)];
   }
 
-  const merged = { ...derived, ...written, ...known };
+  const merged = { ...derived, ...written, ...known, ...(DECLARED[ref] ?? {}) };
   // a written record that names other meds shouldn't keep the derived list
   if (merged.medsAnswer !== "Other prescription medication") delete merged.otherMeds;
   if (merged.medsAnswer !== "A GLP-1 medicine") delete merged.glp1;
   return merged;
 }
 
-/** The five questions, all answered No — shown so the prescriber sees them asked. */
-export const SAFETY_ASKED = SAFETY_QUESTIONS.map((q) => q.q);
+/**
+ * The clinical shorthand the case records carry, expanded to the wording the
+ * patient actually picked. "White British" is a column heading; the consent
+ * the patient gave was to the ONS option, and this card is their answers.
+ */
+const ETHNICITY_AS_ASKED: Record<string, string> = {
+  "White British": "English, Welsh, Scottish, Northern Irish or British",
+  "Black African": "African",
+  "Black Caribbean": "Caribbean",
+  "South Asian": "Indian",
+  Pakistani: "Pakistani",
+};
+
+export const ethnicityAsAsked = (v: string) => ETHNICITY_AS_ASKED[v] ?? v;
+
+/** "2 Aug 2026 · 10:24" is how records store it; patients read time first. */
+export function submittedLabel(v: string): string {
+  const m = v.match(/^(.+?)\s*·\s*(\d{1,2}:\d{2})$/);
+  return m ? `${m[2]} · ${m[1]}` : v;
+}

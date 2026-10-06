@@ -22,7 +22,17 @@ export interface InfoRequest {
   subject: string;
   /** epoch ms */
   at: number;
+  /**
+   * The structured ask. Chasing a patient has to be answerable without
+   * re-reading the thread, so what was requested is kept item by item and the
+   * reply is recorded against each one.
+   */
+  items: RfiResponseItem[];
+  /** free text for the "Other" item */
+  note?: string;
 }
+
+import type { RfiResponseItem } from "@/lib/shared/rfi-items";
 
 const KEY = "hfp-info-requests";
 
@@ -75,9 +85,51 @@ export const infoRequestFor = (map: Record<string, InfoRequest>, ref: string): I
   map[ref] ?? null;
 
 /** Record that the patient has been asked for something. */
-export function requestInfo(ref: string, by: string, subject: string) {
-  write({ ...read(), [ref]: { ref, by, subject, at: Date.now() } });
+export function requestInfo(ref: string, by: string, subject: string, itemIds: string[], note?: string) {
+  write({
+    ...read(),
+    [ref]: {
+      ref,
+      by,
+      subject,
+      at: Date.now(),
+      note,
+      items: itemIds.map((id) => ({ id, state: "outstanding" as const })),
+    },
+  });
 }
+
+/** Record what the patient sent back for one item. */
+export function recordReply(ref: string, itemId: string, reply: Partial<RfiResponseItem>) {
+  const map = read();
+  const r = map[ref];
+  if (!r) return;
+  write({
+    ...map,
+    [ref]: {
+      ...r,
+      items: r.items.map((i) => (i.id === itemId ? { ...i, ...reply } : i)),
+    },
+  });
+}
+
+/** Everything still waiting on the patient. */
+export const outstandingItems = (r: InfoRequest) => r.items.filter((i) => i.state === "outstanding");
+
+/**
+ * Is the case parked on the patient right now?
+ *
+ * Having been asked something is not the same as still owing it. A case whose
+ * replies have all landed is back to being our problem: it belongs in its own
+ * queue, and the waiting clock starts again. Only an outstanding item parks a
+ * case — which is also what keeps it out of two tabs at once.
+ */
+export const isAwaitingPatient = (r: InfoRequest | null | undefined): boolean =>
+  !!r && r.items.some((i) => i.state === "outstanding");
+
+/** Refs currently parked on the patient. */
+export const awaitingRefs = (map: Record<string, InfoRequest>): Set<string> =>
+  new Set(Object.values(map).filter(isAwaitingPatient).map((r) => r.ref));
 
 /** The patient replied (or the request was withdrawn) — back on the board. */
 export function clearInfoRequest(ref: string) {

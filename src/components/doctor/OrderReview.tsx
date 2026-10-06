@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { NewOrder } from "@/lib/doctor/types";
-import { AiRecommendationCard, AuditNote } from "./AiRecommendationCard";
-import { ConsultationAnswersCard } from "./ConsultationAnswersCard";
+import { AuditNote } from "./AiRecommendationCard";
+import { ReviewPanel } from "./ReviewPanel";
+import {
+  DEFAULT_WEEKS,
+  PrescriptionPicker,
+  amendmentReady,
+  parseRecommended,
+  prescriptionLabel,
+  sameAsRecommended,
+  type Prescription,
+} from "./PrescriptionPicker";
 import { Modal } from "@/components/ui/Modal";
 import { consultationFor } from "@/lib/doctor/consultation";
 import { PatientSummaryCard } from "./PatientSummaryCard";
@@ -24,20 +33,41 @@ export function OrderReview({ order }: { order: NewOrder }) {
   const [escalating, setEscalating] = useState(false);
   const [emailing, setEmailing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  /**
+   * The recommendation is the starting selection, not a separate mode — the
+   * prescriber is always looking at what they are about to issue.
+   */
+  const recommended = useMemo(() => parseRecommended(order.ai.recommendedRx), [order.ai.recommendedRx]);
+  const [rx, setRx] = useState<Prescription>(
+    () => recommended ?? { med: "Mounjaro", dose: "2.5 mg", weeks: DEFAULT_WEEKS },
+  );
+  const amended = !sameAsRecommended(rx, recommended);
   const isDecline = order.verdict === "decline";
+  /**
+   * The reason gate belongs to issuing, not deciding. A decline shows no
+   * picker at all, so gating it on an untouched fallback selection left the
+   * prescriber unable to decline a case the SOP says is ineligible.
+   */
+  const needsReason = !isDecline && !amendmentReady(rx, recommended);
   const hold = useCaseHold(order.ref);
   const upNext = useNextCase(order.ref);
 
   const approve = () => {
     setDecision(isDecline ? "declined" : "approved");
-    setToast(isDecline ? "Order declined & audit-logged" : "Prescription issued & audit-logged");
+    setToast(
+      isDecline
+        ? "Order declined & audit-logged"
+        : amended
+          ? `${prescriptionLabel(rx)} issued — amendment and reason audit-logged`
+          : "Prescription issued & audit-logged",
+    );
   };
-  const requestInfo = (subject: string) => {
+  const requestInfo = (subject: string, items: string[], note?: string) => {
     setEmailing(false);
     setDecision("info");
     // parks the case: it leaves the claimable tabs for Awaiting info, and the
     // admin's waiting clock stops and resets — the delay is the patient's now
-    recordInfoRequest(order.ref, hold.me.name, subject);
+    recordInfoRequest(order.ref, hold.me.name, subject, items, note);
     setToast(`Email sent to ${order.patientName} — "${subject}"`);
   };
   const escalate = () => {
@@ -59,8 +89,7 @@ export function OrderReview({ order }: { order: NewOrder }) {
             secondsLeft={hold.secondsLeft}
             onClaim={hold.claimCase}
             onRelease={hold.releaseCase}
-            onSkip={upNext.hasNext ? () => hold.skipTo(upNext.href) : undefined}
-            skipLabel={upNext.next ? `Skip to ${upNext.next.ref}` : undefined}
+            onSkip={upNext.hasNext ? () => hold.skipTo(upNext.resolveHref()) : undefined}
           />
         }
         left={
@@ -121,29 +150,38 @@ export function OrderReview({ order }: { order: NewOrder }) {
               </div>
             </div>
 
-            <ConsultationAnswersCard
-              answers={consultationFor(order.ref, {
-                sexAtBirth: order.sex,
-                age: order.age,
-                bmi: order.bmi,
-                ethnicity: order.ethnicity,
-                conditions: order.comorbidities,
-                treatmentPreference: order.preference,
-                verification: order.verification,
-              })}
-            />
           </>
         }
         right={
-          <AiRecommendationCard
+          <ReviewPanel
             ai={order.ai}
+            caseRef={order.ref}
+            answers={consultationFor(order.ref, {
+              sexAtBirth: order.sex,
+              age: order.age,
+              bmi: order.bmi,
+              ethnicity: order.ethnicity,
+              conditions: order.comorbidities,
+              treatmentPreference: order.preference,
+              verification: order.verification,
+            })}
+            prescription={
+              isDecline ? undefined : (
+                <PrescriptionPicker
+                  recommended={recommended}
+                  value={rx}
+                  onChange={setRx}
+                  disabled={!hold.claimed}
+                />
+              )
+            }
             actions={
               decision ? (
                 <OrderOutcome
                   decision={decision}
                   order={order}
-                  onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined}
-                  nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined}
+                  issued={amended ? rx : null}
+                  onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined}
                 />
               ) : (
                 <>
@@ -151,12 +189,12 @@ export function OrderReview({ order }: { order: NewOrder }) {
                     <button
                       type="button"
                       onClick={approve}
-                      disabled={!hold.claimed}
+                      disabled={!hold.claimed || needsReason}
                       className={`flex-1 basis-40 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-bold text-white disabled:opacity-40 ${
                         isDecline ? "bg-error hover:bg-error-dark" : "bg-primary hover:bg-primary-dark"
                       }`}
                     >
-                      {isDecline ? "Decline order" : "Approve & issue"}
+                      {isDecline ? "Decline order" : amended ? "Issue amended" : "Approve & issue"}
                     </button>
                     <button
                       type="button"
@@ -175,7 +213,11 @@ export function OrderReview({ order }: { order: NewOrder }) {
                       Escalate
                     </button>
                   </div>
-                  {hold.claimed ? (
+                  {hold.claimed && needsReason ? (
+                    <p className="mt-3 text-xs font-semibold text-warning-dark">
+                      Say why you&rsquo;re departing from the recommendation before issuing.
+                    </p>
+                  ) : hold.claimed ? (
                     <AuditNote />
                   ) : (
                     <p className="mt-3 text-xs font-semibold text-warning-dark">
@@ -192,7 +234,7 @@ export function OrderReview({ order }: { order: NewOrder }) {
       <RequestInfoEmailModal
         open={emailing}
         onClose={() => setEmailing(false)}
-        onSend={({ subject }) => requestInfo(subject)}
+        onSend={({ subject, items, note }) => requestInfo(subject, items, note)}
         patientName={order.patientName}
         sex={order.sex}
         caseRef={order.ref}
@@ -252,19 +294,22 @@ function VerifyTile({ icon, title, caption }: { icon: React.ReactNode; title: st
 function OrderOutcome({
   decision,
   order,
+  issued,
   onNext,
-  nextLabel,
 }: {
   decision: Exclude<Decision, null>;
   order: NewOrder;
+  /** set only when what was issued differs from the recommendation */
+  issued: Prescription | null;
   onNext?: () => void;
-  nextLabel?: string;
 }) {
   const map = {
     approved: {
       tone: "success" as const,
-      title: "Prescription issued",
-      body: `${order.ai.recommendedRx} issued to ${pharmacyName(order.pharmacyCode)}. Decision and active SOP version recorded to the audit trail.`,
+      title: issued ? "Amended prescription issued" : "Prescription issued",
+      body: issued
+        ? `${prescriptionLabel(issued)} issued to ${pharmacyName(order.pharmacyCode)} — amended from ${order.ai.recommendedRx}. The amendment, your reason and the active SOP version are on the audit trail.`
+        : `${order.ai.recommendedRx} issued to ${pharmacyName(order.pharmacyCode)}. Decision and active SOP version recorded to the audit trail.`,
     },
     declined: {
       tone: "error" as const,
@@ -283,7 +328,7 @@ function OrderOutcome({
     },
   }[decision];
 
-  return <OutcomePanel {...map} onNext={onNext} nextLabel={nextLabel} />;
+  return <OutcomePanel {...map} onNext={onNext} />;
 }
 
 export function OutcomePanel({
@@ -291,14 +336,16 @@ export function OutcomePanel({
   title,
   body,
   onNext,
-  nextLabel,
 }: {
   tone: "success" | "error" | "warning" | "slate";
   title: string;
   body: string;
-  /** keep working without passing through the queue */
+  /**
+   * Keep working without passing through the queue. No label: which case is
+   * next is only known when this is pressed, since someone else may claim it
+   * while this screen sits open.
+   */
   onNext?: () => void;
-  nextLabel?: string;
 }) {
   const toneCls = {
     success: "bg-success-lighter text-success-dark",
@@ -324,7 +371,7 @@ export function OutcomePanel({
             onClick={onNext}
             className="rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
           >
-            {nextLabel ?? "Next case"} &rarr;
+            Next case &rarr;
           </button>
         )}
         <a

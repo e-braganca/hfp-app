@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { ComplexCase } from "@/lib/doctor/types";
-import { AiRecommendationCard, AuditNote } from "./AiRecommendationCard";
-import { ConsultationAnswersCard } from "./ConsultationAnswersCard";
+import { AuditNote } from "./AiRecommendationCard";
+import { ReviewPanel } from "./ReviewPanel";
 import { Modal } from "@/components/ui/Modal";
 import { consultationFor } from "@/lib/doctor/consultation";
 import { OutcomePanel } from "./OrderReview";
@@ -60,8 +60,7 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
             secondsLeft={hold.secondsLeft}
             onClaim={hold.claimCase}
             onRelease={hold.releaseCase}
-            onSkip={upNext.hasNext ? () => hold.skipTo(upNext.href) : undefined}
-            skipLabel={upNext.next ? `Skip to ${upNext.next.ref}` : undefined}
+            onSkip={upNext.hasNext ? () => hold.skipTo(upNext.resolveHref()) : undefined}
           />
         }
         left={
@@ -94,28 +93,27 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
               <MedicationTimeline events={case_.history} />
             </div>
 
-            <ConsultationAnswersCard
-              answers={consultationFor(case_.ref, {
-                sexAtBirth: case_.sex,
-                age: case_.age,
-                bmi: case_.bmi,
-                ethnicity: case_.ethnicity,
-                conditions: case_.comorbidities,
-              })}
-            />
           </>
         }
         right={
-          <AiRecommendationCard
+          <ReviewPanel
             ai={case_.ai}
             sop={case_.sopCitation}
+            caseRef={case_.ref}
+            answers={consultationFor(case_.ref, {
+              sexAtBirth: case_.sex,
+              age: case_.age,
+              bmi: case_.bmi,
+              ethnicity: case_.ethnicity,
+              conditions: case_.comorbidities,
+            })}
             actions={
                 decision === "approved" ? (
-                  <OutcomePanel tone="success" title="Recommendation approved" body={`${case_.ai.recommendedRx} confirmed. Decision and SOP ${case_.sopCitation.version} recorded to the audit trail.`} onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined} nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined} />
+                  <OutcomePanel tone="success" title="Recommendation approved" body={`${case_.ai.recommendedRx} confirmed. Decision and SOP ${case_.sopCitation.version} recorded to the audit trail.`} onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined} />
                 ) : decision === "overridden" ? (
-                  <OutcomePanel tone="warning" title="Recommendation overridden" body="Your clinical override and justification were recorded and audit-logged against the active SOP version." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined} nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined} />
+                  <OutcomePanel tone="warning" title="Recommendation overridden" body="Your clinical override and justification were recorded and audit-logged against the active SOP version." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined} />
                 ) : decision === "escalated" ? (
-                  <OutcomePanel tone="slate" title="Escalated to senior review" body="Removed from your queue and routed to senior clinical review." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.href) : undefined} nextLabel={upNext.next ? `Next case · ${upNext.next.ref}` : undefined} />
+                  <OutcomePanel tone="slate" title="Escalated to senior review" body="Removed from your queue and routed to senior clinical review." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined} />
                 ) : decision === "overriding" ? (
                   <OverridePanel
                     reason={reason}

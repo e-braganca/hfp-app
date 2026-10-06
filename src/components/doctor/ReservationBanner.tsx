@@ -17,15 +17,19 @@ export function ReservationBanner({
   onClaim,
   onRelease,
   onSkip,
-  skipLabel,
 }: {
   claimed: boolean;
   secondsLeft: number;
   onClaim: () => void;
   onRelease: () => void;
-  /** hand this one back and open the next, without going via the queue */
+  /**
+   * Hand this one back and open the next, without going via the queue.
+   *
+   * Deliberately takes no label: naming the next case here would promise a
+   * case that another prescriber may claim while this one is still being read.
+   * The destination is resolved when the button is pressed.
+   */
   onSkip?: () => void;
-  skipLabel?: string;
 }) {
   if (claimed) {
     return (
@@ -67,7 +71,7 @@ export function ReservationBanner({
                 : "border-warning/50 text-warning-darker hover:bg-warning-lighter"
             }`}
           >
-            {skipLabel ?? "Skip"}
+            Skip
           </button>
         )}
         <button

@@ -155,25 +155,31 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Passport" },
   },
   {
+    // The one case in the queue that onboarding would not have let through on
+    // the numbers it has now — and that is the point of it. It passed the
+    // funnel on a self-declared 94 kg (BMI 31.2), the prescriber asked for a
+    // verified weight, and the live reading came back 78.8 kg. Eligibility is
+    // re-scored against what was measured, not what was typed. Without a
+    // re-score, a mistyped weight is a prescription.
     ref: "PT-4465", patientName: "Chloe Barnes", nhs: "339 612 5507", med: "Wegovy (semaglutide)", dose: "0.25 mg",
-    eligibility: "BMI 26.1 · below threshold", score: { rag: "red", confidence: 91 },
+    eligibility: "BMI 26.1 on verified weight · below threshold", score: { rag: "red", confidence: 91 },
     pharmacyCode: "CP", submittedAt: "09:40 today",
     age: 35, sex: "Female", bmi: 26.1, ethnicity: "White British", comorbidities: [],
     preference: "Wegovy (semaglutide)",
     verdict: "decline",
     ai: {
-      basis: "Auto-scored against SOP Rule 1.1", score: { rag: "red", confidence: 91 },
-      title: "Decline — below threshold.",
-      body: "BMI 26.1 is below the SOP Rule 1.1 floor with no qualifying comorbidity on record. Does not meet eligibility.",
+      basis: "Re-scored against SOP Rule 1.1 on the verified weight", score: { rag: "red", confidence: 91 },
+      title: "Decline — below threshold on verified weight.",
+      body: "Declared at onboarding as 94 kg (BMI 31.2), which cleared the funnel. The live weight capture returned 78.8 kg — BMI 26.1, below the Rule 1.1 floor with no qualifying comorbidity. Eligibility is scored on the measured weight.",
       checks: [
-        "BMI 26.1 — below Rule 1.1 floor (30)",
-        "No qualifying comorbidity on record",
-        "No contraindications, but eligibility not met",
-        "Patient preference — Wegovy; not applicable, eligibility not met",
+        "Declared 94 kg at onboarding — BMI 31.2, cleared Rule 1.1",
+        "Verified live capture 78.8 kg — BMI 26.1, below the floor (30)",
+        "No qualifying comorbidity to lower the floor to 27",
+        "No contraindications — this is eligibility, not safety",
       ],
       recommendedRx: "No prescription — signpost to lifestyle pathway",
     },
-    verification: { weightPhoto: "Live camera", idDocument: "Driving licence" },
+    verification: { weightPhoto: "Live camera · 78.8 kg", idDocument: "Driving licence" },
   },
   {
     ref: "PT-4464", patientName: "Peter Whitfield", nhs: "123 456 7890", med: "Wegovy (semaglutide)", dose: "0.5 mg",

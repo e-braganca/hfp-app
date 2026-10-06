@@ -14,11 +14,18 @@ export function AiRecommendationCard({
   ai,
   actions,
   sop,
+  prescription,
 }: {
   ai: AiRecommendation;
   actions?: ReactNode;
   /** the rule this reading was scored against, quoted in full */
   sop?: { rule: string; version: string; quote: string };
+  /**
+   * Replaces the read-only recommendation block when the screen lets the
+   * prescriber issue something else. Passed in rather than built here so this
+   * card stays presentational.
+   */
+  prescription?: ReactNode;
 }) {
   return (
     <section className="flex h-full flex-col overflow-hidden rounded-lg bg-background-paper shadow-card">
@@ -54,13 +61,15 @@ export function AiRecommendationCard({
           ))}
         </ul>
 
-        <div className="mt-6 rounded-lg bg-background-neutral px-5 py-4">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-            Recommended prescription
-          </p>
-          <p className="mt-1 text-base font-bold text-text-primary">
-            {ai.recommendedRx}
-          </p>
+        <div className="mt-6">
+          {prescription ?? (
+            <div className="rounded-lg bg-background-neutral px-5 py-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                Recommended prescription
+              </p>
+              <p className="mt-1 text-base font-bold text-text-primary">{ai.recommendedRx}</p>
+            </div>
+          )}
         </div>
 
         {sop && (

@@ -18,7 +18,7 @@
 
 import { blockedReason, type Clinician } from "./clinicians";
 import { holdFor, type Hold } from "./queue-claims";
-import type { InfoRequest } from "./info-requests";
+import { isAwaitingPatient, type InfoRequest } from "./info-requests";
 import { liveCases, type LiveCase } from "@/lib/shared/live-cases";
 import { waitedMs, type BoardTimers } from "@/lib/shared/board-clock";
 
@@ -56,7 +56,7 @@ export function workableCases(ctx: NextCaseContext): LiveCase[] {
   return liveCases()
     .filter((c) => {
       if (!c.href) return false;
-      if (ctx.infoRequests[c.ref]) return false;
+      if (isAwaitingPatient(ctx.infoRequests[c.ref])) return false;
       if (blockedReason(ctx.me, c.category, c.rag)) return false;
       const hold = holdFor(ctx.claims, c.ref);
       if (hold && hold.by !== ctx.me.name) return false;

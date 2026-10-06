@@ -22,6 +22,7 @@ import { waitFlagFor, type WaitFlag } from "@/lib/admin/queue-sla";
 import {
   getInfoRequestsServerSnapshot,
   getInfoRequestsSnapshot,
+  isAwaitingPatient,
   subscribeInfoRequests,
 } from "@/lib/doctor/info-requests";
 import type { LiveCase } from "@/lib/shared/live-cases";
@@ -63,13 +64,13 @@ export function useWaitClock(cases: LiveCase[]): WaitClock {
   const refs = useMemo(() => [...new Set(cases.map((c) => c.ref))], [cases]);
 
   useEffect(() => {
-    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || infoRequests[r]));
+    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || isAwaitingPatient(infoRequests[r])));
     syncBoardClock(refs, parked, SEED_WAIT_HOURS);
   }, [refs, infoRequests, now]);
 
   const hoursFor = (ref: string) => waitedHours(timers, ref, now);
   const pausedReason = (ref: string): BoardPauseReason | null =>
-    infoRequests[ref] ? "patient-reply" : (SEED_PAUSED[ref] ?? null);
+    isAwaitingPatient(infoRequests[ref]) ? "patient-reply" : (SEED_PAUSED[ref] ?? null);
 
   /**
    * Claiming does not clear the flag. The patient is still waiting, and a case

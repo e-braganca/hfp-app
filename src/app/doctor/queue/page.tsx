@@ -16,6 +16,8 @@ import { CATEGORY_LABEL, RAG_ORDER, canTake, type QueueCategory } from "@/lib/do
 import { claim, claimMany, holdFor, release, reserve, seedIfEmpty } from "@/lib/doctor/queue-claims";
 import {
   askedAgo,
+  awaitingRefs,
+  isAwaitingPatient,
   getInfoRequestsServerSnapshot,
   getInfoRequestsSnapshot,
   seedInfoRequestsIfEmpty,
@@ -73,8 +75,45 @@ function seedBoard() {
     { ref: "PT-2095", by: "Dr. Sofia Patel", initials: "SP", kind: "reserved", at: t, expiresAt: t + 45000 },
   ]);
   seedInfoRequestsIfEmpty([
-    { ref: "PT-4468", by: "Dr. Raymond Okafor", subject: "Weight photo unreadable — please retake", at: t - 26 * 3600000 },
-    { ref: "PT-2110", by: "Dr. Sofia Patel", subject: "Tell us more about the GI side effects", at: t - 5 * 3600000 },
+    {
+      ref: "PT-4468",
+      by: "Dr. Raymond Okafor",
+      subject: "Weight photo unreadable — please retake",
+      at: t - 26 * 3600000,
+      // partly answered, so the review screen has both states to show
+      items: [
+        { id: "body-photos", state: "supplied", attachment: "weight-2026-10-04.jpg", at: "4 Oct 2026 · 19:12" },
+        { id: "weight-height", state: "supplied", reply: "112.4 kg, 1.74 m — measured this morning", at: "4 Oct 2026 · 19:14" },
+        { id: "photo-id", state: "outstanding" },
+      ],
+    },
+    {
+      // the request that re-scored PT-4465 out of eligibility — answered, so
+      // the case is back on the board rather than parked on the patient
+      ref: "PT-4465",
+      by: "Dr. Julia Reyes",
+      subject: "Please confirm your current weight with a live photo",
+      at: t - 31 * 3600000,
+      items: [
+        {
+          id: "weight-height",
+          state: "supplied",
+          reply: "78.8 kg, 1.74 m — live capture, differs from the 94 kg declared at onboarding",
+          attachment: "live-weight-2026-10-05.jpg",
+          at: "5 Oct 2026 · 09:38",
+        },
+      ],
+    },
+    {
+      ref: "PT-2110",
+      by: "Dr. Sofia Patel",
+      subject: "Tell us more about the GI side effects",
+      at: t - 5 * 3600000,
+      items: [
+        { id: "side-effects", state: "outstanding" },
+        { id: "medication-list", state: "outstanding" },
+      ],
+    },
   ]);
 }
 
@@ -104,6 +143,15 @@ export default function WorkQueuePage() {
 
   const byPharmacy = <T extends { pharmacyCode: string }>(rows: T[]) =>
     pharmacy ? rows.filter((r) => r.pharmacyCode === pharmacy) : rows;
+
+  /**
+   * A case parked on the patient leaves its own queue entirely — it is not
+   * work anyone can do, and listing it in both New Orders and Awaiting info
+   * means two clinicians can each believe the other tab is someone else's
+   * problem. It comes back the moment the last reply lands.
+   */
+  const awaiting = awaitingRefs(infoRequests);
+  const onTheBoard = <T extends { ref: string }>(rows: T[]) => rows.filter((r) => !awaiting.has(r.ref));
 
   const state = (ref: string, category: QueueCategory, rag: Rag): RowState =>
     rowState(holdFor(claims, ref), me, category, rag, now);
@@ -166,12 +214,12 @@ export default function WorkQueuePage() {
   };
 
   const counts: Record<Tab, number> = {
-    new: NEW_ORDERS.length,
-    simple: SIMPLE_REPEATS.length,
-    complex: COMPLEX_CASES.length,
-    escalated: ESCALATIONS.length,
+    new: onTheBoard(NEW_ORDERS).length,
+    simple: onTheBoard(SIMPLE_REPEATS).length,
+    complex: onTheBoard(COMPLEX_CASES).length,
+    escalated: onTheBoard(ESCALATIONS).length,
     mine: holding,
-    info: Object.keys(infoRequests).length,
+    info: awaiting.size,
   };
 
   const shared = { state, now, onlyMine, isAvailable, takeOne, open, drop };
@@ -226,15 +274,16 @@ export default function WorkQueuePage() {
         </div>
 
         <div className="mt-5">
-          {tab === "new" && <NewOrdersTab rows={byPharmacy(NEW_ORDERS)} {...shared} />}
-          {tab === "simple" && <SimpleRepeatsTab rows={byPharmacy(SIMPLE_REPEATS)} {...shared} />}
-          {tab === "complex" && <ComplexRepeatsTab rows={byPharmacy(COMPLEX_CASES)} {...shared} />}
-          {tab === "escalated" && <EscalatedTab rows={byPharmacy(ESCALATIONS)} {...shared} />}
+          {tab === "new" && <NewOrdersTab rows={byPharmacy(onTheBoard(NEW_ORDERS))} {...shared} />}
+          {tab === "simple" && <SimpleRepeatsTab rows={byPharmacy(onTheBoard(SIMPLE_REPEATS))} {...shared} />}
+          {tab === "complex" && <ComplexRepeatsTab rows={byPharmacy(onTheBoard(COMPLEX_CASES))} {...shared} />}
+          {tab === "escalated" && <EscalatedTab rows={byPharmacy(onTheBoard(ESCALATIONS))} {...shared} />}
           {tab === "mine" && <MineTab refs={mine.map((h) => h.ref)} {...shared} />}
           {tab === "info" && (
             <AwaitingInfoTab
               requests={byPharmacy(
                 Object.values(infoRequests)
+                  .filter(isAwaitingPatient)
                   .map((r) => {
                     const c = resolveCase(r.ref);
                     // a request can outlive the case leaving the live queue
