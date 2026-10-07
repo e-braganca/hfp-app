@@ -339,6 +339,12 @@ function WaitChipFor({ s, ref_ }: { s: Shared; ref_: string }) {
   return <WaitChip hours={hours} flag={flag} />;
 }
 
+/*
+ * A note on the grid templates above: every row is its own grid container, so
+ * an `auto` or `min-content` track is sized against that row alone and the
+ * columns stop lining up between rows. Give every track an explicit width or
+ * an fr, never auto.
+ */
 function TableCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="overflow-hidden rounded-lg bg-background-paper shadow-card">
@@ -383,7 +389,7 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 // ---- New Orders -----------------------------------------------------------
 
 function NewOrdersTab({ rows, ...s }: { rows: typeof NEW_ORDERS } & Shared) {
-  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.4fr_auto_170px] [&>*]:min-w-0";
+  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.4fr_132px_170px] [&>*]:min-w-0";
   const visible = rows.filter((o) => !s.onlyMine || s.isAvailable(s.state(o.ref, "new", o.score.rag)));
   return (
     <TableCard>
@@ -430,7 +436,7 @@ function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shar
   const [dropped, setDropped] = useState<string[]>([]);
   const [done, setDone] = useState(0);
 
-  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.1fr_auto_170px] [&>*]:min-w-0";
+  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.1fr_132px_170px] [&>*]:min-w-0";
   const visible = rows.filter((r) => !s.onlyMine || s.isAvailable(s.state(r.ref, "simple", r.score.rag)));
   const mineHere = rows.filter((r) => s.state(r.ref, "simple", r.score.rag).kind === "mine");
   const batch = mineHere.filter((r) => !dropped.includes(r.ref));
@@ -625,7 +631,7 @@ function RuleChip({ children }: { children: React.ReactNode }) {
 // ---- Complex Repeats ------------------------------------------------------
 
 function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shared) {
-  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.4fr_auto_170px] [&>*]:min-w-0";
+  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.4fr_132px_170px] [&>*]:min-w-0";
   const visible = rows.filter((c) => !s.onlyMine || s.isAvailable(s.state(c.ref, "complex", c.score.rag)));
   return (
     <TableCard>
@@ -670,7 +676,7 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
 // ---- Escalated ------------------------------------------------------------
 
 function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
-  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.4fr_auto_170px] [&>*]:min-w-0";
+  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.4fr_132px_170px] [&>*]:min-w-0";
   const visible = rows.filter((e) => !s.onlyMine || s.isAvailable(s.state(e.ref, "escalated", ESCALATION_RAG)));
   return (
     <TableCard>
@@ -711,7 +717,7 @@ function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
 
 /** Everything this prescriber is holding, whatever category it came from. */
 function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
-  const cols = "grid-cols-[1.1fr_1fr_1.5fr_1.3fr_auto_170px] [&>*]:min-w-0";
+  const cols = "grid-cols-[1.1fr_1fr_1.5fr_1.3fr_132px_170px] [&>*]:min-w-0";
 
   const items = refs
     .map(resolveCase)
@@ -832,7 +838,7 @@ function AwaitingInfoTab({
   requests: (InfoRequest & { category: QueueCategory; med: string; dose: string; nhs: string; pharmacyCode: string })[];
   now: number;
 }) {
-  const cols = "grid-cols-[1.1fr_1fr_1.4fr_2fr_auto] [&>*]:min-w-0";
+  const cols = "grid-cols-[1.1fr_1fr_1.4fr_2fr_160px] [&>*]:min-w-0";
 
   if (requests.length === 0) {
     return (
