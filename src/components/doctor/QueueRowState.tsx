@@ -134,7 +134,7 @@ export function ClaimCell({
       <button
         type="button"
         onClick={onClaim}
-        className="rounded-lg border border-primary px-3 py-1.5 text-xs font-bold text-primary-dark hover:bg-primary-lighter"
+        className="rounded-lg bg-primary-lighter px-3 py-1.5 text-xs font-bold text-primary-darker hover:bg-primary-light"
       >
         Claim
       </button>
@@ -142,7 +142,7 @@ export function ClaimCell({
         <button
           type="button"
           onClick={onOpen}
-          className="text-xs font-bold text-text-secondary underline hover:text-text-primary"
+          className="text-xs font-bold text-text-secondary hover:text-text-primary"
         >
           Open
         </button>

@@ -400,7 +400,7 @@ function NewOrdersTab({ rows, ...s }: { rows: typeof NEW_ORDERS } & Shared) {
         const st = s.state(o.ref, "new", o.score.rag);
         const href = `/doctor/orders/${o.ref}`;
         return (
-          <div key={o.ref} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <div key={o.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
             <PatientCell ref_={o.ref} nhs={o.nhs} />
             <div className="px-4 py-4"><PharmacyLabel code={o.pharmacyCode} /></div>
             <MedCell med={o.med} dose={o.dose} />
@@ -506,7 +506,7 @@ function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shar
         {visible.map((r) => {
           const st = s.state(r.ref, "simple", r.score.rag);
           return (
-            <div key={r.ref} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+            <div key={r.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
               <PatientCell ref_={r.ref} nhs={r.nhs} />
               <div className="px-4 py-4"><PharmacyLabel code={r.pharmacyCode} /></div>
               <MedCell med={r.med} dose={r.dose} />
@@ -642,7 +642,7 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
         const st = s.state(c.ref, "complex", c.score.rag);
         const href = `/doctor/cases/${c.ref}`;
         return (
-          <div key={c.ref} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <div key={c.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
             <PatientCell ref_={c.ref} nhs={c.nhs} />
             <div className="px-4 py-4"><PharmacyLabel code={c.pharmacyCode} /></div>
             <MedCell med={c.med} dose={c.dose} />
@@ -686,7 +686,7 @@ function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
       {visible.map((e, i) => {
         const st = s.state(e.ref, "escalated", ESCALATION_RAG);
         return (
-          <div key={`${e.ref}-${i}`} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <div key={`${e.ref}-${i}`} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
             <PatientCell ref_={e.ref} nhs={e.nhs} />
             <div className="px-4 py-4"><PharmacyLabel code={e.pharmacyCode} /></div>
             <MedCell med={e.med} dose={e.dose} />
@@ -741,7 +741,7 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
       {items.map((it) => {
         const st = s.state(it.ref, it.category, it.rag);
         return (
-          <div key={it.ref} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <div key={it.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
             <PatientCell ref_={it.ref} nhs={it.nhs} />
             <div className="px-4 py-4">
               <span className="rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary">
@@ -857,7 +857,7 @@ function AwaitingInfoTab({
       {[...requests]
         .sort((a, b) => a.at - b.at)
         .map((r) => (
-          <div key={r.ref} className={`grid ${cols} items-center border-b border-[var(--divider)] last:border-0`}>
+          <div key={r.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0`}>
             <PatientCell ref_={r.ref} nhs={r.nhs} />
             <div className="px-4 py-4">
               <span className="rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary">

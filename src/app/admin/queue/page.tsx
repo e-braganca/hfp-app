@@ -232,7 +232,7 @@ export default function AdminQueuePage() {
                       }
                     }}
                     aria-label={`Open ${c.ref}`}
-                    className={`grid ${cols} h-[84px] cursor-pointer items-center border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-background-neutral focus:bg-background-neutral focus:outline-none`}
+                    className={`grid ${cols} h-[84px] cursor-pointer items-start border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-background-neutral focus:bg-background-neutral focus:outline-none`}
                   >
                     <div className="px-4 py-3">
                       <p className="font-mono text-xs font-bold text-text-primary">{c.ref}</p>
