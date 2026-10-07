@@ -137,7 +137,7 @@ export default function AdminQueuePage() {
     setToast(`${c.ref} returned to the shared board`);
   };
 
-  const cols = "grid-cols-[108px_124px_1.1fr_0.9fr_104px_300px] [&>*]:min-w-0";
+  const cols = "grid-cols-[104px_118px_1fr_0.85fr_132px_296px] [&>*]:min-w-0";
 
   return (
     <>

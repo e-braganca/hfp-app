@@ -12,11 +12,15 @@ import { WAIT_FLAG_CHIP, waitedLabel, type WaitFlag as Flag } from "@/lib/admin/
 export function ClockIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={`h-3.5 w-3.5 shrink-0 ${className}`} aria-hidden>
+      {/* the hands are knocked out of the disc, so they read on any tint —
+          an earlier version stroked them with var(--background-paper), which
+          is not a token (it is --color-background-paper) and silently
+          resolved to nothing, leaving a plain dot */}
       <circle cx="12" cy="12" r="9.5" fill="currentColor" />
       <path
         d="M12 6.75V12l3.4 2"
-        stroke="var(--background-paper)"
-        strokeWidth="2.2"
+        stroke="#fff"
+        strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -32,7 +36,7 @@ export function ClockIcon({ className = "" }: { className?: string }) {
 export function WaitChip({ hours, flag }: { hours: number; flag: Flag }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${WAIT_FLAG_CHIP[flag]}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${WAIT_FLAG_CHIP[flag]}`}
       title={
         flag === "none"
           ? "Time waiting on a decision"
