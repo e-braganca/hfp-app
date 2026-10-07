@@ -25,8 +25,11 @@
 // ============================================================================
 
 /**
- * Hours each case had already been waiting when the demo data was written,
- * used once to seed the clock. The prototype's source records carry
+ * Hours each case has been waiting when a demo board is dealt.
+ *
+ * Shaped deliberately: most of a working queue is well inside the promise, a
+ * handful are the day's actual job, and one or two have gone wrong. A board
+ * where everything is red teaches a reader to ignore red. The prototype's source records carry
  * display strings ("10:24 today") rather than timestamps, so there is nothing
  * to subtract from; a real deployment starts every clock at creation and needs
  * none of this.
@@ -39,14 +42,33 @@
 export type BoardPauseReason = "photos" | "patient-reply";
 
 export const SEED_WAIT_HOURS: Record<string, number> = {
+  // over the red line — the board should rarely look this bad, and when it
+  // does the admin needs to be able to pick them out at a glance
   "PT-4462": 31,
-  "PT-3129": 27,
+  "PT-3129": 26,
+
+  // between amber and red: the band that should be acted on today
   "PT-4465": 19,
-  "PT-2110": 14,
-  "PT-3128": 13,
-  "PT-4463": 9,
+  "PT-2110": 16,
+  "PT-3128": 14,
+  "PT-4463": 13,
+
+  // the normal state of a queue that is keeping up
+  "PT-4471": 0.4,
+  "PT-4470": 2,
+  "PT-4468": 6,
   "PT-4464": 4,
-  "PT-3127": 6,
+  "PT-3120": 1,
+  "PT-3121": 3,
+  "PT-3122": 7,
+  "PT-3123": 0.6,
+  "PT-3124": 5,
+  "PT-3125": 9,
+  "PT-3126": 2,
+  "PT-3127": 8,
+  "PT-2087": 11,
+  "PT-2071": 3,
+  "PT-2095": 1.5,
   "PT-2123": 7,
 };
 
@@ -66,6 +88,19 @@ export interface BoardTimer {
 export type BoardTimers = Record<string, BoardTimer>;
 
 const KEY = "hfp-board-clock";
+
+/**
+ * Demo-only: re-deal the board when it has been left alone this long.
+ *
+ * The clock counts real elapsed time, which is the whole point — but a demo
+ * browser opened on Monday and again on Thursday comes back with every case
+ * three days late, and a board where everything is red teaches a reader to
+ * ignore red. Inside a session it still accumulates honestly, so claiming,
+ * releasing and parking all behave. A deployment has real cases arriving and
+ * leaving, and needs none of this.
+ */
+const STALE_AFTER_MS = 6 * 3_600_000;
+const TOUCHED_KEY = "hfp-board-clock-touched";
 const HOUR_MS = 3_600_000;
 
 let cache: BoardTimers | undefined;
@@ -144,6 +179,16 @@ export function syncBoardClock(
   seedHours: Record<string, number> = {},
   now = Date.now(),
 ) {
+  if (staleSinceLastVisit(now)) {
+    cache = undefined;
+    try {
+      window.localStorage.removeItem(KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+  touch(now);
+
   const current = getBoardClockSnapshot();
   const next: BoardTimers = { ...current };
   let changed = false;
@@ -168,6 +213,24 @@ export function syncBoardClock(
   }
 
   if (changed) write(next);
+}
+
+/** Has the board been sitting untouched long enough to be worth re-dealing? */
+function staleSinceLastVisit(now: number): boolean {
+  try {
+    const last = Number(window.localStorage.getItem(TOUCHED_KEY));
+    return Number.isFinite(last) && last > 0 && now - last > STALE_AFTER_MS;
+  } catch {
+    return false;
+  }
+}
+
+function touch(now: number) {
+  try {
+    window.localStorage.setItem(TOUCHED_KEY, String(now));
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Put one case's clock back to zero — what an information request does. */
