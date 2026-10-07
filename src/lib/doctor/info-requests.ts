@@ -39,10 +39,38 @@ const KEY = "hfp-info-requests";
 let cache: Record<string, InfoRequest> | undefined;
 const listeners = new Set<() => void>();
 
+/**
+ * Records written before the structured ask existed have no `items`, and this
+ * store outlives a deploy: whatever a browser saved months ago is what comes
+ * back. Normalising on read is the only place that can be true for every
+ * consumer at once — guarding each call site means the next one added is the
+ * one that crashes the queue.
+ *
+ * An old record can't say what is outstanding, so it reads as nothing
+ * outstanding and the case returns to its own queue, where a prescriber will
+ * see it rather than lose it behind a tab.
+ */
+function normalise(raw: unknown): Record<string, InfoRequest> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, InfoRequest> = {};
+  for (const [ref, v] of Object.entries(raw as Record<string, Partial<InfoRequest>>)) {
+    if (!v || typeof v !== "object") continue;
+    out[ref] = {
+      ref: v.ref ?? ref,
+      by: v.by ?? "Unknown",
+      subject: v.subject ?? "",
+      at: typeof v.at === "number" ? v.at : Date.now(),
+      note: v.note,
+      items: Array.isArray(v.items) ? v.items.filter((i) => i && typeof i.id === "string") : [],
+    };
+  }
+  return out;
+}
+
 function read(): Record<string, InfoRequest> {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Record<string, InfoRequest>) : {};
+    return raw ? normalise(JSON.parse(raw)) : {};
   } catch {
     return {};
   }
@@ -114,7 +142,7 @@ export function recordReply(ref: string, itemId: string, reply: Partial<RfiRespo
 }
 
 /** Everything still waiting on the patient. */
-export const outstandingItems = (r: InfoRequest) => r.items.filter((i) => i.state === "outstanding");
+export const outstandingItems = (r: InfoRequest) => (r.items ?? []).filter((i) => i.state === "outstanding");
 
 /**
  * Is the case parked on the patient right now?
@@ -125,7 +153,7 @@ export const outstandingItems = (r: InfoRequest) => r.items.filter((i) => i.stat
  * case — which is also what keeps it out of two tabs at once.
  */
 export const isAwaitingPatient = (r: InfoRequest | null | undefined): boolean =>
-  !!r && r.items.some((i) => i.state === "outstanding");
+  !!r && Array.isArray(r.items) && r.items.some((i) => i.state === "outstanding");
 
 /** Refs currently parked on the patient. */
 export const awaitingRefs = (map: Record<string, InfoRequest>): Set<string> =>
