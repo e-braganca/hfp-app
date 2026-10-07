@@ -10,8 +10,8 @@ import { RagPill } from "@/components/ui/StatusPill";
 import { StatTile } from "@/components/ui/StatTile";
 import { Toast } from "@/components/ui/Toast";
 import { ADMIN_DOCTORS, ADMIN_SELF } from "@/lib/admin/data";
-import { useWaitClock } from "@/components/admin/boardClockHooks";
-import { WaitChip } from "@/components/admin/WaitFlag";
+import { useWaitClock } from "@/components/shared/boardClockHooks";
+import { WaitChip } from "@/components/shared/WaitFlag";
 import { QueueFilters } from "@/components/admin/QueueFilters";
 import { PAUSE_LABEL } from "@/lib/admin/queue-sla";
 import { ACCESS_LABEL, type AdminDoctor, type QueueBand } from "@/lib/admin/types";
@@ -137,7 +137,7 @@ export default function AdminQueuePage() {
     setToast(`${c.ref} returned to the shared board`);
   };
 
-  const cols = "grid-cols-[108px_136px_1.1fr_1fr_84px_300px] [&>*]:min-w-0";
+  const cols = "grid-cols-[108px_124px_1.1fr_0.9fr_104px_300px] [&>*]:min-w-0";
 
   return (
     <>
@@ -250,8 +250,9 @@ export default function AdminQueuePage() {
                     <div className="px-4 py-3">
                       <p className="line-clamp-2 text-sm text-text-secondary" title={c.detail}>{c.detail}</p>
                     </div>
-                    <div className="px-4 py-3">
+                    <div className="flex flex-col items-start gap-1.5 px-4 py-3">
                       <RagPill rag={c.rag} />
+                      {!paused && <WaitChip hours={waited} flag={flag} />}
                     </div>
 
                     {/* Assignment lives with who holds it: the select already
@@ -296,20 +297,11 @@ export default function AdminQueuePage() {
                         )}
                       </div>
 
-                      {/* one line, always — rows stay the same height whatever
-                          state the case is in.
-
-                          Only the patient's wait is shown. How long the current
-                          holder has had it is a second clock that reads as a
-                          contradiction next to the first: time held can exceed
-                          time waited only if one of them is lying, and the one
-                          that matters is the patient's. Who is holding it is
-                          already on the select above. */}
+                      {/* the wait sits with the score, so this line carries only
+                          why a case is off the board at all */}
                       <div className="mt-1.5 flex h-6 items-center">
-                        {paused ? (
+                        {paused && (
                           <span className="truncate text-[11px] text-text-secondary">{PAUSE_LABEL[paused]}</span>
-                        ) : (
-                          <WaitChip hours={waited} flag={flag} />
                         )}
                       </div>
                     </div>

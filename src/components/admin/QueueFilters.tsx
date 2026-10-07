@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { usePlatformSettings } from "./boardClockHooks";
-import { ClockIcon } from "./WaitFlag";
+import { usePlatformSettings } from "@/components/shared/boardClockHooks";
+import { ClockIcon } from "@/components/shared/WaitFlag";
 import { FilterIcon } from "@/components/ui/icons";
 import {
   DEFAULT_SETTINGS,

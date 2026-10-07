@@ -10,6 +10,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PharmacyFilter } from "@/components/doctor/PharmacyFilter";
 import { PharmacyLabel } from "@/components/ui/PharmacyLabel";
 import { ScorePill } from "@/components/ui/StatusPill";
+import { useWaitClock } from "@/components/shared/boardClockHooks";
+import { WaitChip } from "@/components/shared/WaitFlag";
+import type { WaitFlag } from "@/lib/admin/queue-sla";
+import { liveCases } from "@/lib/shared/live-cases";
 import { Toast } from "@/components/ui/Toast";
 import { WarnIcon } from "@/components/ui/icons";
 import { CATEGORY_LABEL, RAG_ORDER, canTake, type QueueCategory } from "@/lib/doctor/clinicians";
@@ -135,6 +139,8 @@ export default function WorkQueuePage() {
   const [onlyMine, setOnlyMine] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  const clock = useWaitClock(useMemo(() => liveCases(), []));
+
   const mine = useMemo(
     () => Object.values(claims).filter((h) => h.by === me.name && holdFor(claims, h.ref)),
     [claims, me.name],
@@ -227,7 +233,14 @@ export default function WorkQueuePage() {
     info: awaiting.size,
   };
 
-  const shared = { state, now, onlyMine, isAvailable, takeOne, open, drop };
+  /**
+   * The same clock the admin flags against, beside the score the prescriber
+   * is choosing on. Working top-down is then working the list the panel is
+   * actually held to, rather than the order the arrays happen to be in.
+   */
+  const waitFor = (ref: string) => ({ hours: clock.hoursFor(ref), flag: clock.flagFor(ref) });
+
+  const shared = { state, now, onlyMine, isAvailable, takeOne, open, drop, waitFor };
 
   return (
     <>
@@ -317,6 +330,13 @@ interface Shared {
   takeOne: (ref: string, category: QueueCategory, rag: Rag) => void;
   open: (ref: string, category: QueueCategory, rag: Rag, href: string) => void;
   drop: (ref: string) => void;
+  waitFor: (ref: string) => { hours: number; flag: WaitFlag };
+}
+
+/** The waiting chip for a row, read off the shared clock. */
+function WaitChipFor({ s, ref_ }: { s: Shared; ref_: string }) {
+  const { hours, flag } = s.waitFor(ref_);
+  return <WaitChip hours={hours} flag={flag} />;
 }
 
 function TableCard({ children }: { children: React.ReactNode }) {
@@ -385,7 +405,7 @@ function NewOrdersTab({ rows, ...s }: { rows: typeof NEW_ORDERS } & Shared) {
             <div className="px-4 py-4"><PharmacyLabel code={o.pharmacyCode} /></div>
             <MedCell med={o.med} dose={o.dose} />
             <div className="px-4 py-4 text-sm text-text-secondary">{o.eligibility}</div>
-            <div className="px-4 py-4"><ScorePill score={o.score} /></div>
+            <div className="flex flex-col items-start gap-1.5 px-4 py-4"><ScorePill score={o.score} /><WaitChipFor s={s} ref_={o.ref} /></div>
             <div className="px-4 py-4">
               <ClaimCell
                 state={st}
@@ -491,7 +511,7 @@ function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shar
               <div className="px-4 py-4"><PharmacyLabel code={r.pharmacyCode} /></div>
               <MedCell med={r.med} dose={r.dose} />
               <div className="truncate px-4 py-4 text-sm text-text-secondary">{r.lastReview}</div>
-              <div className="px-4 py-4"><ScorePill score={r.score} /></div>
+              <div className="flex flex-col items-start gap-1.5 px-4 py-4"><ScorePill score={r.score} /><WaitChipFor s={s} ref_={r.ref} /></div>
               <div className="px-4 py-4">
                 <ClaimCell
                   state={st}
@@ -630,7 +650,7 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
               <WarnIcon width={18} height={18} className="shrink-0 text-warning" />
               {c.flagReason}
             </div>
-            <div className="px-4 py-4"><ScorePill score={c.score} /></div>
+            <div className="flex flex-col items-start gap-1.5 px-4 py-4"><ScorePill score={c.score} /><WaitChipFor s={s} ref_={c.ref} /></div>
             <div className="px-4 py-4">
               <ClaimCell
                 state={st}

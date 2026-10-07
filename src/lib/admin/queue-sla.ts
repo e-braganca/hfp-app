@@ -25,9 +25,9 @@ export function waitFlagFor(hours: number, s: PlatformSettings): WaitFlag {
   return "none";
 }
 
-/** "14h" / "2d 3h" / "just now" — how long it has been free on the board. */
+/** "14h" / "2d 3h" — short enough to sit in a chip beside the score. */
 export function waitedLabel(hours: number): string {
-  if (hours < 1) return "under 1h";
+  if (hours < 1) return "< 1h";
   const whole = Math.floor(hours);
   if (whole < 24) return `${whole}h`;
   const d = Math.floor(whole / 24);
@@ -36,18 +36,18 @@ export function waitedLabel(hours: number): string {
 }
 
 /**
- * One chip, three colourways. Every unclaimed case wears the same shape
- * whatever its age — only the colour moves — so a reader tracks one object
- * changing state rather than learning that a new badge has appeared.
+ * One chip, three colourways. Every case wears the same shape whatever its
+ * age — only the colour moves — so a reader tracks one object changing state
+ * rather than learning that a new badge has appeared.
  *
- * Outlined, not filled — see the header. The RAG pills in StatusPill.tsx are
- * `rounded-full` with a solid tint; keeping these visually unrelated is the
- * whole point, so don't "harmonise" them later.
+ * Same shape and fill as the RAG pills it sits beside: the two numbers are
+ * compared against each other constantly, and two visual languages made that
+ * a two-step read. The clock icon is what tells them apart, so keep it.
  */
 export const WAIT_FLAG_CHIP: Record<WaitFlag, string> = {
-  none: "border-[var(--divider)] text-text-secondary bg-background-neutral",
-  amber: "border-warning text-warning-darker bg-warning-lighter/40",
-  red: "border-error text-error-dark bg-error-lighter/40",
+  none: "bg-grey-200 text-text-secondary",
+  amber: "bg-warning-lighter text-warning-darker",
+  red: "bg-error-lighter text-error-darker",
 };
 
 export const WAIT_FLAG_TEXT: Record<Exclude<WaitFlag, "none">, string> = {
