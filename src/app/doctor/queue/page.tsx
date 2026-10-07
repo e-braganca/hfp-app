@@ -145,13 +145,18 @@ export default function WorkQueuePage() {
     pharmacy ? rows.filter((r) => r.pharmacyCode === pharmacy) : rows;
 
   /**
-   * A case parked on the patient leaves its own queue entirely — it is not
-   * work anyone can do, and listing it in both New Orders and Awaiting info
-   * means two clinicians can each believe the other tab is someone else's
-   * problem. It comes back the moment the last reply lands.
+   * The category tabs are the shared board: what is free for anyone to take.
+   *
+   * Two things leave it. A case parked on the patient, because it is not work
+   * anyone can do — and listing it in both New Orders and Awaiting info lets
+   * two clinicians each believe the other tab is someone else's problem. And a
+   * case somebody is holding, which is the whole promise of claiming: it comes
+   * off everyone else's list. Mine included, since that is what the Mine tab
+   * is for, and a case in two places is a case two people think is covered.
    */
   const awaiting = awaitingRefs(infoRequests);
-  const onTheBoard = <T extends { ref: string }>(rows: T[]) => rows.filter((r) => !awaiting.has(r.ref));
+  const onTheBoard = <T extends { ref: string }>(rows: T[]) =>
+    rows.filter((r) => !awaiting.has(r.ref) && !holdFor(claims, r.ref));
 
   const state = (ref: string, category: QueueCategory, rag: Rag): RowState =>
     rowState(holdFor(claims, ref), me, category, rag, now);
