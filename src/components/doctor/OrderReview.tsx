@@ -169,6 +169,7 @@ export function OrderReview({ order }: { order: NewOrder }) {
               isDecline ? undefined : (
                 <PrescriptionPicker
                   recommended={recommended}
+                  recommendedText={order.ai.recommendedRx}
                   value={rx}
                   onChange={setRx}
                   disabled={!hold.claimed}

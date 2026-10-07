@@ -46,13 +46,29 @@ export interface Prescription {
 export function parseRecommended(rx: string): Prescription | null {
   const product = PRESCRIBABLE.find((p) => rx.toLowerCase().includes(p.name.toLowerCase()));
   if (!product) return null;
-  if (/^(discontinue|no prescription|stop)/i.test(rx.trim())) return null;
+  // "Hold at Wegovy 1.7 mg · escalate for specialist sign-off" names a drug and
+  // a dose but is not a recommendation to prescribe it. Pre-selecting it would
+  // make "Approve & issue" read as agreeing with the AI, when the AI said stop.
+  if (/^(discontinue|no prescription|stop|hold)/i.test(rx.trim())) return null;
 
-  const dose = product.doses.find((d) => rx.includes(d));
+  const dose = matchDose(rx, product.doses);
   if (!dose) return null;
 
   const weeks = Number(rx.match(/(\d+)\s*-?\s*week/i)?.[1] ?? DEFAULT_WEEKS);
   return { med: product.name, dose, weeks };
+}
+
+/**
+ * Match the dose by value, not by text.
+ *
+ * Case records write "5.0 mg" where the licensed ladder says "5 mg" — the same
+ * dose, spelled differently. Comparing strings made those recommendations
+ * unparseable, so the screen declared a prescription amended when it was
+ * identical to what was recommended, and demanded a reason for agreeing.
+ */
+function matchDose(rx: string, ladder: string[]): string | undefined {
+  const mg = [...rx.matchAll(/(\d+(?:\.\d+)?)\s*mg/gi)].map((m) => Number(m[1]));
+  return ladder.find((d) => mg.includes(Number(d.replace(/[^\d.]/g, ""))));
 }
 
 export const sameAsRecommended = (rx: Prescription, rec: Prescription | null) =>
@@ -67,12 +83,15 @@ export const prescriptionLabel = (rx: Prescription) =>
 
 export function PrescriptionPicker({
   recommended,
+  recommendedText,
   value,
   onChange,
   disabled,
 }: {
   /** parsed from the AI reading; null when it didn't recommend a script */
   recommended: Prescription | null;
+  /** the AI's own words, shown verbatim so "departing from what?" is answered */
+  recommendedText: string;
   value: Prescription;
   onChange: (next: Prescription) => void;
   disabled?: boolean;
@@ -114,6 +133,23 @@ export function PrescriptionPicker({
           <span className="text-xs font-semibold text-success-dark">Matches the recommendation</span>
         )}
       </div>
+
+      {/* naming what is being departed from — a warning that can't say what it
+          disagrees with is just an obstacle */}
+      {amended && (
+        <p className="mt-1 text-xs leading-relaxed text-warning-darker">
+          {recommended ? (
+            <>
+              The AI recommended <span className="font-bold">{recommendedText}</span>
+            </>
+          ) : (
+            <>
+              The AI did not recommend a prescription — it said{" "}
+              <span className="font-bold">{recommendedText}</span>
+            </>
+          )}
+        </p>
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {PRESCRIBABLE.map((p) => {
