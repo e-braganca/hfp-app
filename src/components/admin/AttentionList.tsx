@@ -5,7 +5,6 @@ import { useMemo } from "react";
 import { CATEGORY_SINGULAR, liveCases } from "@/lib/shared/live-cases";
 import { waitedLabel } from "@/lib/admin/queue-sla";
 import { useWaitClock } from "@/components/shared/boardClockHooks";
-import { ClockIcon } from "@/components/shared/WaitFlag";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { AttentionKind, AttentionRow } from "@/lib/admin/types";
 import type { Rag } from "@/lib/doctor/types";
@@ -28,12 +27,17 @@ const RAG_TEXT: Record<Rag, string> = {
   red: "text-error",
 };
 
-const KIND_BADGE: Record<AttentionKind, { label: string; cls: string; clock?: boolean }> = {
-  critical: { label: "Late", cls: "border border-error bg-error-lighter/40 text-error-dark", clock: true },
-  escalated: { label: "Escalated", cls: "bg-primary-dark text-white" },
-  late: { label: "Late", cls: "border border-warning bg-warning-lighter/40 text-warning-darker", clock: true },
+/**
+ * One badge, five colourways. They sit in a single stack, so five shapes meant
+ * five things to learn before the list could be read at all; the label already
+ * says which kind it is, and the colour is only there to rank urgency.
+ */
+const KIND_BADGE: Record<AttentionKind, { label: string; cls: string }> = {
+  critical: { label: "Late", cls: "bg-error-lighter text-error-darker" },
+  escalated: { label: "Escalated", cls: "bg-primary-lighter text-primary-darker" },
+  late: { label: "Late", cls: "bg-warning-lighter text-warning-darker" },
   overdue: { label: "Overdue", cls: "bg-warning-lighter text-warning-darker" },
-  compliance: { label: "Compliance", cls: "bg-warning-lighter text-warning-darker" },
+  compliance: { label: "Compliance", cls: "bg-info-lighter text-info-dark" },
 };
 
 /**
@@ -88,11 +92,8 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
         return (
           <div key={`${r.kind}-${r.title}-${i}`} className="flex items-center gap-4 border-t border-[var(--divider)] px-5 py-3.5">
             <span
-              className={`flex shrink-0 items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                badge.clock ? "rounded-md" : "rounded-full"
-              } ${badge.cls}`}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${badge.cls}`}
             >
-              {badge.clock && <ClockIcon className="h-3 w-3" />}
               {badge.label}
             </span>
             <div className="min-w-0 flex-1">
