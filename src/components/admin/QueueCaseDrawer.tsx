@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MedicationTimeline } from "@/components/doctor/MedicationTimeline";
-import { OutcomePanel } from "@/components/doctor/OrderReview";
 import { PatientSummaryCard } from "@/components/doctor/PatientSummaryCard";
 import { ReviewPanel } from "@/components/doctor/ReviewPanel";
 import {
@@ -214,6 +213,109 @@ function CaseBody({
     onToast(`Email sent to ${patientName} — "${subject}"`);
   };
 
+  /**
+   * The footer is the drawer's, not the panel's. On the prescriber's page the
+   * panel fills a column of its own and its actions sit at the foot of that
+   * column; here the panel is one of several cards inside a scrolling drawer,
+   * and actions that scroll away with it are actions you have to go looking
+   * for. They belong pinned across the bottom of the drawer.
+   */
+  const actions = (
+          decision === "issued" ? (
+            <Outcome
+              tone={amended ? "warning" : "success"}
+              title={amended ? "Amended prescription issued" : "Prescription issued"}
+              body={`${prescriptionLabel(rx)} issued to ${pharmacyName(base.pharmacyCode)}. Decision and the active SOP version recorded to the audit trail.`}
+              onClose={onClose}
+            />
+          ) : decision === "info" ? (
+            <Outcome
+              tone="warning"
+              title="More information requested"
+              body="The case is parked on the patient — it leaves the board and the waiting clock resets until they reply."
+              onClose={onClose}
+            />
+          ) : mine ? (
+            <>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={approve}
+                  disabled={needsReason}
+                  className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
+                >
+                  {amended ? "Issue amended" : "Approve & issue"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmailing(true)}
+                  className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
+                >
+                  Request more info
+                </button>
+                {/* no Escalate: this is where cases escalate to. What the
+                    admin owes an escalated case is an answer to it */}
+                {escalated && (
+                  <button
+                    type="button"
+                    onClick={() => setReplying(true)}
+                    className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
+                  >
+                    Reply to escalation
+                  </button>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[var(--divider)] pt-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Hand to</span>
+                <div className="min-w-[13rem] flex-1">{assignControl}</div>
+                {onUnassign && (
+                  <button
+                    type="button"
+                    onClick={onUnassign}
+                    className="text-sm font-bold text-text-secondary underline hover:text-text-primary"
+                  >
+                    Return to the board
+                  </button>
+                )}
+              </div>
+              {needsReason && (
+                <p className="mt-3 text-xs font-semibold text-warning-dark">
+                  Say why you&rsquo;re departing from the recommendation before issuing.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onTakeIt}
+                  className="shrink-0 whitespace-nowrap rounded-lg bg-primary px-5 py-3 text-sm font-bold text-white hover:bg-primary-dark"
+                >
+                  Take it
+                </button>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                  {hold ? "Move to" : "Send to"}
+                </span>
+                <div className="min-w-[13rem] flex-1">{assignControl}</div>
+                {hold && onUnassign && (
+                  <button
+                    type="button"
+                    onClick={onUnassign}
+                    className="text-sm font-bold text-text-secondary underline hover:text-text-primary"
+                  >
+                    Return to the board
+                  </button>
+                )}
+              </div>
+              <p className="mt-3 text-xs text-text-secondary">
+                Take it to become the responsible clinician and unlock the decision, or route it to someone who can
+                make it.
+              </p>
+            </>
+          )
+  );
+
   return (
     <>
       <header className="shrink-0 bg-gradient-to-r from-primary-darker via-primary-dark to-primary px-6 py-4 text-white">
@@ -333,102 +435,16 @@ function CaseBody({
                 />
               )
             }
-            actions={
-              decision === "issued" ? (
-                <OutcomePanel
-                  tone={amended ? "warning" : "success"}
-                  title={amended ? "Amended prescription issued" : "Prescription issued"}
-                  body={`${prescriptionLabel(rx)} issued to ${pharmacyName(base.pharmacyCode)}. Decision and the active SOP version recorded to the audit trail.`}
-                />
-              ) : decision === "info" ? (
-                <OutcomePanel
-                  tone="warning"
-                  title="More information requested"
-                  body="The case is parked on the patient — it leaves the board and the waiting clock resets until they reply."
-                />
-              ) : mine ? (
-                <>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={approve}
-                      disabled={needsReason}
-                      className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
-                    >
-                      {amended ? "Issue amended" : "Approve & issue"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEmailing(true)}
-                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
-                    >
-                      Request more info
-                    </button>
-                    {/* no Escalate: this is where cases escalate to. What the
-                        admin owes an escalated case is an answer to it */}
-                    {escalated && (
-                      <button
-                        type="button"
-                        onClick={() => setReplying(true)}
-                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
-                      >
-                        Reply to escalation
-                      </button>
-                    )}
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[var(--divider)] pt-3">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Hand to</span>
-                    <div className="min-w-[13rem] flex-1">{assignControl}</div>
-                    {onUnassign && (
-                      <button
-                        type="button"
-                        onClick={onUnassign}
-                        className="text-sm font-bold text-text-secondary underline hover:text-text-primary"
-                      >
-                        Return to the board
-                      </button>
-                    )}
-                  </div>
-                  {needsReason && (
-                    <p className="mt-3 text-xs font-semibold text-warning-dark">
-                      Say why you&rsquo;re departing from the recommendation before issuing.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={onTakeIt}
-                      className="shrink-0 whitespace-nowrap rounded-lg bg-primary px-5 py-3 text-sm font-bold text-white hover:bg-primary-dark"
-                    >
-                      Take it
-                    </button>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                      {hold ? "Move to" : "Send to"}
-                    </span>
-                    <div className="min-w-[13rem] flex-1">{assignControl}</div>
-                    {hold && onUnassign && (
-                      <button
-                        type="button"
-                        onClick={onUnassign}
-                        className="text-sm font-bold text-text-secondary underline hover:text-text-primary"
-                      >
-                        Return to the board
-                      </button>
-                    )}
-                  </div>
-                  <p className="mt-3 text-xs text-text-secondary">
-                    Take it to become the responsible clinician and unlock the decision, or route it to someone who can
-                    make it.
-                  </p>
-                </>
-              )
-            }
           />
         </div>
       </div>
+
+      <footer
+        className="shrink-0 border-t border-[var(--divider)] bg-background-paper px-6 py-4"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      >
+        {actions}
+      </footer>
 
       <RequestInfoEmailModal
         open={emailing}
@@ -459,6 +475,46 @@ function CaseBody({
         />
       )}
     </>
+  );
+}
+
+/**
+ * A decided case, in one line.
+ *
+ * The prescriber's outcome panel fills the column it replaces; this one has a
+ * footer to live in, so it says the same thing lying down.
+ */
+function Outcome({
+  tone,
+  title,
+  body,
+  onClose,
+}: {
+  tone: "success" | "warning";
+  title: string;
+  body: string;
+  onClose: () => void;
+}) {
+  const cls = tone === "success" ? "bg-success-lighter text-success-dark" : "bg-warning-lighter text-warning-dark";
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${cls}`}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="m5 12 5 5L20 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-text-primary">{title}</span>
+        <span className="block text-xs text-text-secondary">{body}</span>
+      </span>
+      <button
+        type="button"
+        onClick={onClose}
+        className="shrink-0 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
+      >
+        Back to the queue
+      </button>
+    </div>
   );
 }
 
