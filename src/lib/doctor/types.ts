@@ -68,8 +68,16 @@ export interface AiRecommendation {
 
 // ---- Orders / cases (the central entities) --------------------------------
 
-/** New-order verdict that drives the primary CTA styling. */
-export type Verdict = "approve" | "verify" | "decline";
+/**
+ * What the AI reading points at.
+ *
+ * There is no "decline" here on purpose. A prescriber can issue or escalate;
+ * refusing a patient is a senior decision, taken in the escalation queue with
+ * the full clinical picture. Anything the SOP can refuse outright never
+ * reaches this screen — the onboarding funnel turns it away, which is the
+ * only place a refusal needs no clinician.
+ */
+export type Verdict = "approve" | "verify";
 
 export interface NewOrder {
   ref: string; // "PT-4471"

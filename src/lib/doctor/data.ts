@@ -155,31 +155,30 @@ export const NEW_ORDERS: NewOrder[] = [
     verification: { weightPhoto: "Live camera", idDocument: "Passport" },
   },
   {
-    // The one case in the queue that onboarding would not have let through on
-    // the numbers it has now — and that is the point of it. It passed the
-    // funnel on a self-declared 94 kg (BMI 31.2), the prescriber asked for a
-    // verified weight, and the live reading came back 78.8 kg. Eligibility is
-    // re-scored against what was measured, not what was typed. Without a
-    // re-score, a mistyped weight is a prescription.
+    // Eligible on the numbers, but not a decision a prescriber should take
+    // alone: the patient stopped a GLP-1 for severe GI intolerance and is
+    // asking to restart. The funnel cannot weigh that — it has no view of what
+    // happened last time — so it passes the case on, and the reading points at
+    // senior review rather than at a dose.
     ref: "PT-4465", patientName: "Chloe Barnes", nhs: "339 612 5507", med: "Wegovy (semaglutide)", dose: "0.25 mg",
-    eligibility: "BMI 26.1 on verified weight · below threshold", score: { rag: "red", confidence: 91 },
+    eligibility: "BMI 27.4 with T2DM · prior GLP-1 intolerance", score: { rag: "red", confidence: 91 },
     pharmacyCode: "CP", submittedAt: "09:40 today",
-    age: 35, sex: "Female", bmi: 26.1, ethnicity: "White British", comorbidities: [],
+    age: 35, sex: "Female", bmi: 27.4, ethnicity: "White British", comorbidities: ["Type 2 diabetes"],
     preference: "Wegovy (semaglutide)",
-    verdict: "decline",
+    verdict: "verify",
     ai: {
-      basis: "Re-scored against SOP Rule 1.1 on the verified weight", score: { rag: "red", confidence: 91 },
-      title: "Decline — below threshold on verified weight.",
-      body: "Declared at onboarding as 94 kg (BMI 31.2), which cleared the funnel. The live weight capture returned 78.8 kg — BMI 26.1, below the Rule 1.1 floor with no qualifying comorbidity. Eligibility is scored on the measured weight.",
+      basis: "Auto-scored against SOP Rule 1.1 and Rule 3.1", score: { rag: "red", confidence: 91 },
+      title: "Escalate — restart after a documented intolerance.",
+      body: "BMI 27.4 clears the Rule 1.1 floor of 27 with type 2 diabetes on record, so eligibility is not the question. The patient stopped semaglutide at 1.0 mg eight months ago with vomiting severe enough to stop treatment, and is asking to restart the same molecule. Rule 3.1 leaves a restart after intolerance to senior review.",
       checks: [
-        "Declared 94 kg at onboarding — BMI 31.2, cleared Rule 1.1",
-        "Verified live capture 78.8 kg — BMI 26.1, below the floor (30)",
-        "No qualifying comorbidity to lower the floor to 27",
-        "No contraindications — this is eligibility, not safety",
+        "BMI 27.4 — clears the floor of 27 with a qualifying comorbidity",
+        "Type 2 diabetes on record — the comorbidity that lowers the floor",
+        "Stopped Wegovy 1.0 mg in Feb 2026 — severe vomiting, self-discontinued",
+        "Same molecule requested; no record of what was tried in between",
       ],
-      recommendedRx: "No prescription — signpost to lifestyle pathway",
+      recommendedRx: "Senior review before any restart — do not issue on this screen",
     },
-    verification: { weightPhoto: "Live camera · 78.8 kg", idDocument: "Driving licence" },
+    verification: { weightPhoto: "Live camera", idDocument: "Driving licence" },
   },
   {
     ref: "PT-4464", patientName: "Peter Whitfield", nhs: "123 456 7890", med: "Wegovy (semaglutide)", dose: "0.5 mg",

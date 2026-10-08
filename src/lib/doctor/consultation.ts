@@ -89,8 +89,15 @@ const WRITTEN: Record<string, Partial<ConsultationAnswers>> = {
   },
   "PT-4465": {
     submittedAt: "5 Oct 2026 · 09:40",
-    conditions: [],
-    medsAnswer: "None of these",
+    conditions: ["Type 2 diabetes"],
+    medsAnswer: "A GLP-1 medicine",
+    glp1: {
+      product: "Wegovy (semaglutide)",
+      dose: "1.0 mg",
+      startedOn: "November 2025",
+      lastDoseOn: "9 Feb 2026",
+      sideEffects: "Severe vomiting — stopped without telling the prescriber",
+    },
     treatmentPreference: "Wegovy (semaglutide)",
   },
   "PT-4461": {
@@ -102,22 +109,12 @@ const WRITTEN: Record<string, Partial<ConsultationAnswers>> = {
 };
 
 /**
- * Fields the declared record asserts over whatever the caller knows.
- *
- * Normally the caller's values win, so this card can't contradict the row
- * above it. PT-4465 is the exception that proves why the card exists: the
- * patient declared 94 kg, the verified capture returned 78.8 kg, and the case
- * turns on the gap. Showing the verified figure here would erase the very
- * thing the prescriber is being asked to look at.
- */
-const DECLARED: Record<string, Partial<ConsultationAnswers>> = {
-  "PT-4465": { heightCm: 174, weightKg: 94, bmi: 31.2 },
-};
-
-/**
  * The consultation behind a case. Pass whatever the calling record already
- * knows — those values win, so the drawer never contradicts the row above it,
- * unless DECLARED says otherwise for that case.
+ * knows — those values win, so the drawer never contradicts the row above it.
+ *
+ * Every figure here is what the patient typed. Nothing is derived from a
+ * photo: the live capture proves a person took a reading, not what the reading
+ * was, so weight and height are only ever self-declared.
  */
 export function consultationFor(
   ref: string,
@@ -150,7 +147,7 @@ export function consultationFor(
     derived.otherMeds = OTHER_MED_POOL[Math.floor(rnd() * OTHER_MED_POOL.length)];
   }
 
-  const merged = { ...derived, ...written, ...known, ...(DECLARED[ref] ?? {}) };
+  const merged = { ...derived, ...written, ...known };
   // a written record that names other meds shouldn't keep the derived list
   if (merged.medsAnswer !== "Other prescription medication") delete merged.otherMeds;
   if (merged.medsAnswer !== "A GLP-1 medicine") delete merged.glp1;

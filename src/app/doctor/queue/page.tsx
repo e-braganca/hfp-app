@@ -92,23 +92,6 @@ function seedBoard() {
       ],
     },
     {
-      // the request that re-scored PT-4465 out of eligibility — answered, so
-      // the case is back on the board rather than parked on the patient
-      ref: "PT-4465",
-      by: "Dr. Julia Reyes",
-      subject: "Please confirm your current weight with a live photo",
-      at: t - 31 * 3600000,
-      items: [
-        {
-          id: "weight-height",
-          state: "supplied",
-          reply: "78.8 kg, 1.74 m — live capture, differs from the 94 kg declared at onboarding",
-          attachment: "live-weight-2026-10-05.jpg",
-          at: "5 Oct 2026 · 09:38",
-        },
-      ],
-    },
-    {
       ref: "PT-2110",
       by: "Dr. Sofia Patel",
       subject: "Tell us more about the GI side effects",

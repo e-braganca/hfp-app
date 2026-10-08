@@ -6,9 +6,9 @@ import type { NewOrder } from "@/lib/doctor/types";
 import { AuditNote } from "./AiRecommendationCard";
 import { ReviewPanel } from "./ReviewPanel";
 import {
-  DEFAULT_WEEKS,
   PrescriptionPicker,
   amendmentReady,
+  fallbackFrom,
   parseRecommended,
   prescriptionLabel,
   sameAsRecommended,
@@ -26,7 +26,7 @@ import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal
 import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
 import { CameraIcon, IdIcon, WarnIcon } from "@/components/ui/icons";
 
-type Decision = null | "approved" | "declined" | "info" | "escalated";
+type Decision = null | "approved" | "info" | "escalated";
 
 export function OrderReview({ order }: { order: NewOrder }) {
   const [decision, setDecision] = useState<Decision>(null);
@@ -39,27 +39,25 @@ export function OrderReview({ order }: { order: NewOrder }) {
    */
   const recommended = useMemo(() => parseRecommended(order.ai.recommendedRx), [order.ai.recommendedRx]);
   const [rx, setRx] = useState<Prescription>(
-    () => recommended ?? { med: "Mounjaro", dose: "2.5 mg", weeks: DEFAULT_WEEKS },
+    () => recommended ?? fallbackFrom(order.med, order.dose),
   );
   const amended = !sameAsRecommended(rx, recommended);
-  const isDecline = order.verdict === "decline";
   /**
-   * The reason gate belongs to issuing, not deciding. A decline shows no
-   * picker at all, so gating it on an untouched fallback selection left the
-   * prescriber unable to decline a case the SOP says is ineligible.
+   * Issuing anything other than what was recommended needs a reason on the
+   * audit trail — including issuing where the reading says to escalate
+   * instead. The prescriber is allowed to disagree; they are not allowed to
+   * disagree silently.
    */
-  const needsReason = !isDecline && !amendmentReady(rx, recommended);
+  const needsReason = !amendmentReady(rx, recommended);
   const hold = useCaseHold(order.ref);
   const upNext = useNextCase(order.ref);
 
   const approve = () => {
-    setDecision(isDecline ? "declined" : "approved");
+    setDecision("approved");
     setToast(
-      isDecline
-        ? "Order declined & audit-logged"
-        : amended
-          ? `${prescriptionLabel(rx)} issued — amendment and reason audit-logged`
-          : "Prescription issued & audit-logged",
+      amended
+        ? `${prescriptionLabel(rx)} issued — amendment and reason audit-logged`
+        : "Prescription issued & audit-logged",
     );
   };
   const requestInfo = (subject: string, items: string[], note?: string) => {
@@ -166,15 +164,13 @@ export function OrderReview({ order }: { order: NewOrder }) {
               verification: order.verification,
             })}
             prescription={
-              isDecline ? undefined : (
-                <PrescriptionPicker
-                  recommended={recommended}
-                  recommendedText={order.ai.recommendedRx}
-                  value={rx}
-                  onChange={setRx}
-                  disabled={!hold.claimed}
-                />
-              )
+              <PrescriptionPicker
+                recommended={recommended}
+                recommendedText={order.ai.recommendedRx}
+                value={rx}
+                onChange={setRx}
+                disabled={!hold.claimed}
+              />
             }
             actions={
               decision ? (
@@ -191,11 +187,9 @@ export function OrderReview({ order }: { order: NewOrder }) {
                       type="button"
                       onClick={approve}
                       disabled={!hold.claimed || needsReason}
-                      className={`flex-1 basis-40 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-bold text-white disabled:opacity-40 ${
-                        isDecline ? "bg-error hover:bg-error-dark" : "bg-primary hover:bg-primary-dark"
-                      }`}
+                      className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
                     >
-                      {isDecline ? "Decline order" : amended ? "Issue amended" : "Approve & issue"}
+                      {amended ? "Issue amended" : "Approve & issue"}
                     </button>
                     <button
                       type="button"
@@ -311,11 +305,6 @@ function OrderOutcome({
       body: issued
         ? `${prescriptionLabel(issued)} issued to ${pharmacyName(order.pharmacyCode)} — amended from ${order.ai.recommendedRx}. The amendment, your reason and the active SOP version are on the audit trail.`
         : `${order.ai.recommendedRx} issued to ${pharmacyName(order.pharmacyCode)}. Decision and active SOP version recorded to the audit trail.`,
-    },
-    declined: {
-      tone: "error" as const,
-      title: "Order declined",
-      body: "The patient has been notified and signposted. Decision recorded to the audit trail.",
     },
     info: {
       tone: "warning" as const,

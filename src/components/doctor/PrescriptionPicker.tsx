@@ -78,6 +78,21 @@ export const sameAsRecommended = (rx: Prescription, rec: Prescription | null) =>
 export const amendmentReady = (rx: Prescription, rec: Prescription | null) =>
   sameAsRecommended(rx, rec) || (rx.reason?.trim().length ?? 0) > 0;
 
+/**
+ * What to pre-select when the reading recommends no prescription — a
+ * discontinuation, a hold, a senior review. Falling back to a fixed product
+ * put a drug on the screen nobody had asked for; the patient's own request is
+ * at least the thing under discussion.
+ */
+export function fallbackFrom(med: string, dose: string): Prescription {
+  const product = PRESCRIBABLE.find((p) => med.toLowerCase().includes(p.name.toLowerCase())) ?? PRESCRIBABLE[0];
+  return {
+    med: product.name,
+    dose: matchDose(dose, product.doses) ?? product.doses[0],
+    weeks: DEFAULT_WEEKS,
+  };
+}
+
 export const prescriptionLabel = (rx: Prescription) =>
   `${rx.med} ${rx.dose} · ${rx.weeks}-week supply`;
 
