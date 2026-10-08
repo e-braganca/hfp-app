@@ -22,7 +22,7 @@ import { PatientSummaryCard } from "./PatientSummaryCard";
 import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
 import { ScorePill } from "@/components/ui/StatusPill";
-import { useCaseHold, useNextCase } from "./queueHooks";
+import { useCaseHold, useFlashToast, useNextCase } from "./queueHooks";
 import { Toast } from "@/components/ui/Toast";
 
 /* ============================================================================
@@ -44,7 +44,7 @@ type Decision = null | "approved" | "escalated";
 export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
   const [decision, setDecision] = useState<Decision>(null);
   const [escalating, setEscalating] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useFlashToast();
   const recommended = useMemo(() => parseRecommended(repeat.ai.recommendedRx), [repeat.ai.recommendedRx]);
   const [rx, setRx] = useState<Prescription>(() => recommended ?? fallbackFrom(repeat.med, repeat.dose));
   const amended = !sameAsRecommended(rx, recommended);

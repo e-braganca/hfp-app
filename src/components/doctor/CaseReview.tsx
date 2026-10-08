@@ -22,7 +22,7 @@ import { RagPill } from "@/components/ui/StatusPill";
 import { MedicationTimeline } from "./MedicationTimeline";
 import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
-import { useCaseHold, useNextCase } from "./queueHooks";
+import { useCaseHold, useFlashToast, useNextCase } from "./queueHooks";
 import { Toast } from "@/components/ui/Toast";
 import { PatientMediaCard } from "@/components/shared/PatientMedia";
 
@@ -31,7 +31,7 @@ type Decision = null | "approved" | "escalated";
 export function CaseReview({ case_ }: { case_: ComplexCase }) {
   const [decision, setDecision] = useState<Decision>(null);
   const [escalating, setEscalating] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useFlashToast();
   /**
    * Same mechanism as the new-order review: the recommendation is the opening
    * selection, not a separate mode. Departing from it is editing what is on

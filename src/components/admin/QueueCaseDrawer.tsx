@@ -342,8 +342,13 @@ function CaseBody({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-background-paper p-5 shadow-card">
+      {/* Below lg the drawer is the width of the screen and one column, so it
+          scrolls as a document. From lg it behaves like the prescriber's review
+          page: the left rail is the only thing that scrolls, and the panel
+          fills the rest and scrolls inside itself — switching to Patient
+          answers should not move the case record out from under you. */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-6 lg:flex lg:flex-col lg:overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-background-paper p-5 shadow-card lg:shrink-0">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text-primary">{headline}</p>
             <p className="mt-0.5 text-sm text-text-secondary">
@@ -365,8 +370,10 @@ function CaseBody({
         </div>
 
         {/* the prescriber's two-column reading */}
-        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(280px,340px)_1fr]">
-          <div className="space-y-6">
+        <div className="mt-6 grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(280px,340px)_1fr]">
+          {/* negative margin + padding so the cards' shadows aren't clipped by
+              the overflow box */}
+          <div className="space-y-6 lg:-mx-1 lg:h-full lg:overflow-y-auto lg:px-1 lg:pb-1">
             <PatientSummaryCard
               ref_={caseRef}
               nhs={base.nhs}
@@ -416,25 +423,27 @@ function CaseBody({
             )}
           </div>
 
-          <ReviewPanel
-            ai={ai}
-            sop={complex?.sopCitation}
-            caseRef={caseRef}
-            answers={answers}
-            // the picker is on screen either way, so what would be issued is
-            // visible before anyone takes the case; it only unlocks on taking
-            prescription={
-              decision ? undefined : (
-                <PrescriptionPicker
-                  recommended={recommended}
-                  recommendedText={ai?.recommendedRx ?? "no reading on this case"}
-                  value={rx}
-                  onChange={setRx}
-                  disabled={!mine}
-                />
-              )
-            }
-          />
+          <div className="lg:h-full lg:min-h-0">
+            <ReviewPanel
+              ai={ai}
+              sop={complex?.sopCitation}
+              caseRef={caseRef}
+              answers={answers}
+              // the picker is on screen either way, so what would be issued is
+              // visible before anyone takes the case; it only unlocks on taking
+              prescription={
+                decision ? undefined : (
+                  <PrescriptionPicker
+                    recommended={recommended}
+                    recommendedText={ai?.recommendedRx ?? "no reading on this case"}
+                    value={rx}
+                    onChange={setRx}
+                    disabled={!mine}
+                  />
+                )
+              }
+            />
+          </div>
         </div>
       </div>
 

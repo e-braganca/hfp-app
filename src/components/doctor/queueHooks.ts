@@ -26,6 +26,7 @@ import {
   subscribeInfoRequests,
 } from "@/lib/doctor/info-requests";
 import { markSkipped, nextCase } from "@/lib/doctor/case-order";
+import { setFlash, takeFlash } from "@/lib/doctor/flash";
 import {
   SEED_PAUSED,
   SEED_WAIT_HOURS,
@@ -123,6 +124,13 @@ export function useCaseHold(ref: string) {
       leavingRef.current = ref;
       markSkipped(ref);
       if (!claimed) release(ref, me.name);
+      // the screen that could report this is about to unmount, so the message
+      // travels to whichever one lands next
+      setFlash(
+        claimed
+          ? `${ref} is still yours — it's waiting in Mine`
+          : `${ref} is back on the board — any prescriber can take it`,
+      );
       router.push(href);
     },
     /** Already decided; the hold can stay as it is. */
@@ -203,4 +211,19 @@ export function useNextCase(currentRef: string) {
     hasNext: nextCase(currentRef, { timers, now, claims, infoRequests, me }) !== null,
     resolveHref,
   };
+}
+
+/**
+ * Toast state that also picks up anything left by the screen before it.
+ *
+ * Skip is the case for it: the message belongs to the case you just left, and
+ * the only place to say it is the one you arrived at.
+ */
+export function useFlashToast(): [string | null, (message: string | null) => void] {
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    const flashed = takeFlash();
+    if (flashed) setToast(flashed);
+  }, []);
+  return [toast, setToast];
 }

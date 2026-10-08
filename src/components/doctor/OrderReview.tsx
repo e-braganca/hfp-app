@@ -19,7 +19,7 @@ import { consultationFor } from "@/lib/doctor/consultation";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
-import { useCaseHold, useNextCase } from "./queueHooks";
+import { useCaseHold, useFlashToast, useNextCase } from "./queueHooks";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
@@ -32,7 +32,7 @@ export function OrderReview({ order }: { order: NewOrder }) {
   const [decision, setDecision] = useState<Decision>(null);
   const [escalating, setEscalating] = useState(false);
   const [emailing, setEmailing] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useFlashToast();
   /**
    * The recommendation is the starting selection, not a separate mode — the
    * prescriber is always looking at what they are about to issue.

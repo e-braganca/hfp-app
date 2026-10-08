@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { MetricCard } from "@/components/doctor/MetricCard";
 import { ClaimCell, rowState, rowTone, type RowState } from "@/components/doctor/QueueRowState";
-import { useActing, useClaims, useQueueClock } from "@/components/doctor/queueHooks";
+import { useActing, useClaims, useFlashToast, useQueueClock } from "@/components/doctor/queueHooks";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PharmacyFilter } from "@/components/doctor/PharmacyFilter";
@@ -127,7 +127,7 @@ export default function WorkQueuePage() {
   const [tab, setTab] = useState<Tab>("new");
   const [pharmacy, setPharmacy] = useState<string | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useFlashToast();
 
   const clock = useWaitClock(useMemo(() => liveCases(), []));
 
