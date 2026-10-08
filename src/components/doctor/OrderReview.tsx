@@ -86,7 +86,6 @@ export function OrderReview({ order }: { order: NewOrder }) {
             claimed={hold.claimed}
             secondsLeft={hold.secondsLeft}
             onClaim={hold.claimCase}
-            onRelease={hold.releaseCase}
             onSkip={upNext.hasNext ? () => hold.skipTo(upNext.resolveHref()) : undefined}
           />
         }

@@ -12,8 +12,9 @@
 //   held by someone else   not ours to open
 //   awaiting a reply       the patient owes us something
 //   outside my clearance   I am not allowed to decide it
-//   no review screen       simple repeats are batch-signed on the queue, and
-//                          escalations are senior work with their own flow
+//   escalated              with a senior; the doctor's screen for it is
+//                          read-only, so there is no decision to land on
+//   no review screen       nothing to open
 // ============================================================================
 
 import { blockedReason, type Clinician } from "./clinicians";
@@ -56,6 +57,7 @@ export function workableCases(ctx: NextCaseContext): LiveCase[] {
   return liveCases()
     .filter((c) => {
       if (!c.href) return false;
+      if (c.category === "escalated") return false;
       if (isAwaitingPatient(ctx.infoRequests[c.ref])) return false;
       if (blockedReason(ctx.me, c.category, c.rag)) return false;
       const hold = holdFor(ctx.claims, c.ref);

@@ -69,7 +69,6 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
             claimed={hold.claimed}
             secondsLeft={hold.secondsLeft}
             onClaim={hold.claimCase}
-            onRelease={hold.releaseCase}
             onSkip={upNext.hasNext ? () => hold.skipTo(upNext.resolveHref()) : undefined}
           />
         }

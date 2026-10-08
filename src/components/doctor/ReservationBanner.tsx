@@ -7,23 +7,23 @@
  * on the page stay locked, so the reservation can't quietly become a decision.
  *
  * Skip is the third answer, and the honest one for "not this, but keep going":
- * it hands the case back immediately rather than parking it for the rest of
- * the minute, and opens the next one so the clinician never passes through the
- * list to carry on working.
+ * it opens the next case so the clinician never passes back through the list
+ * to carry on working. It sits in both states, because wanting to move on is
+ * not something only an unclaimed case provokes. Leaving the run entirely is
+ * the back link in the breadcrumb, which is where a way out belongs.
  */
 export function ReservationBanner({
   claimed,
   secondsLeft,
   onClaim,
-  onRelease,
   onSkip,
 }: {
   claimed: boolean;
   secondsLeft: number;
   onClaim: () => void;
-  onRelease: () => void;
   /**
-   * Hand this one back and open the next, without going via the queue.
+   * Open the next case without going via the queue. A reservation goes back
+   * on the board; a claim stays yours and comes round again.
    *
    * Deliberately takes no label: naming the next case here would promise a
    * case that another prescriber may claim while this one is still being read.
@@ -35,15 +35,18 @@ export function ReservationBanner({
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-success-lighter px-4 py-3 ring-1 ring-success-light/50">
         <p className="text-sm text-success-darker">
-          <span className="font-bold">Claimed by you.</span> It&rsquo;s off the shared board until you decide or release it.
+          <span className="font-bold">Claimed by you.</span> It&rsquo;s off the shared board until you decide it.
         </p>
-        <button
-          type="button"
-          onClick={onRelease}
-          className="shrink-0 text-sm font-bold text-success-darker underline hover:no-underline"
-        >
-          Release back to queue
-        </button>
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            title="Keep it, and open the longest-waiting case you can work"
+            className="shrink-0 rounded-lg border border-success-light bg-background-paper px-4 py-2 text-sm font-bold text-success-darker hover:bg-success-lighter"
+          >
+            Skip
+          </button>
+        )}
       </div>
     );
   }

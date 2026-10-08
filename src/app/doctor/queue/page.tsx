@@ -12,6 +12,7 @@ import { PharmacyLabel } from "@/components/ui/PharmacyLabel";
 import { RagPill, ScorePill } from "@/components/ui/StatusPill";
 import { useWaitClock } from "@/components/shared/boardClockHooks";
 import { WaitChip } from "@/components/shared/WaitFlag";
+import { clearSkipped } from "@/lib/doctor/case-order";
 import type { WaitFlag } from "@/lib/admin/queue-sla";
 import { liveCases } from "@/lib/shared/live-cases";
 import { Toast } from "@/components/ui/Toast";
@@ -119,6 +120,9 @@ export default function WorkQueuePage() {
   );
 
   useEffect(seedBoard, []);
+  // Back on the list, the run of skips is over: the order of cases passed over
+  // describes one sitting at the board, not the cases themselves.
+  useEffect(clearSkipped, []);
 
   const [tab, setTab] = useState<Tab>("new");
   const [pharmacy, setPharmacy] = useState<string | null>(null);

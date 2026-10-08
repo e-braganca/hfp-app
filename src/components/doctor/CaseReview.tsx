@@ -71,7 +71,6 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
             claimed={hold.claimed}
             secondsLeft={hold.secondsLeft}
             onClaim={hold.claimCase}
-            onRelease={hold.releaseCase}
             onSkip={upNext.hasNext ? () => hold.skipTo(upNext.resolveHref()) : undefined}
           />
         }

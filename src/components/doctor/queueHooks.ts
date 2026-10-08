@@ -25,7 +25,7 @@ import {
   isAwaitingPatient,
   subscribeInfoRequests,
 } from "@/lib/doctor/info-requests";
-import { clearSkipped, markSkipped, nextCase } from "@/lib/doctor/case-order";
+import { markSkipped, nextCase } from "@/lib/doctor/case-order";
 import {
   SEED_PAUSED,
   SEED_WAIT_HOURS,
@@ -110,18 +110,19 @@ export function useCaseHold(ref: string) {
     reserved: !!mine && !claimed,
     secondsLeft,
     claimCase: () => claim(ref, me.name, me.initials),
-    releaseCase: () => {
-      leavingRef.current = ref;
-      // going back to the list ends the sitting — the run of skips with it
-      clearSkipped();
-      release(ref, me.name);
-      router.push("/doctor/queue");
-    },
-    /** Hand the case back and open another one — skipping, not deciding. */
+    /**
+     * Not this one, next — the only thing Skip ever means.
+     *
+     * What happens to the case behind you depends on whether it was yours. A
+     * reservation is a look, so skipping hands it straight back. A claim is a
+     * decision to work it, and skipping past it for now should not quietly
+     * undo that: it stays yours and comes back round, which is why the work
+     * order includes cases you are already holding.
+     */
     skipTo: (href: string) => {
       leavingRef.current = ref;
       markSkipped(ref);
-      release(ref, me.name);
+      if (!claimed) release(ref, me.name);
       router.push(href);
     },
     /** Already decided; the hold can stay as it is. */
