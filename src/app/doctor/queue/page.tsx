@@ -12,9 +12,10 @@ import { PharmacyLabel } from "@/components/ui/PharmacyLabel";
 import { RagPill, ScorePill } from "@/components/ui/StatusPill";
 import { useWaitClock } from "@/components/shared/boardClockHooks";
 import { WaitChip } from "@/components/shared/WaitFlag";
+import { TabStrip } from "@/components/ui/TabStrip";
 import { clearSkipped } from "@/lib/doctor/case-order";
 import type { WaitFlag } from "@/lib/admin/queue-sla";
-import { liveCases } from "@/lib/shared/live-cases";
+import { ESCALATION_RAG, liveCases } from "@/lib/shared/live-cases";
 import { Toast } from "@/components/ui/Toast";
 import { WarnIcon } from "@/components/ui/icons";
 import { CATEGORY_LABEL, RAG_ORDER, canTake, type QueueCategory } from "@/lib/doctor/clinicians";
@@ -25,7 +26,6 @@ import {
   isAwaitingPatient,
   getInfoRequestsServerSnapshot,
   getInfoRequestsSnapshot,
-  seedInfoRequestsIfEmpty,
   subscribeInfoRequests,
   type InfoRequest,
 } from "@/lib/doctor/info-requests";
@@ -69,8 +69,6 @@ const TAB_LABEL: Record<Tab, string> = {
 const BULK_SIZE = 5;
 
 /** Escalations carry no RAG of their own — they are senior work by definition. */
-const ESCALATION_RAG: Rag = "red";
-
 /** Tabs where nothing is claimable, so "only mine" has nothing to filter. */
 const NO_CLAIM_TABS = new Set<Tab>(["mine", "info", "escalated"]);
 
@@ -80,31 +78,9 @@ function seedBoard() {
   seedIfEmpty([
     { ref: "PT-4470", by: "Dr. Raymond Okafor", initials: "RO", kind: "claimed", at: t - 7 * 60000, expiresAt: null },
     { ref: "PT-3122", by: "Dr. Julia Reyes", initials: "JR", kind: "claimed", at: t - 21 * 60000, expiresAt: null },
-    { ref: "PT-2095", by: "Dr. Sofia Patel", initials: "SP", kind: "reserved", at: t, expiresAt: t + 45000 },
-  ]);
-  seedInfoRequestsIfEmpty([
-    {
-      ref: "PT-4468",
-      by: "Dr. Raymond Okafor",
-      subject: "Weight photo unreadable — please retake",
-      at: t - 26 * 3600000,
-      // partly answered, so the review screen has both states to show
-      items: [
-        { id: "body-photos", state: "supplied", attachment: "weight-2026-10-04.jpg", at: "4 Oct 2026 · 19:12" },
-        { id: "weight-height", state: "supplied", reply: "112.4 kg, 1.74 m — measured this morning", at: "4 Oct 2026 · 19:14" },
-        { id: "photo-id", state: "outstanding" },
-      ],
-    },
-    {
-      ref: "PT-2110",
-      by: "Dr. Sofia Patel",
-      subject: "Tell us more about the GI side effects",
-      at: t - 5 * 3600000,
-      items: [
-        { id: "side-effects", state: "outstanding" },
-        { id: "medication-list", state: "outstanding" },
-      ],
-    },
+    // deliberately a new order, not a complex repeat: only two complex cases
+    // are not escalations, and holding one of those leaves the tab empty
+    { ref: "PT-4464", by: "Dr. Sofia Patel", initials: "SP", kind: "reserved", at: t, expiresAt: t + 45000 },
   ]);
 }
 
@@ -154,6 +130,15 @@ export default function WorkQueuePage() {
   const onTheBoard = <T extends { ref: string }>(rows: T[]) =>
     rows.filter((r) => !awaiting.has(r.ref) && !holdFor(claims, r.ref));
 
+  /**
+   * Three of the complex repeats are also escalations. A case has one live
+   * state and it is the later one — with a senior, not on the complex board —
+   * so Complex Repeats drops them. They were showing in both tabs, which is
+   * the same two-people-each-assuming thing the other rules are there to stop.
+   */
+  const escalatedRefs = new Set(ESCALATIONS.map((e) => e.ref));
+  const complexOnly = COMPLEX_CASES.filter((c) => !escalatedRefs.has(c.ref));
+
   const state = (ref: string, category: QueueCategory, rag: Rag): RowState =>
     rowState(holdFor(claims, ref), me, category, rag, now);
 
@@ -195,7 +180,7 @@ export default function WorkQueuePage() {
     const pool = [
       ...NEW_ORDERS.map((o) => ({ ref: o.ref, category: "new" as QueueCategory, rag: o.score.rag })),
       ...SIMPLE_REPEATS.map((r) => ({ ref: r.ref, category: "simple" as QueueCategory, rag: r.score.rag })),
-      ...COMPLEX_CASES.map((c) => ({ ref: c.ref, category: "complex" as QueueCategory, rag: c.score.rag })),
+      ...complexOnly.map((c) => ({ ref: c.ref, category: "complex" as QueueCategory, rag: c.score.rag })),
     ]
       .filter((i) => canTake(me, i.category, i.rag) && !holdFor(claims, i.ref))
       .sort((a, b) => RAG_ORDER[b.rag] - RAG_ORDER[a.rag]);
@@ -219,7 +204,7 @@ export default function WorkQueuePage() {
   const counts: Record<Tab, number> = {
     new: onTheBoard(NEW_ORDERS).length,
     simple: onTheBoard(SIMPLE_REPEATS).length,
-    complex: onTheBoard(COMPLEX_CASES).length,
+    complex: onTheBoard(complexOnly).length,
     escalated: onTheBoard(ESCALATIONS).length,
     mine: holding,
     info: awaiting.size,
@@ -269,9 +254,9 @@ export default function WorkQueuePage() {
         {/* tabs — queues to pick from on the left, everything already spoken
             for on the right */}
         <div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <TabStrip tabs={LEFT_TABS} active={tab} counts={counts} onPick={setTab} />
+          <TabStrip tabs={LEFT_TABS} active={tab} label={(t) => TAB_LABEL[t]} count={(t) => counts[t]} onPick={setTab} />
           <div className="flex flex-wrap items-end gap-4">
-            <TabStrip tabs={RIGHT_TABS} active={tab} counts={counts} onPick={setTab} />
+            <TabStrip tabs={RIGHT_TABS} active={tab} label={(t) => TAB_LABEL[t]} count={(t) => counts[t]} onPick={setTab} />
             <div className="pb-2">
               <PharmacyFilter
                 value={pharmacy}
@@ -286,7 +271,7 @@ export default function WorkQueuePage() {
         <div className="mt-5">
           {tab === "new" && <NewOrdersTab rows={byPharmacy(onTheBoard(NEW_ORDERS))} {...shared} />}
           {tab === "simple" && <SimpleRepeatsTab rows={byPharmacy(onTheBoard(SIMPLE_REPEATS))} {...shared} />}
-          {tab === "complex" && <ComplexRepeatsTab rows={byPharmacy(onTheBoard(COMPLEX_CASES))} {...shared} />}
+          {tab === "complex" && <ComplexRepeatsTab rows={byPharmacy(onTheBoard(complexOnly))} {...shared} />}
           {tab === "escalated" && <EscalatedTab rows={byPharmacy(onTheBoard(ESCALATIONS))} {...shared} />}
           {tab === "mine" && <MineTab refs={mine.map((h) => h.ref)} {...shared} />}
           {tab === "info" && (
@@ -871,57 +856,19 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
   );
 }
 
-/** Find a case by ref across the four queues it could be sitting in. */
+/**
+ * Find a case by ref.
+ *
+ * Reads the same flattened board the admin does rather than searching the four
+ * arrays again. The second implementation had its own precedence — it checked
+ * complex repeats before escalations, so an escalated case resolved as a
+ * complex one and Mine sent the prescriber to a decision screen for a case
+ * that is with a senior.
+ */
 function resolveCase(ref: string) {
-  const o = NEW_ORDERS.find((x) => x.ref === ref);
-  if (o) return { ref, category: "new" as QueueCategory, rag: o.score.rag, nhs: o.nhs, med: o.med, dose: o.dose, pharmacyCode: o.pharmacyCode, detail: o.eligibility, href: `/doctor/orders/${ref}` };
-  const r = SIMPLE_REPEATS.find((x) => x.ref === ref);
-  if (r) return { ref, category: "simple" as QueueCategory, rag: r.score.rag, nhs: r.nhs, med: r.med, dose: r.dose, pharmacyCode: r.pharmacyCode, detail: `Last review ${r.lastReview}`, href: `/doctor/repeats/${ref}` };
-  const c = COMPLEX_CASES.find((x) => x.ref === ref);
-  if (c) return { ref, category: "complex" as QueueCategory, rag: c.score.rag, nhs: c.nhs, med: c.med, dose: c.dose, pharmacyCode: c.pharmacyCode, detail: c.flagReason, href: `/doctor/cases/${ref}` };
-  const e = ESCALATIONS.find((x) => x.ref === ref);
-  if (e) return { ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG, nhs: e.nhs, med: e.med, dose: e.dose, pharmacyCode: e.pharmacyCode, detail: e.reason, href: `/doctor/escalations/${ref}` };
-  return null;
+  return liveCases().find((c) => c.ref === ref) ?? null;
 }
 
-/** One underlined group of tabs. Two of these sit on the queue toolbar. */
-function TabStrip({
-  tabs,
-  active,
-  counts,
-  onPick,
-}: {
-  tabs: Tab[];
-  active: Tab;
-  counts: Record<Tab, number>;
-  onPick: (t: Tab) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-1 border-b border-[var(--divider)]">
-      {tabs.map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => onPick(t)}
-          className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
-            active === t
-              ? "border-primary text-text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary"
-          }`}
-        >
-          {TAB_LABEL[t]}
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-              active === t ? "bg-primary-main-16 text-primary-dark" : "bg-grey-200 text-text-secondary"
-            }`}
-          >
-            {counts[t]}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /**
  * Cases waiting on the patient. Nothing here is claimable — the answer has to

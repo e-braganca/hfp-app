@@ -8,6 +8,7 @@ import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { ReviewShell } from "./ReviewShell";
 import { RagPill } from "@/components/ui/StatusPill";
+import { ESCALATION_RAG } from "@/lib/shared/live-cases";
 
 /* ============================================================================
    An escalated case, read-only.
@@ -17,8 +18,6 @@ import { RagPill } from "@/components/ui/StatusPill";
    reservation banner and no decision — this screen exists so the case can be
    opened and read, which is all anyone on the shared board can do with it.
    ============================================================================ */
-
-const ESCALATION_RAG = "red" as const;
 
 export function EscalationView({ escalation }: { escalation: Escalation }) {
   const e = escalation;

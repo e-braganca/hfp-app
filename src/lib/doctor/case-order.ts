@@ -53,7 +53,7 @@ export interface NextCaseContext {
 }
 
 /** Cases this clinician could open right now, longest wait first. */
-export function workableCases(ctx: NextCaseContext): LiveCase[] {
+function workableCases(ctx: NextCaseContext): LiveCase[] {
   return liveCases()
     .filter((c) => {
       if (!c.href) return false;

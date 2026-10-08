@@ -12,7 +12,7 @@ import { COMPLEX_CASES, ESCALATIONS, NEW_ORDERS, SIMPLE_REPEATS } from "@/lib/do
 import type { Rag } from "@/lib/doctor/types";
 
 /** Escalations carry no RAG of their own — reaching senior review is the signal. */
-const ESCALATION_RAG: Rag = "red";
+export const ESCALATION_RAG: Rag = "red";
 
 export interface LiveCase {
   ref: string;

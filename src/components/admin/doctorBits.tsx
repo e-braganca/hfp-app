@@ -12,20 +12,6 @@ export function DoctorStatusPill({ status }: { status: DoctorStatus }) {
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${map.cls}`}>{map.label}</span>;
 }
 
-/** Live presence — is this clinician on the platform right now? */
-export function PresencePill({ online, lastSeen }: { online: boolean; lastSeen: string }) {
-  return (
-    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
-        online ? "bg-success-lighter text-success-darker" : "bg-grey-200 text-text-secondary"
-      }`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-grey-500"}`} />
-        {online ? "Online" : "Offline"}
-      </span>
-      {!online && <span className="text-[11px] text-text-disabled">{lastSeen}</span>}
-    </span>
-  );
-}
 
 /** Live presence, small enough to sit beside a name or an avatar anywhere. */
 export function PresenceDot({ online, className = "" }: { online: boolean; className?: string }) {
@@ -81,8 +67,3 @@ export function MiniComplianceBar({ pct }: { pct: number | null }) {
   return <span className={`font-mono text-sm font-bold ${RAG_TEXT[complianceRag(pct)]}`}>{pct}%</span>;
 }
 
-export function CaseCategoryPill({ cat }: { cat: string }) {
-  return (
-    <span className="rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary">{cat}</span>
-  );
-}

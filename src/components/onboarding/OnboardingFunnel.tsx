@@ -185,7 +185,7 @@ export function OnboardingFunnel() {
           <div className="mx-auto w-full max-w-lg">
             {outcome
               ? renderOutcome(outcome, a, back)
-              : renderStep(key, a, setA, setMeasure, setDob, next)}
+              : renderStep(key, a, setA, setMeasure, setDob)}
           </div>
         </main>
 
@@ -307,7 +307,6 @@ function renderStep(
   setA: (p: Partial<Answers>) => void,
   setMeasure: (p: Partial<Answers>) => void,
   setDob: (p: Partial<Answers>) => void,
-  next: () => void,
 ) {
   switch (key) {
     case "intro":

@@ -14,9 +14,11 @@ import {
   sameAsRecommended,
   type Prescription,
 } from "./PrescriptionPicker";
-import { Modal } from "@/components/ui/Modal";
+import { DecisionButtons, EscalateModal, OrderRequestCard } from "./caseParts";
+import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
+import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
 import { consultationFor } from "@/lib/doctor/consultation";
-import { OutcomePanel } from "./OrderReview";
+import { OutcomePanel } from "./OutcomePanel";
 import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { ReservationBanner } from "./ReservationBanner";
@@ -39,11 +41,12 @@ import { Toast } from "@/components/ui/Toast";
    continuation they have not been shown.
    ============================================================================ */
 
-type Decision = null | "approved" | "escalated";
+type Decision = null | "approved" | "info" | "escalated";
 
 export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
   const [decision, setDecision] = useState<Decision>(null);
   const [escalating, setEscalating] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   const [toast, setToast] = useFlashToast();
   const recommended = useMemo(() => parseRecommended(repeat.ai.recommendedRx), [repeat.ai.recommendedRx]);
   const [rx, setRx] = useState<Prescription>(() => recommended ?? fallbackFrom(repeat.med, repeat.dose));
@@ -59,6 +62,12 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
         ? `${prescriptionLabel(rx)} issued — amendment and reason audit-logged`
         : `${prescriptionLabel(rx)} issued & audit-logged`,
     );
+  };
+  const requestInfo = (subject: string, items: string[], note?: string) => {
+    setEmailing(false);
+    setDecision("info");
+    recordInfoRequest(repeat.ref, hold.me.name, subject, items, note);
+    setToast(`Email sent to ${repeat.patientName} — "${subject}"`);
   };
   const escalate = () => {
     setEscalating(false);
@@ -97,14 +106,11 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
               pill={<ScorePill score={repeat.score} />}
             />
 
-            <div className="rounded-lg bg-background-paper p-5 shadow-card">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Order request</p>
-              <p className="mt-2 text-base font-bold text-text-primary">{repeat.med}</p>
-              <p className="text-sm text-text-secondary">{repeat.dose} · self-requested repeat</p>
-              <p className="mt-1 text-sm text-text-secondary">
-                {pharmacyName(repeat.pharmacyCode)} · last reviewed {repeat.lastReview}
-              </p>
-            </div>
+            <OrderRequestCard
+              med={repeat.med}
+              detail={`${repeat.dose} · self-requested repeat`}
+              meta={`${pharmacyName(repeat.pharmacyCode)} · last reviewed ${repeat.lastReview}`}
+            />
 
             <PatientMediaCard
               caseRef={repeat.ref}
@@ -143,26 +149,22 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
                   body="Removed from your queue and routed to senior clinical review."
                   onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined}
                 />
+              ) : decision === "info" ? (
+                <OutcomePanel
+                  tone="warning"
+                  title="More information requested"
+                  body="The repeat stays pending until the patient responds, then re-enters triage."
+                  onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined}
+                />
               ) : (
                 <>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={approve}
-                      disabled={!hold.claimed || needsReason}
-                      className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
-                    >
-                      {amended ? "Issue amended" : "Approve & issue"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEscalating(true)}
-                      disabled={!hold.claimed}
-                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter disabled:opacity-40"
-                    >
-                      Escalate
-                    </button>
-                  </div>
+                  <DecisionButtons
+                    amended={amended}
+                    disabled={!hold.claimed || needsReason}
+                    onApprove={approve}
+                    onRequestInfo={() => setEmailing(true)}
+                    onEscalate={() => setEscalating(true)}
+                  />
                   {hold.claimed && needsReason ? (
                     <p className="mt-3 text-xs font-semibold text-warning-dark">
                       Say why you&rsquo;re departing from the recommendation before issuing.
@@ -181,38 +183,25 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
         }
       />
 
-      <Modal
+      <RequestInfoEmailModal
+        open={emailing}
+        onClose={() => setEmailing(false)}
+        onSend={({ subject, items, note }) => requestInfo(subject, items, note)}
+        patientName={repeat.patientName}
+        sex={answers.sexAtBirth === "Male" || answers.sexAtBirth === "Female" ? answers.sexAtBirth : undefined}
+        caseRef={repeat.ref}
+        senderName={hold.me.name}
+        senderRole="Clinical Lead · GMC 7041182"
+      />
+
+      <EscalateModal
         open={escalating}
-        title="Escalate to senior review"
-        subtitle={`${repeat.ref} · ${pharmacyName(repeat.pharmacyCode)}`}
+        caseRef={repeat.ref}
+        pharmacy={pharmacyName(repeat.pharmacyCode)}
+        what="repeat"
         onClose={() => setEscalating(false)}
-      >
-        <p className="text-sm text-text-secondary">
-          This repeat will be removed from your queue and routed to senior clinical review. Add an optional note for the
-          reviewer.
-        </p>
-        <textarea
-          rows={3}
-          placeholder="Optional note for the reviewer…"
-          className="mt-3 w-full rounded-lg border border-[var(--divider)] p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-main-24"
-        />
-        <div className="mt-4 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => setEscalating(false)}
-            className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-neutral"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={escalate}
-            className="rounded-lg bg-warning-dark px-4 py-2.5 text-sm font-bold text-white hover:opacity-90"
-          >
-            Confirm escalation
-          </button>
-        </div>
-      </Modal>
+        onConfirm={escalate}
+      />
 
       <Toast message={toast} onDone={() => setToast(null)} />
     </>

@@ -28,7 +28,6 @@ import {
 import { markSkipped, nextCase } from "@/lib/doctor/case-order";
 import { setFlash, takeFlash } from "@/lib/doctor/flash";
 import {
-  SEED_PAUSED,
   SEED_WAIT_HOURS,
   getBoardClockServerSnapshot,
   getBoardClockSnapshot,
@@ -191,7 +190,7 @@ export function useNextCase(currentRef: string) {
 
   useEffect(() => {
     const refs = [...new Set(liveCases().map((c) => c.ref))];
-    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || isAwaitingPatient(infoRequests[r])));
+    const parked = new Set(refs.filter((r) => isAwaitingPatient(infoRequests[r])));
     syncBoardClock(refs, parked, SEED_WAIT_HOURS);
   }, [infoRequests, now]);
 

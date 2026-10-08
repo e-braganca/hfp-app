@@ -13,7 +13,7 @@ import { ADMIN_DOCTORS, ADMIN_SELF } from "@/lib/admin/data";
 import { useWaitClock } from "@/components/shared/boardClockHooks";
 import { WaitChip } from "@/components/shared/WaitFlag";
 import { QueueFilters } from "@/components/admin/QueueFilters";
-import { PAUSE_LABEL } from "@/lib/admin/queue-sla";
+import { TabStrip } from "@/components/ui/TabStrip";
 import { ACCESS_LABEL, type AdminDoctor, type QueueBand } from "@/lib/admin/types";
 import { CATEGORY_LABEL, type QueueCategory } from "@/lib/doctor/clinicians";
 import { liveCases, type LiveCase } from "@/lib/shared/live-cases";
@@ -94,7 +94,7 @@ export default function AdminQueuePage() {
 
   // parked on the patient: the clock is stopped and nobody can work it, so it
   // leaves its category the way it does on the prescriber's board
-  const parked = (ref: string) => !!clock.pausedReason(ref);
+  const parked = (ref: string) => clock.parked(ref);
 
   const inTab = (c: LiveCase, t: Tab) => {
     if (t === "late") return clock.flagFor(c.ref) !== "none";
@@ -121,7 +121,7 @@ export default function AdminQueuePage() {
   const amberCount = flagged.length - redCount;
 
   const assigned = cases.filter((c) => holdFor(claims, c.ref)).length;
-  const pausedCount = cases.filter((c) => clock.pausedReason(c.ref)).length;
+  const pausedCount = cases.filter((c) => clock.parked(c.ref)).length;
   const workingNow = new Set(
     Object.values(claims).filter((h) => holdFor(claims, h.ref)).map((h) => h.by),
   ).size;
@@ -183,9 +183,16 @@ export default function AdminQueuePage() {
         </div>
 
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <TabStrip tabs={LEFT_TABS} active={tab} counts={counts} redCount={redCount} onPick={setTab} />
+          <TabStrip tabs={LEFT_TABS} active={tab} label={(t) => TAB_LABEL[t]} count={(t) => counts[t]} onPick={setTab} />
           <div className="flex flex-wrap items-end gap-4">
-            <TabStrip tabs={RIGHT_TABS} active={tab} counts={counts} redCount={redCount} onPick={setTab} />
+            <TabStrip
+              tabs={RIGHT_TABS}
+              active={tab}
+              label={(t) => TAB_LABEL[t]}
+              count={(t) => counts[t]}
+              alarming={(t) => t === "late" && redCount > 0}
+              onPick={setTab}
+            />
             <div className="pb-1">
           <QueueFilters
             onlyUnassigned={onlyUnassigned}
@@ -216,7 +223,7 @@ export default function AdminQueuePage() {
               {rows.map((c) => {
                 const hold = holdFor(claims, c.ref);
                 const flag = clock.flagFor(c.ref);
-                const paused = clock.pausedReason(c.ref);
+                const paused = clock.parked(c.ref);
                 const waited = clock.hoursFor(c.ref);
                 return (
                   <div
@@ -312,7 +319,7 @@ export default function AdminQueuePage() {
                           why a case is off the board at all */}
                       <div className="mt-1.5 flex h-6 items-center">
                         {paused && (
-                          <span className="truncate text-[11px] text-text-secondary">{PAUSE_LABEL[paused]}</span>
+                          <span className="truncate text-[11px] text-text-secondary">With patient</span>
                         )}
                       </div>
                     </div>
@@ -415,53 +422,5 @@ function AssignSelect({
       buttonClassName="h-9 text-xs"
       onChange={onPick}
     />
-  );
-}
-
-/** One underlined group of tabs. Two of these sit on the queue toolbar. */
-function TabStrip({
-  tabs,
-  active,
-  counts,
-  redCount,
-  onPick,
-}: {
-  tabs: Tab[];
-  active: Tab;
-  counts: Record<Tab, number>;
-  /** Running Late turns red when something is past the red threshold */
-  redCount: number;
-  onPick: (t: Tab) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-1 border-b border-[var(--divider)]">
-      {tabs.map((t) => {
-        const on = active === t;
-        const alarming = t === "late" && redCount > 0;
-        return (
-          <button
-            key={t}
-            type="button"
-            onClick={() => onPick(t)}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
-              on
-                ? alarming
-                  ? "border-error text-text-primary"
-                  : "border-primary text-text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            {TAB_LABEL[t]}
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                on ? "bg-primary-main-16 text-primary-dark" : "bg-grey-200 text-text-secondary"
-              }`}
-            >
-              {counts[t]}
-            </span>
-          </button>
-        );
-      })}
-    </div>
   );
 }

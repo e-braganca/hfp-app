@@ -103,7 +103,6 @@ export const NEW_ORDERS: NewOrder[] = [
     pharmacyCode: "WB", submittedAt: "10:24 today",
     age: 47, sex: "Female", bmi: 33.1, ethnicity: "White British", comorbidities: ["Hypertension"],
     preference: "Mounjaro (tirzepatide)",
-    verdict: "approve",
     ai: {
       basis: "Auto-scored against SOP Rule 1.1", score: { rag: "green", confidence: 97 },
       title: "Approve new start.",
@@ -124,7 +123,6 @@ export const NEW_ORDERS: NewOrder[] = [
     pharmacyCode: "MX", submittedAt: "10:11 today",
     age: 39, sex: "Female", bmi: 31.6, ethnicity: "Black African", comorbidities: [],
     preference: "Wegovy (semaglutide)",
-    verdict: "approve",
     ai: {
       basis: "Auto-scored against SOP Rule 1.1", score: { rag: "green", confidence: 96 },
       title: "Approve new start.",
@@ -140,7 +138,6 @@ export const NEW_ORDERS: NewOrder[] = [
     pharmacyCode: "PD", submittedAt: "09:52 today",
     age: 44, sex: "Female", bmi: 28.4, ethnicity: "South Asian", comorbidities: ["Type 2 diabetes"],
     preference: "Let prescriber recommend",
-    verdict: "verify",
     ai: {
       basis: "Auto-scored against SOP Rule 1.1", score: { rag: "amber", confidence: 82 },
       title: "Verify comorbidity pathway.",
@@ -166,7 +163,6 @@ export const NEW_ORDERS: NewOrder[] = [
     pharmacyCode: "CP", submittedAt: "09:40 today",
     age: 35, sex: "Female", bmi: 27.4, ethnicity: "White British", comorbidities: ["Type 2 diabetes"],
     preference: "Wegovy (semaglutide)",
-    verdict: "verify",
     ai: {
       basis: "Auto-scored against SOP Rule 1.1 and Rule 3.1", score: { rag: "red", confidence: 91 },
       title: "Escalate — restart after a documented intolerance.",
@@ -187,7 +183,6 @@ export const NEW_ORDERS: NewOrder[] = [
     pharmacyCode: "NC", submittedAt: "09:31 today",
     age: 51, sex: "Male", bmi: 32.5, ethnicity: "White British", comorbidities: ["Hypertension"],
     preference: "Let prescriber recommend",
-    verdict: "approve",
     ai: {
       basis: "Auto-scored against SOP Rule 1.1", score: { rag: "green", confidence: 95 },
       title: "Approve new start.",
@@ -203,7 +198,6 @@ export const NEW_ORDERS: NewOrder[] = [
     pharmacyCode: "RS", submittedAt: "09:18 today",
     age: 42, sex: "Female", bmi: 30.2, ethnicity: "White British", comorbidities: [],
     preference: "Wegovy (semaglutide)",
-    verdict: "approve",
     ai: {
       basis: "Auto-scored against SOP Rule 1.1", score: { rag: "green", confidence: 93 },
       title: "Approve new start.",
@@ -219,7 +213,6 @@ export const NEW_ORDERS: NewOrder[] = [
     pharmacyCode: "WB", submittedAt: "09:02 today",
     age: 48, sex: "Male", bmi: 29.1, ethnicity: "White British", comorbidities: ["Obstructive sleep apnoea"],
     preference: "Mounjaro (tirzepatide)",
-    verdict: "verify",
     ai: {
       basis: "Auto-scored against SOP Rule 1.1", score: { rag: "amber", confidence: 85 },
       title: "Verify comorbidity pathway.",
@@ -237,16 +230,16 @@ export const newOrderByRef = (ref: string) =>
 // ---- Simple repeats (batch-approvable, all green) --------------------------
 
 const SIMPLE_SEED: Omit<SimpleRepeat, "ai">[] = [
-  { ref: "PT-3120", nhs: "500 200 6000", med: "Wegovy (semaglutide)", dose: "1.0 mg · same dose", lastReview: "12 May 2026", pharmacyCode: "WB", score: { rag: "green", confidence: 95 } },
-  { ref: "PT-3121", nhs: "503 207 6131", med: "Mounjaro (tirzepatide)", dose: "7.5 mg · same dose", lastReview: "14 May 2026", pharmacyCode: "MX", score: { rag: "green", confidence: 97 } },
-  { ref: "PT-3122", nhs: "510 215 6200", med: "Wegovy (semaglutide)", dose: "0.5 mg · same dose", lastReview: "16 May 2026", pharmacyCode: "PD", score: { rag: "green", confidence: 94 } },
-  { ref: "PT-3123", nhs: "520 222 6300", med: "Wegovy (semaglutide)", dose: "1.7 mg · same dose", lastReview: "18 May 2026", pharmacyCode: "CP", score: { rag: "green", confidence: 96 } },
-  { ref: "PT-3124", nhs: "525 230 6400", med: "Mounjaro (tirzepatide)", dose: "10 mg · same dose", lastReview: "20 May 2026", pharmacyCode: "NC", score: { rag: "green", confidence: 98 } },
-  { ref: "PT-3125", nhs: "530 237 6500", med: "Wegovy (semaglutide)", dose: "2.4 mg · same dose", lastReview: "22 May 2026", pharmacyCode: "RS", score: { rag: "green", confidence: 93 } },
-  { ref: "PT-3126", nhs: "540 245 6600", med: "Mounjaro (tirzepatide)", dose: "5.0 mg · same dose", lastReview: "24 May 2026", pharmacyCode: "WB", score: { rag: "green", confidence: 95 } },
-  { ref: "PT-3127", nhs: "550 252 6700", med: "Wegovy (semaglutide)", dose: "1.0 mg · same dose", lastReview: "26 May 2026", pharmacyCode: "MX", score: { rag: "green", confidence: 99 } },
-  { ref: "PT-3128", nhs: "560 260 6800", med: "Mounjaro (tirzepatide)", dose: "2.5 mg · same dose", lastReview: "27 May 2026", pharmacyCode: "PD", score: { rag: "green", confidence: 92 } },
-  { ref: "PT-3129", nhs: "570 267 6900", med: "Wegovy (semaglutide)", dose: "1.7 mg · same dose", lastReview: "28 May 2026", pharmacyCode: "NC", score: { rag: "green", confidence: 96 } },
+  { ref: "PT-3120", patientName: "Margaret Doyle", nhs: "500 200 6000", med: "Wegovy (semaglutide)", dose: "1.0 mg · same dose", lastReview: "12 May 2026", pharmacyCode: "WB", score: { rag: "green", confidence: 95 } },
+  { ref: "PT-3121", patientName: "Owen Pritchard", nhs: "503 207 6131", med: "Mounjaro (tirzepatide)", dose: "7.5 mg · same dose", lastReview: "14 May 2026", pharmacyCode: "MX", score: { rag: "green", confidence: 97 } },
+  { ref: "PT-3122", patientName: "Nadia Haddad", nhs: "510 215 6200", med: "Wegovy (semaglutide)", dose: "0.5 mg · same dose", lastReview: "16 May 2026", pharmacyCode: "PD", score: { rag: "green", confidence: 94 } },
+  { ref: "PT-3123", patientName: "Fiona Buchanan", nhs: "520 222 6300", med: "Wegovy (semaglutide)", dose: "1.7 mg · same dose", lastReview: "18 May 2026", pharmacyCode: "CP", score: { rag: "green", confidence: 96 } },
+  { ref: "PT-3124", patientName: "Dermot Flanagan", nhs: "525 230 6400", med: "Mounjaro (tirzepatide)", dose: "10 mg · same dose", lastReview: "20 May 2026", pharmacyCode: "NC", score: { rag: "green", confidence: 98 } },
+  { ref: "PT-3125", patientName: "Priya Raman", nhs: "530 237 6500", med: "Wegovy (semaglutide)", dose: "2.4 mg · same dose", lastReview: "22 May 2026", pharmacyCode: "RS", score: { rag: "green", confidence: 93 } },
+  { ref: "PT-3126", patientName: "Alan Whitfield", nhs: "540 245 6600", med: "Mounjaro (tirzepatide)", dose: "5.0 mg · same dose", lastReview: "24 May 2026", pharmacyCode: "WB", score: { rag: "green", confidence: 95 } },
+  { ref: "PT-3127", patientName: "Beatrice Nwosu", nhs: "550 252 6700", med: "Wegovy (semaglutide)", dose: "1.0 mg · same dose", lastReview: "26 May 2026", pharmacyCode: "MX", score: { rag: "green", confidence: 99 } },
+  { ref: "PT-3128", patientName: "Callum Reid", nhs: "560 260 6800", med: "Mounjaro (tirzepatide)", dose: "2.5 mg · same dose", lastReview: "27 May 2026", pharmacyCode: "PD", score: { rag: "green", confidence: 92 } },
+  { ref: "PT-3129", patientName: "Yvonne Baptiste", nhs: "570 267 6900", med: "Wegovy (semaglutide)", dose: "1.7 mg · same dose", lastReview: "28 May 2026", pharmacyCode: "NC", score: { rag: "green", confidence: 96 } },
 ];
 
 /**
@@ -290,7 +283,7 @@ const WB_SOP_RULE = {
 
 export const COMPLEX_CASES: ComplexCase[] = [
   {
-    ref: "PT-2087", nhs: "943 476 5919", med: "Mounjaro (tirzepatide)", dose: "7.5 mg",
+    ref: "PT-2087", patientName: "James Mitchell", nhs: "943 476 5919", med: "Mounjaro (tirzepatide)", dose: "7.5 mg",
     flagReason: "7-week treatment gap", score: { rag: "amber", confidence: 94 },
     pharmacyCode: "WB", age: 54, sex: "Male", bmi: 34.2, ethnicity: "White British",
     comorbidities: ["Type 2 diabetes", "Hypertension"],
@@ -323,7 +316,7 @@ export const COMPLEX_CASES: ComplexCase[] = [
     sopCitation: WB_SOP_RULE,
   },
   {
-    ref: "PT-2071", nhs: "218 905 6634", med: "Wegovy (semaglutide)", dose: "2.5 mg",
+    ref: "PT-2071", patientName: "Harold Ayeni", nhs: "218 905 6634", med: "Wegovy (semaglutide)", dose: "2.5 mg",
     flagReason: "Dose escalation above SOP max", score: { rag: "red", confidence: 93 },
     pharmacyCode: "MX", age: 46, sex: "Female", bmi: 36.7, ethnicity: "White British",
     comorbidities: ["Hypertension"],
@@ -348,7 +341,7 @@ export const COMPLEX_CASES: ComplexCase[] = [
     sopCitation: { rule: "SOP RULE 5.1", version: "v3.0", quote: "Do not exceed Wegovy 2.4 mg without documented specialist sign-off." },
   },
   {
-    ref: "PT-2095", nhs: "345 678 1234", med: "Mounjaro (tirzepatide)", dose: "10 mg",
+    ref: "PT-2095", patientName: "Siobhan Kelly", nhs: "345 678 1234", med: "Mounjaro (tirzepatide)", dose: "10 mg",
     flagReason: "Reassessment needed after 12 weeks", score: { rag: "green", confidence: 95 },
     pharmacyCode: "NC", age: 41, sex: "Female", bmi: 31.0, ethnicity: "White British",
     comorbidities: [],
@@ -373,7 +366,7 @@ export const COMPLEX_CASES: ComplexCase[] = [
     sopCitation: { rule: "SOP RULE 6.2", version: "v3.1", quote: "Reassess at continuation review; discontinue if < 5% body-weight reduction is achieved." },
   },
   {
-    ref: "PT-2110", nhs: "567 890 3456", med: "Wegovy (semaglutide)", dose: "1.0 mg",
+    ref: "PT-2110", patientName: "Rupa Chatterjee", nhs: "567 890 3456", med: "Wegovy (semaglutide)", dose: "1.0 mg",
     flagReason: "Reported GI side effects", score: { rag: "amber", confidence: 92 },
     pharmacyCode: "RS", age: 38, sex: "Female", bmi: 29.8, ethnicity: "South Asian",
     comorbidities: ["Type 2 diabetes"],
@@ -398,7 +391,7 @@ export const COMPLEX_CASES: ComplexCase[] = [
     sopCitation: { rule: "SOP RULE 2.2", version: "v3.1", quote: "Escalate by one dose level no sooner than every 4 weeks, tolerance permitting." },
   },
   {
-    ref: "PT-2123", nhs: "678 901 4567", med: "Wegovy (semaglutide)", dose: "1.7 mg",
+    ref: "PT-2123", patientName: "Gordon Mackay", nhs: "678 901 4567", med: "Wegovy (semaglutide)", dose: "1.7 mg",
     flagReason: "No weight loss at 6 months", score: { rag: "red", confidence: 88 },
     pharmacyCode: "CP", age: 57, sex: "Male", bmi: 33.4, ethnicity: "White British",
     comorbidities: ["Hypertension"],

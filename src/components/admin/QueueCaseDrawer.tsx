@@ -13,12 +13,13 @@ import {
   sameAsRecommended,
   type Prescription,
 } from "@/components/doctor/PrescriptionPicker";
+import { DecisionButtons, OrderRequestCard } from "@/components/doctor/caseParts";
 import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
 import { PresenceDot } from "@/components/admin/doctorBits";
 import { FileDrop, type Attachment } from "@/components/ui/FileDrop";
 import { Modal } from "@/components/ui/Modal";
-import { RagPill } from "@/components/ui/StatusPill";
+import { RagPill, ScorePill } from "@/components/ui/StatusPill";
 import { consultationFor } from "@/lib/doctor/consultation";
 import { CATEGORY_LABEL, type QueueCategory } from "@/lib/doctor/clinicians";
 import {
@@ -27,7 +28,6 @@ import {
   NEW_ORDERS,
   SIMPLE_REPEATS,
   complexCaseByRef,
-  patientByRef,
   pharmacyName,
 } from "@/lib/doctor/data";
 import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
@@ -164,6 +164,9 @@ function CaseBody({
   const base = order ?? complex ?? simple ?? escalated;
 
   const ai = order?.ai ?? complex?.ai ?? simple?.ai ?? null;
+  // the queue row showed "Green · 97%"; opening the case should not downgrade
+  // that to a bare band
+  const score = order?.score ?? complex?.score ?? simple?.score ?? null;
   const recommended = useMemo(() => (ai ? parseRecommended(ai.recommendedRx) : null), [ai]);
   const [rx, setRx] = useState<Prescription>(() =>
     recommended ?? fallbackFrom(base?.med ?? "Wegovy (semaglutide)", base?.dose ?? "0.25 mg"),
@@ -190,7 +193,7 @@ function CaseBody({
 
   const amended = !sameAsRecommended(rx, recommended);
   const needsReason = !!ai && !amendmentReady(rx, recommended);
-  const patientName = order?.patientName ?? patientByRef(caseRef)?.name ?? caseRef;
+  const patientName = order?.patientName ?? complex?.patientName ?? simple?.patientName ?? caseRef;
 
   const headline =
     order?.eligibility ?? escalated?.reason ?? complex?.flagReason ?? (simple ? `Last review ${simple.lastReview}` : "");
@@ -237,34 +240,25 @@ function CaseBody({
             />
           ) : mine ? (
             <>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={approve}
-                  disabled={needsReason}
-                  className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
-                >
-                  {amended ? "Issue amended" : "Approve & issue"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEmailing(true)}
-                  className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral"
-                >
-                  Request more info
-                </button>
-                {/* no Escalate: this is where cases escalate to. What the
-                    admin owes an escalated case is an answer to it */}
-                {escalated && (
-                  <button
-                    type="button"
-                    onClick={() => setReplying(true)}
-                    className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
-                  >
-                    Reply to escalation
-                  </button>
-                )}
-              </div>
+              {/* no Escalate: this is where cases escalate to. What the
+                  admin owes an escalated case is an answer to it */}
+              <DecisionButtons
+                amended={amended}
+                disabled={needsReason}
+                onApprove={approve}
+                onRequestInfo={() => setEmailing(true)}
+                extra={
+                  escalated && (
+                    <button
+                      type="button"
+                      onClick={() => setReplying(true)}
+                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
+                    >
+                      Reply to escalation
+                    </button>
+                  )
+                }
+              />
               <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[var(--divider)] pt-3">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Hand to</span>
                 <div className="min-w-[13rem] flex-1">{assignControl}</div>
@@ -383,7 +377,7 @@ function CaseBody({
               ethnicity={answers.ethnicity}
               pharmacyCode={base.pharmacyCode}
               comorbidities={answers.conditions}
-              pill={<RagPill rag={rag} />}
+              pill={score ? <ScorePill score={score} /> : <RagPill rag={rag} label="Escalated" />}
             />
 
             {escalated && (
@@ -405,12 +399,11 @@ function CaseBody({
 
             {complex && (
               <>
-                <div className="rounded-lg bg-background-paper p-5 shadow-card">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Order request</p>
-                  <p className="mt-2 text-base font-bold text-text-primary">{complex.orderRequest.med}</p>
-                  <p className="text-sm text-text-secondary">{complex.orderRequest.detail}</p>
-                  <p className="mt-1 text-sm text-text-secondary">{complex.orderRequest.meta}</p>
-                </div>
+                <OrderRequestCard
+                  med={complex.orderRequest.med}
+                  detail={complex.orderRequest.detail}
+                  meta={complex.orderRequest.meta}
+                />
 
                 <div className="rounded-lg bg-background-paper p-5 shadow-card">
                   <p className="text-sm font-bold text-text-primary">Medication history</p>

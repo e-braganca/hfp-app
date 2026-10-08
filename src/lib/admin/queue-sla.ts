@@ -15,7 +15,6 @@
 // ============================================================================
 
 import type { PlatformSettings } from "./platform-settings";
-import type { BoardPauseReason } from "@/lib/shared/board-clock";
 
 export type WaitFlag = "none" | "amber" | "red";
 
@@ -55,7 +54,3 @@ export const WAIT_FLAG_TEXT: Record<Exclude<WaitFlag, "none">, string> = {
   red: "text-error",
 };
 
-export const PAUSE_LABEL: Record<BoardPauseReason, string> = {
-  photos: "On hold · weight photo & ID",
-  "patient-reply": "On hold · awaiting patient reply",
-};

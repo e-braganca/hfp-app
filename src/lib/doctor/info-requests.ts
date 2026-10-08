@@ -67,10 +67,69 @@ function normalise(raw: unknown): Record<string, InfoRequest> {
   return out;
 }
 
+/**
+ * The cases that start the demo parked on the patient.
+ *
+ * There were two seeds doing this before and each side of the platform saw a
+ * different set: the admin read a SEED_PAUSED map over in the board clock, the
+ * prescriber's queue page seeded this store on mount, and neither knew about
+ * the other — so a case the admin had filed under Awaiting info was still
+ * sitting claimable on the prescriber's New Orders with a stopped clock.
+ *
+ * One seed, in the store itself, so both sides read the same board however
+ * they arrive at it.
+ */
+const SEED: (InfoRequest & { hoursAgo: number })[] = [
+  {
+    ref: "PT-4468",
+    by: "Dr. Raymond Okafor",
+    subject: "Weight photo unreadable — please retake",
+    at: 0,
+    hoursAgo: 26,
+    // partly answered, so the review screen has both states to show
+    items: [
+      { id: "body-photos", state: "supplied", attachment: "weight-2026-10-04.jpg", at: "4 Oct 2026 · 19:12" },
+      { id: "weight-height", state: "supplied", reply: "112.4 kg, 1.74 m — measured this morning", at: "4 Oct 2026 · 19:14" },
+      { id: "photo-id", state: "outstanding" },
+    ],
+  },
+  {
+    ref: "PT-2110",
+    by: "Dr. Sofia Patel",
+    subject: "Tell us more about the GI side effects",
+    at: 0,
+    hoursAgo: 5,
+    items: [
+      { id: "side-effects", state: "outstanding" },
+      { id: "medication-list", state: "outstanding" },
+    ],
+  },
+  {
+    ref: "PT-3126",
+    by: "Dr. Eleanor Hart",
+    subject: "Confirm your current medication list",
+    at: 0,
+    hoursAgo: 9,
+    items: [{ id: "medication-list", state: "outstanding" }],
+  },
+];
+
+const seeded = (): Record<string, InfoRequest> =>
+  Object.fromEntries(
+    SEED.map(({ hoursAgo, ...r }) => [r.ref, { ...r, at: Date.now() - hoursAgo * 3_600_000 }]),
+  );
+
 function read(): Record<string, InfoRequest> {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? normalise(JSON.parse(raw)) : {};
+    // no key at all means a first visit, not an emptied board — seeding on
+    // "falsy" instead would resurrect requests the user had just cleared
+    if (raw === null) {
+      const first = seeded();
+      window.localStorage.setItem(KEY, JSON.stringify(first));
+      return first;
+    }
+    return normalise(JSON.parse(raw));
   } catch {
     return {};
   }
@@ -109,8 +168,6 @@ export function getInfoRequestsSnapshot(): Record<string, InfoRequest> {
 const EMPTY: Record<string, InfoRequest> = {};
 export const getInfoRequestsServerSnapshot = (): Record<string, InfoRequest> => EMPTY;
 
-export const infoRequestFor = (map: Record<string, InfoRequest>, ref: string): InfoRequest | null =>
-  map[ref] ?? null;
 
 /** Record that the patient has been asked for something. */
 export function requestInfo(ref: string, by: string, subject: string, itemIds: string[], note?: string) {
@@ -177,8 +234,3 @@ export function askedAgo(r: InfoRequest, now: number): string {
   return days === 1 ? "1 day ago" : `${days} days ago`;
 }
 
-/** Demo seed, so the tab isn't empty on a fresh browser. */
-export function seedInfoRequestsIfEmpty(seed: InfoRequest[]) {
-  if (Object.keys(read()).length > 0) return;
-  write(Object.fromEntries(seed.map((r) => [r.ref, r])));
-}

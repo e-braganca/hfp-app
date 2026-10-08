@@ -42,52 +42,6 @@ export function useOutstandingCount(caseRef: string) {
   return r ? r.items.filter((i) => i.state === "outstanding").length : 0;
 }
 
-export function InfoRequestCard({ caseRef }: { caseRef: string }) {
-  const now = useQueueClock();
-  const request = useInfoRequest(caseRef);
-  if (!request) return null;
-
-  const items = [...request.items].sort(
-    (a, b) => Number(a.state !== "outstanding") - Number(b.state !== "outstanding"),
-  );
-  const outstanding = items.filter((i) => i.state === "outstanding").length;
-  const done = items.length - outstanding;
-
-  return (
-    <section className="overflow-hidden rounded-lg bg-background-paper shadow-card">
-      <div
-        className={`flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 ${
-          outstanding === 0 ? "bg-success-lighter" : "bg-warning-lighter"
-        }`}
-      >
-        <div className="min-w-0">
-          <p className={`text-sm font-bold ${outstanding === 0 ? "text-success-darker" : "text-warning-darker"}`}>
-            {outstanding === 0
-              ? "Everything we asked for is in"
-              : `Waiting on the patient — ${outstanding} of ${items.length} still outstanding`}
-          </p>
-          <p className={`text-xs ${outstanding === 0 ? "text-success-dark" : "text-warning-dark"}`}>
-            {request.by} · asked {askedAgo(request, now)}
-            {done > 0 && ` · ${done} supplied`}
-          </p>
-        </div>
-      </div>
-
-      <ul className="divide-y divide-[var(--divider)]">
-        {items.map((i) => (
-          <Row key={i.id} item={i} />
-        ))}
-      </ul>
-
-      {request.note && (
-        <p className="border-t border-[var(--divider)] bg-background-neutral px-5 py-3 text-xs leading-relaxed text-text-secondary">
-          <span className="font-bold">Note sent with the request: </span>
-          {request.note}
-        </p>
-      )}
-    </section>
-  );
-}
 
 function Row({ item }: { item: RfiResponseItem }) {
   const meta = rfiItem(item.id);

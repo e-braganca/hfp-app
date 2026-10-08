@@ -39,8 +39,6 @@
  * is no longer ours, and when they reply the case deserves a fresh promise
  * rather than arriving pre-flagged for time it never cost us.
  */
-export type BoardPauseReason = "photos" | "patient-reply";
-
 export const SEED_WAIT_HOURS: Record<string, number> = {
   // over the red line — the board should rarely look this bad, and when it
   // does the admin needs to be able to pick them out at a glance
@@ -72,11 +70,6 @@ export const SEED_WAIT_HOURS: Record<string, number> = {
   "PT-2123": 7,
 };
 
-/** Cases parked on the patient — clock stopped, and zeroed on their return. */
-export const SEED_PAUSED: Record<string, BoardPauseReason> = {
-  "PT-4470": "photos",
-  "PT-3126": "patient-reply",
-};
 
 export interface BoardTimer {
   /** ms banked since the wait last started from zero */
@@ -158,9 +151,6 @@ export function waitedMs(timers: BoardTimers, ref: string, now: number): number 
 export const waitedHours = (timers: BoardTimers, ref: string, now: number): number =>
   waitedMs(timers, ref, now) / HOUR_MS;
 
-/** Is the clock currently running for this case? */
-export const isWaiting = (timers: BoardTimers, ref: string): boolean =>
-  timers[ref]?.freeSince != null;
 
 /**
  * Bring the stored clock in line with what the queue looks like now.
@@ -233,9 +223,3 @@ function touch(now: number) {
   }
 }
 
-/** Put one case's clock back to zero — what an information request does. */
-export function resetWait(ref: string) {
-  const next = { ...getBoardClockSnapshot() };
-  next[ref] = { waitedMs: 0, freeSince: next[ref]?.freeSince ?? null };
-  write(next);
-}

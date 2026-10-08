@@ -3,14 +3,12 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useQueueClock } from "@/components/doctor/queueHooks";
 import {
-  SEED_PAUSED,
   SEED_WAIT_HOURS,
   getBoardClockServerSnapshot,
   getBoardClockSnapshot,
   subscribeBoardClock,
   syncBoardClock,
   waitedHours,
-  type BoardPauseReason,
 } from "@/lib/shared/board-clock";
 import {
   getSettingsServerSnapshot,
@@ -39,7 +37,8 @@ export interface WaitClock {
   hoursFor: (ref: string) => number;
   flagFor: (ref: string) => WaitFlag;
   /** why the clock is parked on the patient, or null when it is running */
-  pausedReason: (ref: string) => BoardPauseReason | null;
+  /** true while the patient owes us something — the clock is stopped */
+  parked: (ref: string) => boolean;
   flagged: (c: LiveCase) => WaitFlag;
 }
 
@@ -64,13 +63,12 @@ export function useWaitClock(cases: LiveCase[]): WaitClock {
   const refs = useMemo(() => [...new Set(cases.map((c) => c.ref))], [cases]);
 
   useEffect(() => {
-    const parked = new Set(refs.filter((r) => SEED_PAUSED[r] || isAwaitingPatient(infoRequests[r])));
+    const parked = new Set(refs.filter((r) => isAwaitingPatient(infoRequests[r])));
     syncBoardClock(refs, parked, SEED_WAIT_HOURS);
   }, [refs, infoRequests, now]);
 
   const hoursFor = (ref: string) => waitedHours(timers, ref, now);
-  const pausedReason = (ref: string): BoardPauseReason | null =>
-    isAwaitingPatient(infoRequests[ref]) ? "patient-reply" : (SEED_PAUSED[ref] ?? null);
+  const parked = (ref: string): boolean => isAwaitingPatient(infoRequests[ref]);
 
   /**
    * Claiming does not clear the flag. The patient is still waiting, and a case
@@ -79,7 +77,7 @@ export function useWaitClock(cases: LiveCase[]): WaitClock {
    * clock — ends the wait.
    */
   const flagFor = (ref: string): WaitFlag =>
-    pausedReason(ref) ? "none" : waitFlagFor(hoursFor(ref), settings);
+    parked(ref) ? "none" : waitFlagFor(hoursFor(ref), settings);
 
-  return { now, settings, hoursFor, flagFor, pausedReason, flagged: (c) => flagFor(c.ref) };
+  return { now, settings, hoursFor, flagFor, parked, flagged: (c) => flagFor(c.ref) };
 }

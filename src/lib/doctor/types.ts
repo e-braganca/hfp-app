@@ -54,6 +54,15 @@ export interface Protocol {
 
 // ---- AI recommendation ----------------------------------------------------
 
+/**
+ * The AI's reading of a case.
+ *
+ * It never points at a decline, on purpose. A prescriber can issue or
+ * escalate; refusing a patient is a senior decision, taken in the escalation
+ * queue with the full clinical picture. Anything the SOP can refuse outright
+ * never reaches a prescriber at all — the onboarding funnel turns it away,
+ * which is the only place a refusal needs no clinician.
+ */
 export interface AiRecommendation {
   /** Header eyebrow, e.g. "Auto-scored against SOP Rule 1.1" */
   basis: string;
@@ -67,17 +76,6 @@ export interface AiRecommendation {
 }
 
 // ---- Orders / cases (the central entities) --------------------------------
-
-/**
- * What the AI reading points at.
- *
- * There is no "decline" here on purpose. A prescriber can issue or escalate;
- * refusing a patient is a senior decision, taken in the escalation queue with
- * the full clinical picture. Anything the SOP can refuse outright never
- * reaches this screen — the onboarding funnel turns it away, which is the
- * only place a refusal needs no clinician.
- */
-export type Verdict = "approve" | "verify";
 
 export interface NewOrder {
   ref: string; // "PT-4471"
@@ -99,7 +97,6 @@ export interface NewOrder {
    *  medication or "Let prescriber recommend". The AI recommendation must
    *  honour it when SOP-compatible and say so in its checks. */
   preference: string;
-  verdict: Verdict;
   ai: AiRecommendation;
   verification: {
     weightPhoto: string; // caption
@@ -109,6 +106,8 @@ export interface NewOrder {
 
 export interface SimpleRepeat {
   ref: string;
+  /** needed wherever we write to the patient, same as a new order carries */
+  patientName: string;
   nhs: string;
   med: string;
   dose: string; // "1.0 mg · same dose"
@@ -134,6 +133,7 @@ export interface TimelineEvent {
 
 export interface ComplexCase {
   ref: string;
+  patientName: string;
   nhs: string;
   med: string;
   dose: string;
