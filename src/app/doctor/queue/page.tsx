@@ -381,8 +381,8 @@ function NewOrdersTab({ rows, ...s }: { rows: typeof NEW_ORDERS } & Shared) {
         <HeadCell>Pharmacy</HeadCell>
         <HeadCell>Medication / Dose</HeadCell>
         <HeadCell>Eligibility</HeadCell>
-        <HeadCell>Auto-Score</HeadCell>
         <HeadCell>Status</HeadCell>
+        <HeadCell>Actions</HeadCell>
       </div>
       {visible.length === 0 && <EmptyRow>Nothing here matches your clearance right now.</EmptyRow>}
       {visible.map((o) => {
@@ -488,8 +488,8 @@ function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shar
           <HeadCell>Pharmacy</HeadCell>
           <HeadCell>Medication / Dose</HeadCell>
           <HeadCell>Last Review</HeadCell>
-          <HeadCell>Auto-Score</HeadCell>
           <HeadCell>Status</HeadCell>
+          <HeadCell>Actions</HeadCell>
         </div>
         {visible.length === 0 && <EmptyRow>Nothing here matches your clearance right now.</EmptyRow>}
         {visible.map((r) => {
@@ -623,8 +623,8 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
         <HeadCell>Pharmacy</HeadCell>
         <HeadCell>Medication / Dose</HeadCell>
         <HeadCell>Flag Reason</HeadCell>
-        <HeadCell>Auto-Score</HeadCell>
         <HeadCell>Status</HeadCell>
+        <HeadCell>Actions</HeadCell>
       </div>
       {visible.length === 0 && <EmptyRow>Nothing here matches your clearance right now.</EmptyRow>}
       {visible.map((c) => {
@@ -669,7 +669,7 @@ function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
         <HeadCell>Medication / Dose</HeadCell>
         <HeadCell>Escalation Reason</HeadCell>
         <HeadCell>Status</HeadCell>
-        <HeadCell>Claim</HeadCell>
+        <HeadCell>Actions</HeadCell>
       </div>
       {visible.length === 0 && <EmptyRow>Nothing here matches your clearance right now.</EmptyRow>}
       {visible.map((e, i) => {
@@ -725,7 +725,7 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
         <HeadCell>Medication / Dose</HeadCell>
         <HeadCell>Detail</HeadCell>
         <HeadCell>Pharmacy</HeadCell>
-        <HeadCell>Status</HeadCell>
+        <HeadCell>Actions</HeadCell>
       </div>
       {items.map((it) => {
         const st = s.state(it.ref, it.category, it.rag);

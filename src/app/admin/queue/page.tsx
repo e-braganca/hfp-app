@@ -203,7 +203,7 @@ export default function AdminQueuePage() {
           <div className="overflow-x-auto lg:overflow-x-visible">
             <div className="min-w-[1020px] lg:min-w-0">
               <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
-                {["Ref", "Type", "Medication", "Detail", "Score", "Assigned to"].map((h) => (
+                {["Ref", "Type", "Medication", "Detail", "Status", "Assigned to"].map((h) => (
                   <div key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
                     {h}
                   </div>
