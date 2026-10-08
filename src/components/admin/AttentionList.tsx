@@ -129,9 +129,14 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
 
       {rows.map((r) => (
         <div key={r.key} className="flex items-center gap-4 border-t border-[var(--divider)] px-5 py-3.5">
-          {/* fixed width, so the titles start in the same place whether a row
-              carries one badge or two */}
-          <div className="flex w-36 shrink-0 flex-wrap gap-1.5">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-text-primary">{r.title}</p>
+            <p className="truncate text-xs text-text-secondary">{r.sub}</p>
+          </div>
+
+          {/* fixed width, so the wait chip and the button stay in line whether
+              a row carries one badge or two */}
+          <div className="flex w-36 shrink-0 flex-wrap justify-end gap-1.5">
             {r.kinds.map((k) => (
               <span
                 key={k}
@@ -140,11 +145,6 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
                 {KIND_BADGE[k].label}
               </span>
             ))}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-text-primary">{r.title}</p>
-            <p className="truncate text-xs text-text-secondary">{r.sub}</p>
           </div>
 
           {r.wait && (
