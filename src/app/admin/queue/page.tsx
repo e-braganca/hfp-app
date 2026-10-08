@@ -232,7 +232,15 @@ export default function AdminQueuePage() {
                       }
                     }}
                     aria-label={`Open ${c.ref}`}
-                    className={`grid ${cols} h-[84px] cursor-pointer items-start border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-background-neutral focus:bg-background-neutral focus:outline-none`}
+                    aria-current={openCase?.ref === c.ref || undefined}
+                    // the drawer no longer blocks the board, so the row it is
+                    // showing has to be marked — otherwise two cases open in a
+                    // row look identical from the table
+                    className={`grid ${cols} h-[84px] cursor-pointer items-start border-b border-[var(--divider)] transition-colors last:border-0 focus:outline-none ${
+                      openCase?.ref === c.ref
+                        ? "bg-primary-lighter/50 shadow-[inset_3px_0_0_0_var(--color-primary)]"
+                        : "hover:bg-background-neutral focus:bg-background-neutral"
+                    }`}
                   >
                     <div className="px-4 py-3">
                       <p className="font-mono text-xs font-bold text-text-primary">{c.ref}</p>

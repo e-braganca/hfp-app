@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { AiRecommendationCard } from "@/components/doctor/AiRecommendationCard";
-import { ConsultationAnswersCard } from "@/components/doctor/ConsultationAnswersCard";
 import { MedicationTimeline } from "@/components/doctor/MedicationTimeline";
 import { PatientSummaryCard } from "@/components/doctor/PatientSummaryCard";
+import { ReviewPanel } from "@/components/doctor/ReviewPanel";
 import { PresenceDot } from "@/components/admin/doctorBits";
 import { RagPill } from "@/components/ui/StatusPill";
 import { consultationFor } from "@/lib/doctor/consultation";
@@ -23,11 +22,17 @@ import type { AdminDoctor } from "@/lib/admin/types";
 /* ============================================================================
    A live case, read from the admin side.
 
-   The admin's job here is routing, not prescribing — so this shows the whole
-   clinical picture and ends in "who should work this", never in approve or
-   decline. Opening a case used to jump into the prescriber's review screen,
-   which handed an administrator a decision they shouldn't be making and lost
-   them the queue they were working.
+   Same reading the prescriber gets — patient record and history down the left,
+   the three-tab review panel on the right — so the two sides of the platform
+   are never looking at differently shaped versions of the same case. What
+   changes is where it ends: the admin's job here is routing, so the panel's
+   action slot holds "who should work this", never approve or escalate.
+
+   The drawer does not trap the page behind it. There is no scrim swallowing
+   clicks and no scroll lock, so the queue stays live underneath: clicking
+   another row swaps this panel to that case rather than closing it, which is
+   how an administrator actually reads a board — across cases, not one at a
+   time through a close button.
    ============================================================================ */
 
 export function QueueCaseDrawer({
@@ -58,12 +63,7 @@ export function QueueCaseDrawer({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [caseRef, onClose]);
 
   if (!caseRef) return null;
@@ -93,18 +93,13 @@ export function QueueCaseDrawer({
     order?.eligibility ?? complex?.flagReason ?? escalated?.reason ?? (simple ? `Last review ${simple.lastReview}` : "");
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <button
-        type="button"
-        aria-label="Close case"
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-primary-darker/40"
-      />
-
+    // the wrapper only positions the panel — it must not intercept clicks on
+    // the board behind it, which is what makes case-to-case swapping work
+    <div className="pointer-events-none fixed inset-0 z-40 flex justify-end">
       <aside
         role="dialog"
         aria-label={`Case ${caseRef}`}
-        className="relative flex h-full w-full max-w-[min(100vw,1100px)] flex-col bg-background-neutral shadow-dialog"
+        className="pointer-events-auto relative flex h-full w-full max-w-[min(100vw,1060px)] flex-col border-l border-[var(--divider)] bg-background-neutral shadow-dialog"
       >
         <header className="shrink-0 bg-gradient-to-r from-primary-darker via-primary-dark to-primary px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
@@ -150,7 +145,9 @@ export function QueueCaseDrawer({
             <RagPill rag={rag} />
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(300px,360px)_1fr]">
+          {/* the prescriber's two-column reading, with the panel stretched so
+              its tab bar and footer line up with the left rail */}
+          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(280px,340px)_1fr]">
             <div className="space-y-6">
               <PatientSummaryCard
                 ref_={caseRef}
@@ -165,58 +162,61 @@ export function QueueCaseDrawer({
               />
 
               {complex && (
-                <div className="rounded-lg bg-background-paper p-5 shadow-card">
-                  <p className="text-sm font-bold text-text-primary">Medication history</p>
-                  <p className="text-xs text-text-secondary">
-                    {complex.med} · {pharmacyName(complex.pharmacyCode)} SOP {complex.sopCitation.version}
-                  </p>
-                  <MedicationTimeline events={complex.history} />
-                </div>
-              )}
+                <>
+                  <div className="rounded-lg bg-background-paper p-5 shadow-card">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Order request</p>
+                    <p className="mt-2 text-base font-bold text-text-primary">{complex.orderRequest.med}</p>
+                    <p className="text-sm text-text-secondary">{complex.orderRequest.detail}</p>
+                    <p className="mt-1 text-sm text-text-secondary">{complex.orderRequest.meta}</p>
+                  </div>
 
-              <ConsultationAnswersCard answers={answers} />
-            </div>
-
-            <div className="space-y-6">
-              {order && <AiRecommendationCard ai={order.ai} />}
-              {complex && <AiRecommendationCard ai={complex.ai} sop={complex.sopCitation} />}
-              {!order && !complex && (
-                <div className="rounded-lg bg-background-paper p-6 shadow-card">
-                  <p className="text-sm font-bold text-text-primary">No AI reading on this case</p>
-                  <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-                    {simple
-                      ? "Simple repeats are auto-scored Green against the pharmacy SOP and signed in batch — there's no separate recommendation to read."
-                      : "Escalated cases carry the reading from the case they were raised on; it's on the escalation itself."}
-                  </p>
-                </div>
+                  <div className="rounded-lg bg-background-paper p-5 shadow-card">
+                    <p className="text-sm font-bold text-text-primary">Medication history</p>
+                    <p className="text-xs text-text-secondary">
+                      {complex.med} · {pharmacyName(complex.pharmacyCode)} SOP {complex.sopCitation.version}
+                    </p>
+                    <MedicationTimeline events={complex.history} />
+                  </div>
+                </>
               )}
             </div>
+
+            {/* keyed so swapping cases lands on the AI tab rather than leaving
+                the previous case's tab selected over different content */}
+            <ReviewPanel
+              key={caseRef}
+              ai={order?.ai ?? complex?.ai ?? null}
+              sop={complex?.sopCitation}
+              caseRef={caseRef}
+              answers={answers}
+              noReadingBody={
+                simple
+                  ? "Simple repeats are auto-scored Green against the pharmacy SOP and signed in batch — there's no separate recommendation to read."
+                  : "Escalated cases carry the reading from the case they were raised on; it's on the escalation itself."
+              }
+              actions={
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                    {hold ? "Move to" : "Send to"}
+                  </span>
+                  <div className="min-w-[14rem] flex-1">{assignControl}</div>
+                  {hold && onUnassign && (
+                    <button
+                      type="button"
+                      onClick={onUnassign}
+                      className="text-sm font-bold text-text-secondary underline hover:text-text-primary"
+                    >
+                      Return to the board
+                    </button>
+                  )}
+                  <p className="w-full text-xs text-text-secondary">
+                    Routing only — the prescriber who claims it makes the decision.
+                  </p>
+                </div>
+              }
+            />
           </div>
         </div>
-
-        <footer
-          className="shrink-0 border-t border-[var(--divider)] bg-background-paper px-6 py-4"
-          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-        >
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-              {hold ? "Move to" : "Send to"}
-            </span>
-            <div className="min-w-[15rem]">{assignControl}</div>
-            {hold && onUnassign && (
-              <button
-                type="button"
-                onClick={onUnassign}
-                className="text-sm font-bold text-text-secondary underline hover:text-text-primary"
-              >
-                Return to the board
-              </button>
-            )}
-            <p className="ml-auto text-xs text-text-secondary">
-              Routing only — the prescriber who claims it makes the decision.
-            </p>
-          </div>
-        </footer>
       </aside>
     </div>
   );

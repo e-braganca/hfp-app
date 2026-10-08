@@ -30,8 +30,11 @@ export function ReviewPanel({
   actions,
   caseRef,
   answers,
+  noReadingTitle,
+  noReadingBody,
 }: {
-  ai: AiRecommendation;
+  /** null where there is no reading to show — a batch-signed simple repeat */
+  ai: AiRecommendation | null;
   /** the rule this reading was scored against, quoted in full */
   sop?: { rule: string; version: string; quote: string };
   /** the prescription control, when this screen can issue one */
@@ -39,6 +42,9 @@ export function ReviewPanel({
   actions?: ReactNode;
   caseRef: string;
   answers: ConsultationAnswers;
+  /** shown in place of the reading when `ai` is null */
+  noReadingTitle?: string;
+  noReadingBody?: string;
 }) {
   const [tab, setTab] = useState<Tab>("ai");
   const outstanding = useOutstandingCount(caseRef);
@@ -79,7 +85,15 @@ export function ReviewPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        {tab === "ai" && <AiTab ai={ai} sop={sop} prescription={prescription} />}
+        {tab === "ai" &&
+          (ai ? (
+            <AiTab ai={ai} sop={sop} prescription={prescription} />
+          ) : (
+            <div className="rounded-lg border border-dashed border-[var(--divider)] px-5 py-10 text-center">
+              <p className="text-sm font-semibold text-text-primary">{noReadingTitle ?? "No AI reading on this case"}</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-text-secondary">{noReadingBody}</p>
+            </div>
+          ))}
         {tab === "info" && <InfoRequestBody caseRef={caseRef} />}
         {tab === "answers" && (
           <>
