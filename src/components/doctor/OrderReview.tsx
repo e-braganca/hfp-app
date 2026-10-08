@@ -23,8 +23,8 @@ import { useCaseHold, useNextCase } from "./queueHooks";
 import { RagPill } from "@/components/ui/StatusPill";
 import { Toast } from "@/components/ui/Toast";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
+import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
-import { CameraIcon, IdIcon, WarnIcon } from "@/components/ui/icons";
 
 type Decision = null | "approved" | "info" | "escalated";
 
@@ -134,19 +134,12 @@ export function OrderReview({ order }: { order: NewOrder }) {
               </div>
             </div>
 
-            <div className="rounded-lg bg-background-paper p-5 shadow-card">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                Identity &amp; weight verification
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <VerifyTile icon={<CameraIcon />} title="Weight photo" caption={order.verification.weightPhoto} />
-                <VerifyTile icon={<IdIcon />} title="ID document" caption={order.verification.idDocument} />
-              </div>
-              <div className="mt-3 flex items-start gap-2 rounded-lg bg-warning-lighter px-3 py-2.5 text-sm text-warning-darker">
-                <WarnIcon width={18} height={18} className="mt-0.5 shrink-0 text-warning-dark" />
-                Visually confirm the ID matches the weight photo before issuing.
-              </div>
-            </div>
+            <PatientMediaCard
+              caseRef={order.ref}
+              weightPhoto={order.verification.weightPhoto}
+              idDocument={order.verification.idDocument}
+              note="Visually confirm the ID matches the weight photo before issuing."
+            />
 
           </>
         }
@@ -271,18 +264,6 @@ export function OrderReview({ order }: { order: NewOrder }) {
 
       <Toast message={toast} onDone={() => setToast(null)} />
     </>
-  );
-}
-
-function VerifyTile({ icon, title, caption }: { icon: React.ReactNode; title: string; caption: string }) {
-  return (
-    <div className="rounded-lg border border-[var(--divider)] p-3">
-      <div className="flex h-20 items-center justify-center rounded-md bg-background-neutral text-text-disabled">
-        {icon}
-      </div>
-      <p className="mt-2 text-sm font-bold text-text-primary">{title}</p>
-      <p className="text-xs text-text-secondary">{caption}</p>
-    </div>
   );
 }
 

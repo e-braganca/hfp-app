@@ -24,6 +24,7 @@ import { ReservationBanner } from "./ReservationBanner";
 import { ReviewShell } from "./ReviewShell";
 import { useCaseHold, useNextCase } from "./queueHooks";
 import { Toast } from "@/components/ui/Toast";
+import { PatientMediaCard } from "@/components/shared/PatientMedia";
 
 type Decision = null | "approved" | "escalated";
 
@@ -95,6 +96,13 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
               <p className="text-sm text-text-secondary">{case_.orderRequest.detail}</p>
               <p className="mt-1 text-sm text-text-secondary">{case_.orderRequest.meta}</p>
             </div>
+
+            <PatientMediaCard
+              caseRef={case_.ref}
+              weightPhoto="Uploaded at last review"
+              idDocument="Verified at sign-up"
+              note="Visually confirm the ID matches the weight photo before issuing."
+            />
 
             <div className="rounded-lg bg-background-paper p-5 shadow-card">
               <p className="text-sm font-bold text-text-primary">Medication history</p>

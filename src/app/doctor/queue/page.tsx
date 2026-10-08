@@ -70,6 +70,9 @@ const BULK_SIZE = 5;
 /** Escalations carry no RAG of their own — they are senior work by definition. */
 const ESCALATION_RAG: Rag = "red";
 
+/** Tabs where nothing is claimable, so "only mine" has nothing to filter. */
+const NO_CLAIM_TABS = new Set<Tab>(["mine", "info", "escalated"]);
+
 /** So a single browser still shows a board other people are working on. */
 function seedBoard() {
   const t = Date.now();
@@ -166,6 +169,9 @@ export default function WorkQueuePage() {
     setToast(`${ref} claimed — it's yours`);
   };
 
+  /** Open without taking: escalations and parked cases are nobody's to claim. */
+  const view = (href: string) => router.push(href);
+
   const open = (ref: string, category: QueueCategory, rag: Rag, href: string) => {
     if (!canTake(me, category, rag)) return;
     // reserving before we navigate closes the window where two people could
@@ -186,7 +192,6 @@ export default function WorkQueuePage() {
       ...NEW_ORDERS.map((o) => ({ ref: o.ref, category: "new" as QueueCategory, rag: o.score.rag })),
       ...SIMPLE_REPEATS.map((r) => ({ ref: r.ref, category: "simple" as QueueCategory, rag: r.score.rag })),
       ...COMPLEX_CASES.map((c) => ({ ref: c.ref, category: "complex" as QueueCategory, rag: c.score.rag })),
-      ...ESCALATIONS.map((e) => ({ ref: e.ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG })),
     ]
       .filter((i) => canTake(me, i.category, i.rag) && !holdFor(claims, i.ref))
       .sort((a, b) => RAG_ORDER[b.rag] - RAG_ORDER[a.rag]);
@@ -223,7 +228,7 @@ export default function WorkQueuePage() {
    */
   const waitFor = (ref: string) => ({ hours: clock.hoursFor(ref), flag: clock.flagFor(ref) });
 
-  const shared = { state, now, onlyMine, isAvailable, takeOne, open, drop, waitFor };
+  const shared = { state, now, onlyMine, isAvailable, takeOne, open, view, drop, waitFor };
 
   return (
     <>
@@ -267,8 +272,8 @@ export default function WorkQueuePage() {
               <PharmacyFilter
                 value={pharmacy}
                 onChange={setPharmacy}
-                onlyMine={tab === "mine" || tab === "info" ? undefined : onlyMine}
-                onOnlyMine={tab === "mine" || tab === "info" ? undefined : setOnlyMine}
+                onlyMine={NO_CLAIM_TABS.has(tab) ? undefined : onlyMine}
+                onOnlyMine={NO_CLAIM_TABS.has(tab) ? undefined : setOnlyMine}
               />
             </div>
           </div>
@@ -293,6 +298,7 @@ export default function WorkQueuePage() {
                   .filter((r): r is NonNullable<typeof r> => r !== null),
               )}
               now={now}
+              view={view}
             />
           )}
         </div>
@@ -312,8 +318,64 @@ interface Shared {
   isAvailable: (s: RowState) => boolean;
   takeOne: (ref: string, category: QueueCategory, rag: Rag) => void;
   open: (ref: string, category: QueueCategory, rag: Rag, href: string) => void;
+  view: (href: string) => void;
   drop: (ref: string) => void;
   waitFor: (ref: string) => { hours: number; flag: WaitFlag };
+}
+
+/**
+ * A board row.
+ *
+ * The whole row opens the case, not just the Open button: the button is a
+ * 50px target at the far end of a 1200px row, and everything to the left of
+ * it was dead space pointing at a case the reader had already decided to
+ * look at. Held and out-of-clearance rows pass no handler and stay inert.
+ */
+function Row({
+  cols,
+  tone,
+  label,
+  onOpen,
+  children,
+}: {
+  cols: string;
+  tone?: string;
+  label: string;
+  onOpen?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      aria-label={onOpen ? `Open ${label}` : undefined}
+      onClick={onOpen}
+      onKeyDown={
+        onOpen
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpen();
+              }
+            }
+          : undefined
+      }
+      className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 focus:outline-none ${
+        onOpen ? "cursor-pointer focus:bg-grey-100" : ""
+      } ${tone ?? ""}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Buttons live here: their clicks are theirs, not the row's. */
+function ActionsCell({ children, className = "px-4 py-4" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      {children}
+    </div>
+  );
 }
 
 /** The waiting chip for a row, read off the shared clock. */
@@ -389,13 +451,19 @@ function NewOrdersTab({ rows, ...s }: { rows: typeof NEW_ORDERS } & Shared) {
         const st = s.state(o.ref, "new", o.score.rag);
         const href = `/doctor/orders/${o.ref}`;
         return (
-          <div key={o.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <Row
+            key={o.ref}
+            cols={cols}
+            tone={rowTone(st)}
+            label={o.ref}
+            onOpen={s.isAvailable(st) ? () => s.open(o.ref, "new", o.score.rag, href) : undefined}
+          >
             <PatientCell ref_={o.ref} nhs={o.nhs} />
             <div className="px-4 py-4"><PharmacyLabel code={o.pharmacyCode} /></div>
             <MedCell med={o.med} dose={o.dose} />
             <div className="px-4 py-4 text-sm text-text-secondary">{o.eligibility}</div>
             <div className="flex flex-col items-start gap-1.5 px-4 py-4"><ScorePill score={o.score} /><WaitChipFor s={s} ref_={o.ref} /></div>
-            <div className="px-4 py-4">
+            <ActionsCell>
               <ClaimCell
                 state={st}
                 now={s.now}
@@ -403,8 +471,8 @@ function NewOrdersTab({ rows, ...s }: { rows: typeof NEW_ORDERS } & Shared) {
                 onOpen={() => s.open(o.ref, "new", o.score.rag, href)}
                 onRelease={() => s.drop(o.ref)}
               />
-            </div>
-          </div>
+            </ActionsCell>
+          </Row>
         );
       })}
     </TableCard>
@@ -494,22 +562,30 @@ function SimpleRepeatsTab({ rows, ...s }: { rows: typeof SIMPLE_REPEATS } & Shar
         {visible.length === 0 && <EmptyRow>Nothing here matches your clearance right now.</EmptyRow>}
         {visible.map((r) => {
           const st = s.state(r.ref, "simple", r.score.rag);
+          const href = `/doctor/repeats/${r.ref}`;
           return (
-            <div key={r.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+            <Row
+              key={r.ref}
+              cols={cols}
+              tone={rowTone(st)}
+              label={r.ref}
+              onOpen={s.isAvailable(st) ? () => s.open(r.ref, "simple", r.score.rag, href) : undefined}
+            >
               <PatientCell ref_={r.ref} nhs={r.nhs} />
               <div className="px-4 py-4"><PharmacyLabel code={r.pharmacyCode} /></div>
               <MedCell med={r.med} dose={r.dose} />
               <div className="truncate px-4 py-4 text-sm text-text-secondary">{r.lastReview}</div>
               <div className="flex flex-col items-start gap-1.5 px-4 py-4"><ScorePill score={r.score} /><WaitChipFor s={s} ref_={r.ref} /></div>
-              <div className="px-4 py-4">
+              <ActionsCell>
                 <ClaimCell
                   state={st}
                   now={s.now}
                   onClaim={() => s.takeOne(r.ref, "simple", r.score.rag)}
+                  onOpen={() => s.open(r.ref, "simple", r.score.rag, href)}
                   onRelease={() => s.drop(r.ref)}
                 />
-              </div>
-            </div>
+              </ActionsCell>
+            </Row>
           );
         })}
       </TableCard>
@@ -631,7 +707,13 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
         const st = s.state(c.ref, "complex", c.score.rag);
         const href = `/doctor/cases/${c.ref}`;
         return (
-          <div key={c.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <Row
+            key={c.ref}
+            cols={cols}
+            tone={rowTone(st)}
+            label={c.ref}
+            onOpen={s.isAvailable(st) ? () => s.open(c.ref, "complex", c.score.rag, href) : undefined}
+          >
             <PatientCell ref_={c.ref} nhs={c.nhs} />
             <div className="px-4 py-4"><PharmacyLabel code={c.pharmacyCode} /></div>
             <MedCell med={c.med} dose={c.dose} />
@@ -640,7 +722,7 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
               {c.flagReason}
             </div>
             <div className="flex flex-col items-start gap-1.5 px-4 py-4"><ScorePill score={c.score} /><WaitChipFor s={s} ref_={c.ref} /></div>
-            <div className="px-4 py-4">
+            <ActionsCell>
               <ClaimCell
                 state={st}
                 now={s.now}
@@ -648,8 +730,8 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
                 onOpen={() => s.open(c.ref, "complex", c.score.rag, href)}
                 onRelease={() => s.drop(c.ref)}
               />
-            </div>
-          </div>
+            </ActionsCell>
+          </Row>
         );
       })}
     </TableCard>
@@ -660,9 +742,8 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
 
 function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
   // Actions is wider here than on the other tabs: it carries where the
-  // escalation has got to as well as the claim control
+  // escalation has got to as well as the way in
   const cols = "grid-cols-[1.1fr_1.2fr_1.4fr_1.3fr_132px_200px] [&>*]:min-w-0";
-  const visible = rows.filter((e) => !s.onlyMine || s.isAvailable(s.state(e.ref, "escalated", ESCALATION_RAG)));
   return (
     <TableCard>
       <div className={`grid ${cols} border-b border-[var(--divider)] bg-grey-100`}>
@@ -673,11 +754,11 @@ function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
         <HeadCell>Status</HeadCell>
         <HeadCell>Actions</HeadCell>
       </div>
-      {visible.length === 0 && <EmptyRow>Nothing here matches your clearance right now.</EmptyRow>}
-      {visible.map((e, i) => {
-        const st = s.state(e.ref, "escalated", ESCALATION_RAG);
+      {rows.length === 0 && <EmptyRow>Nothing is with a senior right now.</EmptyRow>}
+      {rows.map((e, i) => {
+        const href = `/doctor/escalations/${e.ref}`;
         return (
-          <div key={`${e.ref}-${i}`} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <Row key={`${e.ref}-${i}`} cols={cols} tone="hover:bg-grey-100" label={e.ref} onOpen={() => s.view(href)}>
             <PatientCell ref_={e.ref} nhs={e.nhs} />
             <div className="px-4 py-4"><PharmacyLabel code={e.pharmacyCode} /></div>
             <MedCell med={e.med} dose={e.dose} />
@@ -699,14 +780,21 @@ function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
               >
                 {e.status}
               </span>
-              <ClaimCell
-                state={st}
-                now={s.now}
-                onClaim={() => s.takeOne(e.ref, "escalated", ESCALATION_RAG)}
-                onRelease={() => s.drop(e.ref)}
-              />
+              {/* no Claim: the case is already with the prescriber who raised
+                  it and the senior reviewing it, and a third clinician taking
+                  it would pull it out from under both. Opening it is reading
+                  it — the screen itself is read-only */}
+              <ActionsCell className="">
+                <button
+                  type="button"
+                  onClick={() => s.view(href)}
+                  className="rounded-lg bg-primary-lighter px-3 py-1.5 text-xs font-bold text-primary-darker hover:bg-primary-light"
+                >
+                  Open
+                </button>
+              </ActionsCell>
             </div>
-          </div>
+          </Row>
         );
       })}
     </TableCard>
@@ -747,7 +835,13 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
       {items.map((it) => {
         const st = s.state(it.ref, it.category, it.rag);
         return (
-          <div key={it.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0 ${rowTone(st)}`}>
+          <Row
+            key={it.ref}
+            cols={cols}
+            tone={rowTone(st)}
+            label={it.ref}
+            onOpen={it.href ? () => s.open(it.ref, it.category, it.rag, it.href!) : undefined}
+          >
             <PatientCell ref_={it.ref} nhs={it.nhs} />
             <div className="px-4 py-4">
               <span className="rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary">
@@ -757,7 +851,7 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
             <MedCell med={it.med} dose={it.dose} />
             <div className="truncate px-4 py-4 text-sm text-text-secondary" title={it.detail}>{it.detail}</div>
             <div className="px-4 py-4"><PharmacyLabel code={it.pharmacyCode} /></div>
-            <div className="px-4 py-4">
+            <ActionsCell>
               <ClaimCell
                 state={st}
                 now={s.now}
@@ -765,8 +859,8 @@ function MineTab({ refs, ...s }: { refs: string[] } & Shared) {
                 onOpen={it.href ? () => s.open(it.ref, it.category, it.rag, it.href!) : undefined}
                 onRelease={() => s.drop(it.ref)}
               />
-            </div>
-          </div>
+            </ActionsCell>
+          </Row>
         );
       })}
     </TableCard>
@@ -778,11 +872,11 @@ function resolveCase(ref: string) {
   const o = NEW_ORDERS.find((x) => x.ref === ref);
   if (o) return { ref, category: "new" as QueueCategory, rag: o.score.rag, nhs: o.nhs, med: o.med, dose: o.dose, pharmacyCode: o.pharmacyCode, detail: o.eligibility, href: `/doctor/orders/${ref}` };
   const r = SIMPLE_REPEATS.find((x) => x.ref === ref);
-  if (r) return { ref, category: "simple" as QueueCategory, rag: r.score.rag, nhs: r.nhs, med: r.med, dose: r.dose, pharmacyCode: r.pharmacyCode, detail: `Last review ${r.lastReview}`, href: undefined };
+  if (r) return { ref, category: "simple" as QueueCategory, rag: r.score.rag, nhs: r.nhs, med: r.med, dose: r.dose, pharmacyCode: r.pharmacyCode, detail: `Last review ${r.lastReview}`, href: `/doctor/repeats/${ref}` };
   const c = COMPLEX_CASES.find((x) => x.ref === ref);
   if (c) return { ref, category: "complex" as QueueCategory, rag: c.score.rag, nhs: c.nhs, med: c.med, dose: c.dose, pharmacyCode: c.pharmacyCode, detail: c.flagReason, href: `/doctor/cases/${ref}` };
   const e = ESCALATIONS.find((x) => x.ref === ref);
-  if (e) return { ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG, nhs: e.nhs, med: e.med, dose: e.dose, pharmacyCode: e.pharmacyCode, detail: e.reason, href: undefined };
+  if (e) return { ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG, nhs: e.nhs, med: e.med, dose: e.dose, pharmacyCode: e.pharmacyCode, detail: e.reason, href: `/doctor/escalations/${ref}` };
   return null;
 }
 
@@ -827,18 +921,29 @@ function TabStrip({
 
 /**
  * Cases waiting on the patient. Nothing here is claimable — the answer has to
- * arrive first — so the row shows what was asked and how long ago instead of a
- * claim control. Chasing is the only action, and that belongs with whoever
- * asked.
+ * arrive first — but it opens like any other row: reading the case is how you
+ * decide whether what you asked for is still what you need.
  */
 function AwaitingInfoTab({
   requests,
   now,
+  view,
 }: {
-  requests: (InfoRequest & { category: QueueCategory; med: string; dose: string; nhs: string; pharmacyCode: string })[];
+  requests: (InfoRequest & {
+    category: QueueCategory;
+    rag: Rag;
+    med: string;
+    dose: string;
+    nhs: string;
+    pharmacyCode: string;
+    href?: string;
+  })[];
   now: number;
+  view: (href: string) => void;
 }) {
-  const cols = "grid-cols-[1.1fr_1fr_1.4fr_2fr_160px] [&>*]:min-w-0";
+  // the same six-column shape as every other tab: chips in Status, the way in
+  // under Actions
+  const cols = "grid-cols-[1.1fr_1fr_1.4fr_1.6fr_148px_120px] [&>*]:min-w-0";
 
   if (requests.length === 0) {
     return (
@@ -858,33 +963,64 @@ function AwaitingInfoTab({
         <HeadCell>Type</HeadCell>
         <HeadCell>Medication / Dose</HeadCell>
         <HeadCell>What was asked</HeadCell>
-        <HeadCell>Pharmacy</HeadCell>
+        <HeadCell>Status</HeadCell>
+        <HeadCell>Actions</HeadCell>
       </div>
       {[...requests]
         .sort((a, b) => a.at - b.at)
         .map((r) => (
-          <div key={r.ref} className={`grid ${cols} items-start border-b border-[var(--divider)] last:border-0`}>
+          <Row
+            key={r.ref}
+            cols={cols}
+            tone="hover:bg-grey-100"
+            label={r.ref}
+            onOpen={r.href ? () => view(r.href!) : undefined}
+          >
             <PatientCell ref_={r.ref} nhs={r.nhs} />
             <div className="px-4 py-4">
               <span className="rounded-md bg-grey-200 px-2 py-0.5 text-xs font-semibold text-text-secondary">
                 {CATEGORY_LABEL[r.category]}
               </span>
             </div>
-            <div className="px-4 py-4">
-              <p className="truncate text-sm font-bold text-text-primary">{r.med}</p>
-              <p className="truncate text-xs text-text-secondary">{r.dose}</p>
-            </div>
+            <MedCell med={r.med} dose={r.dose} />
             <div className="px-4 py-4">
               <p className="truncate text-sm text-text-primary" title={r.subject}>{r.subject}</p>
               <p className="truncate text-xs text-text-secondary">
                 {r.by} · asked {askedAgo(r, now)}
               </p>
             </div>
-            <div className="px-4 py-4">
-              <PharmacyLabel code={r.pharmacyCode} />
+            {/* the waiting clock is parked while the patient has it, so the
+                second chip says who is holding things up rather than showing a
+                wait that isn't running */}
+            <div className="flex flex-col items-start gap-1.5 px-4 py-4">
+              <RagPill rag={r.rag} />
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-grey-200 px-2.5 py-1 text-xs font-bold text-text-secondary">
+                <PausedGlyph />
+                With patient
+              </span>
             </div>
-          </div>
+            <ActionsCell>
+              {r.href && (
+                <button
+                  type="button"
+                  onClick={() => view(r.href!)}
+                  className="rounded-lg bg-primary-lighter px-3 py-1.5 text-xs font-bold text-primary-darker hover:bg-primary-light"
+                >
+                  Open
+                </button>
+              )}
+            </ActionsCell>
+          </Row>
         ))}
     </TableCard>
+  );
+}
+
+function PausedGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5 shrink-0" aria-hidden>
+      <circle cx="12" cy="12" r="9.5" fill="currentColor" />
+      <path d="M10 9v6M14 9v6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
   );
 }

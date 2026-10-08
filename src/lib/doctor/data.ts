@@ -248,6 +248,9 @@ export const SIMPLE_REPEATS: SimpleRepeat[] = [
   { ref: "PT-3129", nhs: "570 267 6900", med: "Wegovy (semaglutide)", dose: "1.7 mg · same dose", lastReview: "28 May 2026", pharmacyCode: "NC", score: { rag: "green", confidence: 96 } },
 ];
 
+export const simpleRepeatByRef = (ref: string) =>
+  SIMPLE_REPEATS.find((r) => r.ref === ref);
+
 // ---- Complex repeats ------------------------------------------------------
 
 const WB_SOP_RULE = {
@@ -403,6 +406,9 @@ export const ESCALATIONS: Escalation[] = [
   { ref: "PT-2123", nhs: "678 901 4567", med: "Wegovy (semaglutide)", dose: "1.7 mg", reason: "No weight loss at 6 months", status: "Awaiting senior review", pharmacyCode: "CP" },
   { ref: "PT-2087", nhs: "943 476 5919", med: "Mounjaro (tirzepatide)", dose: "7.5 mg", reason: "7-week treatment gap", status: "In senior review", pharmacyCode: "WB" },
 ];
+
+export const escalationByRef = (ref: string) =>
+  ESCALATIONS.find((e) => e.ref === ref);
 
 // ---- Patients (unified record) --------------------------------------------
 

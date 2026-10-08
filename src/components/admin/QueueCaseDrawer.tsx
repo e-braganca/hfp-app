@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { MedicationTimeline } from "@/components/doctor/MedicationTimeline";
 import { PatientSummaryCard } from "@/components/doctor/PatientSummaryCard";
 import { ReviewPanel } from "@/components/doctor/ReviewPanel";
+import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { PresenceDot } from "@/components/admin/doctorBits";
 import { RagPill } from "@/components/ui/StatusPill";
 import { consultationFor } from "@/lib/doctor/consultation";
@@ -159,6 +160,14 @@ export function QueueCaseDrawer({
                 pharmacyCode={base.pharmacyCode}
                 comorbidities={answers.conditions}
                 pill={<RagPill rag={rag} />}
+              />
+
+              {/* no confirm-before-issuing line: the admin is routing, and
+                  the check belongs to whoever ends up prescribing */}
+              <PatientMediaCard
+                caseRef={caseRef}
+                weightPhoto={order?.verification.weightPhoto ?? "Uploaded at last review"}
+                idDocument={order?.verification.idDocument ?? "Verified at sign-up"}
               />
 
               {complex && (
