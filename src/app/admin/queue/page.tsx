@@ -137,7 +137,7 @@ export default function AdminQueuePage() {
     setToast(`${c.ref} returned to the shared board`);
   };
 
-  const cols = "grid-cols-[104px_118px_1fr_0.85fr_132px_296px] [&>*]:min-w-0";
+  const cols = "grid-cols-[104px_156px_1fr_0.78fr_132px_324px] [&>*]:min-w-0";
 
   return (
     <>
@@ -271,30 +271,34 @@ export default function AdminQueuePage() {
                           rag={c.rag}
                           onPick={(name) => assign(c, name)}
                         />
-                        {hold ? (
-                          <button
-                            type="button"
-                            onClick={() => unassign(c, hold.by)}
-                            aria-label={`Return ${c.ref} to the shared board`}
-                            title="Return to the shared board"
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--divider)] text-text-secondary hover:border-error hover:text-error"
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-                              <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                            </svg>
-                          </button>
-                        ) : (
-                          flag !== "none" && (
+                        {/* the slot is always there, even when empty, so the
+                            select ends at the same x on every row */}
+                        <span className="flex w-[64px] shrink-0 justify-end">
+                          {hold ? (
                             <button
                               type="button"
-                              onClick={() => takeIt(c)}
-                              title="Assign it to you and open it now"
-                              className="h-9 shrink-0 whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-bold text-white hover:bg-primary-dark"
+                              onClick={() => unassign(c, hold.by)}
+                              aria-label={`Return ${c.ref} to the shared board`}
+                              title="Return to the shared board"
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--divider)] text-text-secondary hover:border-error hover:text-error"
                             >
-                              Take it
+                              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                                <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                              </svg>
                             </button>
-                          )
-                        )}
+                          ) : (
+                            flag !== "none" && (
+                              <button
+                                type="button"
+                                onClick={() => takeIt(c)}
+                                title="Assign it to you and open it now"
+                                className="h-9 whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-bold text-white hover:bg-primary-dark"
+                              >
+                                Take it
+                              </button>
+                            )
+                          )}
+                        </span>
                       </div>
 
                       {/* the wait sits with the score, so this line carries only
@@ -395,6 +399,9 @@ function AssignSelect({
       searchable
       searchPlaceholder="Search clinicians…"
       align="right"
+      // fills the cell, so the ✕ and Take it land in the same place on every
+      // row instead of wherever the clinician's name happens to end
+      className="min-w-0 flex-1"
       buttonClassName="h-9 text-xs"
       onChange={onPick}
     />
