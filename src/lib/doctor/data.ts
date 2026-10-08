@@ -6,6 +6,7 @@
 // ============================================================================
 
 import type {
+  AiRecommendation,
   ComplexCase,
   ComplianceRow,
   Escalation,
@@ -235,7 +236,7 @@ export const newOrderByRef = (ref: string) =>
 
 // ---- Simple repeats (batch-approvable, all green) --------------------------
 
-export const SIMPLE_REPEATS: SimpleRepeat[] = [
+const SIMPLE_SEED: Omit<SimpleRepeat, "ai">[] = [
   { ref: "PT-3120", nhs: "500 200 6000", med: "Wegovy (semaglutide)", dose: "1.0 mg · same dose", lastReview: "12 May 2026", pharmacyCode: "WB", score: { rag: "green", confidence: 95 } },
   { ref: "PT-3121", nhs: "503 207 6131", med: "Mounjaro (tirzepatide)", dose: "7.5 mg · same dose", lastReview: "14 May 2026", pharmacyCode: "MX", score: { rag: "green", confidence: 97 } },
   { ref: "PT-3122", nhs: "510 215 6200", med: "Wegovy (semaglutide)", dose: "0.5 mg · same dose", lastReview: "16 May 2026", pharmacyCode: "PD", score: { rag: "green", confidence: 94 } },
@@ -247,6 +248,33 @@ export const SIMPLE_REPEATS: SimpleRepeat[] = [
   { ref: "PT-3128", nhs: "560 260 6800", med: "Mounjaro (tirzepatide)", dose: "2.5 mg · same dose", lastReview: "27 May 2026", pharmacyCode: "PD", score: { rag: "green", confidence: 92 } },
   { ref: "PT-3129", nhs: "570 267 6900", med: "Wegovy (semaglutide)", dose: "1.7 mg · same dose", lastReview: "28 May 2026", pharmacyCode: "NC", score: { rag: "green", confidence: 96 } },
 ];
+
+/**
+ * The reading on a continuation.
+ *
+ * Formulaic by nature — same drug, same dose, nothing new on file — so it is
+ * built from the row rather than written ten times. It carries no SOP quote:
+ * there is no rule being weighed, only a check that nothing has changed.
+ */
+function continuationAi(r: Omit<SimpleRepeat, "ai">): AiRecommendation {
+  const brand = r.med.split(" (")[0];
+  const strength = r.dose.split(" · ")[0];
+  return {
+    basis: `Auto-scored Green against ${pharmacyName(r.pharmacyCode)} SOP`,
+    score: r.score,
+    title: "Continue at the same dose.",
+    body: `${brand} ${strength}, unchanged since ${r.lastReview}, with nothing new on record. No titration step is due and no flag has been raised — check what is being continued and issue it.`,
+    checks: [
+      `${brand} ${strength} — same dose as the last cycle`,
+      `Last reviewed ${r.lastReview} — within the review interval`,
+      "No new contraindications or side effects reported",
+    ],
+    recommendedRx: `${brand} ${strength} · 4-week continuation supply`,
+  };
+}
+
+export const SIMPLE_REPEATS: SimpleRepeat[] = SIMPLE_SEED.map((r) => ({ ...r, ai: continuationAi(r) }));
+
 
 export const simpleRepeatByRef = (ref: string) =>
   SIMPLE_REPEATS.find((r) => r.ref === ref);

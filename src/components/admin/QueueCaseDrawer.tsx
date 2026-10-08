@@ -163,7 +163,7 @@ function CaseBody({
   const complex = complexCaseByRef(caseRef) ?? COMPLEX_CASES.find((c) => c.ref === caseRef);
   const base = order ?? complex ?? simple ?? escalated;
 
-  const ai = order?.ai ?? complex?.ai ?? null;
+  const ai = order?.ai ?? complex?.ai ?? simple?.ai ?? null;
   const recommended = useMemo(() => (ai ? parseRecommended(ai.recommendedRx) : null), [ai]);
   const [rx, setRx] = useState<Prescription>(() =>
     recommended ?? fallbackFrom(base?.med ?? "Wegovy (semaglutide)", base?.dose ?? "0.25 mg"),
@@ -421,7 +421,6 @@ function CaseBody({
             sop={complex?.sopCitation}
             caseRef={caseRef}
             answers={answers}
-            noReadingBody="Simple repeats are auto-scored Green against the pharmacy SOP and signed in batch — there's no separate recommendation to read."
             // the picker is on screen either way, so what would be issued is
             // visible before anyone takes the case; it only unlocks on taking
             prescription={

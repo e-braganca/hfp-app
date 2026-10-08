@@ -89,10 +89,17 @@ export function ReviewPanel({
           (ai ? (
             <AiTab ai={ai} sop={sop} prescription={prescription} />
           ) : (
-            <div className="rounded-lg border border-dashed border-[var(--divider)] px-5 py-10 text-center">
-              <p className="text-sm font-semibold text-text-primary">{noReadingTitle ?? "No AI reading on this case"}</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-text-secondary">{noReadingBody}</p>
-            </div>
+            <>
+              <div className="rounded-lg border border-dashed border-[var(--divider)] px-5 py-10 text-center">
+                <p className="text-sm font-semibold text-text-primary">
+                  {noReadingTitle ?? "No AI reading on this case"}
+                </p>
+                <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-text-secondary">{noReadingBody}</p>
+              </div>
+              {/* no reading is not no prescription: a screen that can issue
+                  must still show what it would issue */}
+              {prescription && <div className="mt-6">{prescription}</div>}
+            </>
           ))}
         {tab === "info" && <InfoRequestBody caseRef={caseRef} />}
         {tab === "answers" && (

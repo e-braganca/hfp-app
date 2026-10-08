@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { SimpleRepeat } from "@/lib/doctor/types";
 import { AuditNote } from "./AiRecommendationCard";
 import { ReviewPanel } from "./ReviewPanel";
 import {
   PrescriptionPicker,
+  amendmentReady,
   fallbackFrom,
+  parseRecommended,
   prescriptionLabel,
+  sameAsRecommended,
   type Prescription,
 } from "./PrescriptionPicker";
 import { Modal } from "@/components/ui/Modal";
@@ -25,14 +28,15 @@ import { Toast } from "@/components/ui/Toast";
 /* ============================================================================
    One simple repeat, on its own.
 
-   These are normally signed in batch from the queue — green, same dose, no
-   reading to argue with. This is the same case when the prescriber wants to
-   look before signing, which until now they could only do by trusting the
-   batch dialog's one-line summary.
+   These are normally signed in batch from the queue — green, same dose. This
+   is the same case when the prescriber wants to look before signing, which
+   until now they could only do by trusting the batch dialog's one-line
+   summary.
 
-   There is no AI recommendation to approve or depart from, so the picker opens
-   on the continuation the patient asked for and any change is just a change —
-   no justification gate, because there is no recommendation to justify against.
+   The reading is shorter than a new start's: there is no rule being weighed,
+   so there is no SOP quote, only a check that nothing has changed. But it is a
+   reading, and it names what is being continued — a prescriber cannot sign a
+   continuation they have not been shown.
    ============================================================================ */
 
 type Decision = null | "approved" | "escalated";
@@ -41,13 +45,20 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
   const [decision, setDecision] = useState<Decision>(null);
   const [escalating, setEscalating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [rx, setRx] = useState<Prescription>(() => fallbackFrom(repeat.med, repeat.dose));
+  const recommended = useMemo(() => parseRecommended(repeat.ai.recommendedRx), [repeat.ai.recommendedRx]);
+  const [rx, setRx] = useState<Prescription>(() => recommended ?? fallbackFrom(repeat.med, repeat.dose));
+  const amended = !sameAsRecommended(rx, recommended);
+  const needsReason = !amendmentReady(rx, recommended);
   const hold = useCaseHold(repeat.ref);
   const upNext = useNextCase(repeat.ref);
 
   const approve = () => {
     setDecision("approved");
-    setToast(`${prescriptionLabel(rx)} issued & audit-logged`);
+    setToast(
+      amended
+        ? `${prescriptionLabel(rx)} issued — amendment and reason audit-logged`
+        : `${prescriptionLabel(rx)} issued & audit-logged`,
+    );
   };
   const escalate = () => {
     setEscalating(false);
@@ -105,14 +116,13 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
         }
         right={
           <ReviewPanel
-            ai={null}
-            noReadingBody="Simple repeats are auto-scored Green against the pharmacy SOP — same medication, same dose, nothing flagged. There is no separate recommendation to read, so what you issue below is yours."
+            ai={repeat.ai}
             caseRef={repeat.ref}
             answers={answers}
             prescription={
               <PrescriptionPicker
-                recommended={null}
-                recommendedText="no reading on a green simple repeat"
+                recommended={recommended}
+                recommendedText={repeat.ai.recommendedRx}
                 value={rx}
                 onChange={setRx}
                 disabled={!hold.claimed}
@@ -139,10 +149,10 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
                     <button
                       type="button"
                       onClick={approve}
-                      disabled={!hold.claimed}
+                      disabled={!hold.claimed || needsReason}
                       className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
                     >
-                      Approve &amp; issue
+                      {amended ? "Issue amended" : "Approve & issue"}
                     </button>
                     <button
                       type="button"
@@ -153,7 +163,11 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
                       Escalate
                     </button>
                   </div>
-                  {hold.claimed ? (
+                  {hold.claimed && needsReason ? (
+                    <p className="mt-3 text-xs font-semibold text-warning-dark">
+                      Say why you&rsquo;re departing from the recommendation before issuing.
+                    </p>
+                  ) : hold.claimed ? (
                     <AuditNote />
                   ) : (
                     <p className="mt-3 text-xs font-semibold text-warning-dark">

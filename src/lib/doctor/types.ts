@@ -115,6 +115,12 @@ export interface SimpleRepeat {
   lastReview: string; // "12 May 2026"
   pharmacyCode: PharmacyCode;
   score: AutoScore; // always green
+  /**
+   * Shorter than a new start's or a flagged repeat's — there is no judgement
+   * call to set out — but a reading all the same. A prescriber signing a
+   * continuation still has to see what is being continued before they sign it.
+   */
+  ai: AiRecommendation;
 }
 
 export interface TimelineEvent {
