@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { pharmacyName } from "@/lib/doctor/data";
 import type { ComplexCase } from "@/lib/doctor/types";
 import { AuditNote } from "./AiRecommendationCard";
 import { ReviewPanel } from "./ReviewPanel";
+import {
+  PrescriptionPicker,
+  amendmentReady,
+  fallbackFrom,
+  parseRecommended,
+  prescriptionLabel,
+  sameAsRecommended,
+  type Prescription,
+} from "./PrescriptionPicker";
 import { Modal } from "@/components/ui/Modal";
 import { consultationFor } from "@/lib/doctor/consultation";
 import { OutcomePanel } from "./OrderReview";
@@ -16,30 +25,32 @@ import { ReviewShell } from "./ReviewShell";
 import { useCaseHold, useNextCase } from "./queueHooks";
 import { Toast } from "@/components/ui/Toast";
 
-type Decision = null | "approved" | "overriding" | "overridden" | "escalated";
-
-const OVERRIDE_REASONS = [
-  "Patient tolerating dose well",
-  "Recent specialist advice on file",
-  "Clinical judgement — continuity of care",
-  "Gap explained by supply issue",
-];
+type Decision = null | "approved" | "escalated";
 
 export function CaseReview({ case_ }: { case_: ComplexCase }) {
   const [decision, setDecision] = useState<Decision>(null);
   const [escalating, setEscalating] = useState(false);
-  const [reason, setReason] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  /**
+   * Same mechanism as the new-order review: the recommendation is the opening
+   * selection, not a separate mode. Departing from it is editing what is on
+   * screen and saying why, rather than passing through an override dialog that
+   * never showed what was being overridden.
+   */
+  const recommended = useMemo(() => parseRecommended(case_.ai.recommendedRx), [case_.ai.recommendedRx]);
+  const [rx, setRx] = useState<Prescription>(() => recommended ?? fallbackFrom(case_.med, case_.dose));
+  const amended = !sameAsRecommended(rx, recommended);
+  const needsReason = !amendmentReady(rx, recommended);
   const hold = useCaseHold(case_.ref);
   const upNext = useNextCase(case_.ref);
 
   const approve = () => {
     setDecision("approved");
-    setToast("Recommendation approved & audit-logged");
-  };
-  const confirmOverride = () => {
-    setDecision("overridden");
-    setToast("Override recorded & audit-logged");
+    setToast(
+      amended
+        ? `${prescriptionLabel(rx)} issued — amendment and reason audit-logged`
+        : "Prescription issued & audit-logged",
+    );
   };
   const escalate = () => {
     setEscalating(false);
@@ -107,49 +118,56 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
               ethnicity: case_.ethnicity,
               conditions: case_.comorbidities,
             })}
+            prescription={
+              <PrescriptionPicker
+                recommended={recommended}
+                recommendedText={case_.ai.recommendedRx}
+                value={rx}
+                onChange={setRx}
+                disabled={!hold.claimed}
+              />
+            }
             actions={
                 decision === "approved" ? (
-                  <OutcomePanel tone="success" title="Recommendation approved" body={`${case_.ai.recommendedRx} confirmed. Decision and SOP ${case_.sopCitation.version} recorded to the audit trail.`} onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined} />
-                ) : decision === "overridden" ? (
-                  <OutcomePanel tone="warning" title="Recommendation overridden" body="Your clinical override and justification were recorded and audit-logged against the active SOP version." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined} />
+                  <OutcomePanel
+                    tone={amended ? "warning" : "success"}
+                    title={amended ? "Amended prescription issued" : "Prescription issued"}
+                    body={
+                      amended
+                        ? `${prescriptionLabel(rx)} issued — amended from ${case_.ai.recommendedRx}. The amendment, your reason and SOP ${case_.sopCitation.version} are on the audit trail.`
+                        : `${case_.ai.recommendedRx} confirmed. Decision and SOP ${case_.sopCitation.version} recorded to the audit trail.`
+                    }
+                    onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined}
+                  />
                 ) : decision === "escalated" ? (
                   <OutcomePanel tone="slate" title="Escalated to senior review" body="Removed from your queue and routed to senior clinical review." onNext={upNext.hasNext ? () => hold.leaveTo(upNext.resolveHref()) : undefined} />
-                ) : decision === "overriding" ? (
-                  <OverridePanel
-                    reason={reason}
-                    setReason={setReason}
-                    onConfirm={confirmOverride}
-                    onCancel={() => setDecision(null)}
-                  />
                 ) : (
                   <>
                     <div className="flex flex-wrap gap-3">
                       <button
                         type="button"
                         onClick={approve}
-                        disabled={!hold.claimed}
+                        disabled={!hold.claimed || needsReason}
                         className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
                       >
-                        Approve recommendation
+                        {amended ? "Issue amended" : "Approve & issue"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setDecision("overriding")}
-                        disabled={!hold.claimed}
-                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-[var(--divider)] px-4 py-3 text-sm font-bold text-text-primary hover:bg-background-neutral disabled:opacity-40"
-                      >
-                        Review / Override
-                      </button>
+                      {/* never "decline": a prescriber's only way out of a case
+                          they won't issue is a senior, who can decline */}
                       <button
                         type="button"
                         onClick={() => setEscalating(true)}
                         disabled={!hold.claimed}
-                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-error px-4 py-3 text-sm font-bold text-error hover:bg-error-lighter disabled:opacity-40"
+                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter disabled:opacity-40"
                       >
-                        Escalate / decline
+                        Escalate
                       </button>
                     </div>
-                    {hold.claimed ? (
+                    {hold.claimed && needsReason ? (
+                      <p className="mt-3 text-xs font-semibold text-warning-dark">
+                        Say why you&rsquo;re departing from the recommendation before issuing.
+                      </p>
+                    ) : hold.claimed ? (
                       <AuditNote />
                     ) : (
                       <p className="mt-3 text-xs font-semibold text-warning-dark">
@@ -165,7 +183,7 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
 
       <Modal
         open={escalating}
-        title="Escalate / decline"
+        title="Escalate to senior review"
         subtitle={`${case_.ref} · ${pharmacyName(case_.pharmacyCode)}`}
         onClose={() => setEscalating(false)}
       >
@@ -188,7 +206,7 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
           <button
             type="button"
             onClick={escalate}
-            className="rounded-lg bg-error px-4 py-2.5 text-sm font-bold text-white hover:bg-error-dark"
+            className="rounded-lg bg-warning-dark px-4 py-2.5 text-sm font-bold text-white hover:opacity-90"
           >
             Confirm escalation
           </button>
@@ -197,64 +215,5 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
 
       <Toast message={toast} onDone={() => setToast(null)} />
     </>
-  );
-}
-
-function OverridePanel({
-  reason,
-  setReason,
-  onConfirm,
-  onCancel,
-}: {
-  reason: string | null;
-  setReason: (r: string) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="rounded-lg border border-[var(--divider)] bg-background-neutral p-5">
-      <p className="text-sm font-bold text-text-primary">Override the AI recommendation</p>
-      <p className="mt-1 text-xs text-text-secondary">
-        Select a justification. Overrides require a reason and are audit-logged against the active SOP.
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {OVERRIDE_REASONS.map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setReason(r)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              reason === r
-                ? "border-primary bg-primary text-white"
-                : "border-[var(--divider)] bg-background-paper text-text-primary hover:bg-background-neutral"
-            }`}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
-      <textarea
-        rows={2}
-        placeholder="Add clinical justification…"
-        className="mt-3 w-full rounded-lg border border-[var(--divider)] p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-main-24"
-      />
-      <div className="mt-4 flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-paper"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          disabled={!reason}
-          onClick={onConfirm}
-          className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
-        >
-          Confirm override
-        </button>
-      </div>
-    </div>
   );
 }
