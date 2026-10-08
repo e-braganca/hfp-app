@@ -280,7 +280,7 @@ export default function AdminQueuePage() {
                               onClick={() => unassign(c, hold.by)}
                               aria-label={`Return ${c.ref} to the shared board`}
                               title="Return to the shared board"
-                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--divider)] text-text-secondary hover:border-error hover:text-error"
+                              className="flex h-9 w-full items-center justify-center rounded-lg border border-[var(--divider)] text-text-secondary hover:border-error hover:text-error"
                             >
                               <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                                 <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -292,7 +292,7 @@ export default function AdminQueuePage() {
                                 type="button"
                                 onClick={() => takeIt(c)}
                                 title="Assign it to you and open it now"
-                                className="h-9 whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-bold text-white hover:bg-primary-dark"
+                                className="h-9 w-full whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-bold text-white hover:bg-primary-dark"
                               >
                                 Take it
                               </button>
