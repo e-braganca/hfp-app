@@ -43,13 +43,27 @@ import type { Rag } from "@/lib/doctor/types";
    ============================================================================ */
 
 /** Category tabs plus the two that cut across them. */
-type Tab = QueueCategory | "all" | "late";
+type Tab = QueueCategory | "info" | "late";
 
-const TABS: Tab[] = ["all", "new", "simple", "complex", "escalated", "late"];
+/**
+ * Split like the prescriber's board: the queues of work on the left, what is
+ * already spoken for or needs chasing on the right.
+ *
+ * A case appears in exactly one of these — a case parked on the patient leaves
+ * its category for Awaiting info, and an escalated case leaves Complex Repeats
+ * for Escalated, because listing it twice is two people each assuming the
+ * other tab is somebody else's problem.
+ *
+ * Running Late is the one exception, and deliberately so: it is not a fifth
+ * category, it is a cut across the other five. Every case in it is also in its
+ * own tab.
+ */
+const LEFT_TABS: Tab[] = ["new", "simple", "complex"];
+const RIGHT_TABS: Tab[] = ["escalated", "info", "late"];
 
 const TAB_LABEL: Record<Tab, string> = {
-  all: "Everything",
   ...CATEGORY_LABEL,
+  info: "Awaiting info",
   late: "Running Late",
 };
 
@@ -65,7 +79,7 @@ function canBeAssigned(d: AdminDoctor, rag: Rag): { ok: boolean; why?: string } 
 
 export default function AdminQueuePage() {
   const claims = useClaims();
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<Tab>("new");
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
   const [longestFirst, setLongestFirst] = useState(false);
   const [openCase, setOpenCase] = useState<LiveCase | null>(null);
@@ -78,8 +92,15 @@ export default function AdminQueuePage() {
   const flagged = cases.filter((c) => clock.flagFor(c.ref) !== "none");
   const lateCount = flagged.length;
 
-  const inTab = (c: LiveCase, t: Tab) =>
-    t === "all" ? true : t === "late" ? clock.flagFor(c.ref) !== "none" : c.category === t;
+  // parked on the patient: the clock is stopped and nobody can work it, so it
+  // leaves its category the way it does on the prescriber's board
+  const parked = (ref: string) => !!clock.pausedReason(ref);
+
+  const inTab = (c: LiveCase, t: Tab) => {
+    if (t === "late") return clock.flagFor(c.ref) !== "none";
+    if (t === "info") return parked(c.ref);
+    return c.category === t && !parked(c.ref);
+  };
 
   const rows = cases
     .filter((c) => {
@@ -93,7 +114,7 @@ export default function AdminQueuePage() {
     );
 
   const counts = Object.fromEntries(
-    TABS.map((t) => [t, cases.filter((c) => inTab(c, t)).length]),
+    [...LEFT_TABS, ...RIGHT_TABS].map((t) => [t, cases.filter((c) => inTab(c, t)).length]),
   ) as Record<Tab, number>;
 
   const redCount = flagged.filter((c) => clock.flagFor(c.ref) === "red").length;
@@ -130,6 +151,7 @@ export default function AdminQueuePage() {
     }
     claim(c.ref, ADMIN_SELF.name, ADMIN_SELF.initials);
     setOpenCase(c);
+    setToast(`${c.ref} is yours — you're the responsible clinician`);
   };
 
   const unassign = (c: LiveCase, by: string) => {
@@ -160,36 +182,11 @@ export default function AdminQueuePage() {
           <StatTile value={workingNow} label="Clinicians holding work" tone="muted" />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap gap-1 border-b border-[var(--divider)]">
-            {TABS.map((t) => {
-              const on = tab === t;
-              const alarming = t === "late" && redCount > 0;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTab(t)}
-                  className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
-                    on
-                      ? alarming
-                        ? "border-error text-text-primary"
-                        : "border-primary text-text-primary"
-                      : "border-transparent text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  {TAB_LABEL[t]}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                      on ? "bg-primary-main-16 text-primary-dark" : "bg-grey-200 text-text-secondary"
-                    }`}
-                  >
-                    {counts[t]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <TabStrip tabs={LEFT_TABS} active={tab} counts={counts} redCount={redCount} onPick={setTab} />
+          <div className="flex flex-wrap items-end gap-4">
+            <TabStrip tabs={RIGHT_TABS} active={tab} counts={counts} redCount={redCount} onPick={setTab} />
+            <div className="pb-1">
           <QueueFilters
             onlyUnassigned={onlyUnassigned}
             onOnlyUnassigned={setOnlyUnassigned}
@@ -197,6 +194,8 @@ export default function AdminQueuePage() {
             onLongestFirst={setLongestFirst}
             sortLocked={tab === "late"}
           />
+            </div>
+          </div>
         </div>
 
         <section className="rounded-lg bg-background-paper shadow-card">
@@ -340,6 +339,7 @@ export default function AdminQueuePage() {
             ? ADMIN_DOCTORS.find((d) => d.name === holdFor(claims, openCase.ref)?.by)
             : undefined
         }
+        mine={openCase ? holdFor(claims, openCase.ref)?.by === ADMIN_SELF.name : false}
         now={now}
         assignControl={
           openCase && (
@@ -350,10 +350,12 @@ export default function AdminQueuePage() {
             />
           )
         }
+        onTakeIt={() => openCase && takeIt(openCase)}
         onUnassign={() => {
           const h = openCase ? holdFor(claims, openCase.ref) : null;
           if (openCase && h) unassign(openCase, h.by);
         }}
+        onToast={setToast}
         onClose={() => setOpenCase(null)}
       />
 
@@ -413,5 +415,53 @@ function AssignSelect({
       buttonClassName="h-9 text-xs"
       onChange={onPick}
     />
+  );
+}
+
+/** One underlined group of tabs. Two of these sit on the queue toolbar. */
+function TabStrip({
+  tabs,
+  active,
+  counts,
+  redCount,
+  onPick,
+}: {
+  tabs: Tab[];
+  active: Tab;
+  counts: Record<Tab, number>;
+  /** Running Late turns red when something is past the red threshold */
+  redCount: number;
+  onPick: (t: Tab) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1 border-b border-[var(--divider)]">
+      {tabs.map((t) => {
+        const on = active === t;
+        const alarming = t === "late" && redCount > 0;
+        return (
+          <button
+            key={t}
+            type="button"
+            onClick={() => onPick(t)}
+            className={`-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
+              on
+                ? alarming
+                  ? "border-error text-text-primary"
+                  : "border-primary text-text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            {TAB_LABEL[t]}
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                on ? "bg-primary-main-16 text-primary-dark" : "bg-grey-200 text-text-secondary"
+              }`}
+            >
+              {counts[t]}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

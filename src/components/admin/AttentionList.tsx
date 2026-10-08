@@ -69,10 +69,7 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
    */
   const late = cases
     .filter((c) => clock.flagFor(c.ref) !== "none" && !holdFor(claims, c.ref))
-    .sort((a, b) => clock.hoursFor(b.ref) - clock.hoursFor(a.ref))
-    // an escalated case is also its complex-repeat self, so liveCases() lists
-    // it twice — one patient waiting is one thing to chase, not two
-    .filter((c, i, all) => all.findIndex((x) => x.ref === c.ref) === i);
+    .sort((a, b) => clock.hoursFor(b.ref) - clock.hoursFor(a.ref));
 
   const lateByRef = new Map(late.map((c) => [c.ref, c]));
 
