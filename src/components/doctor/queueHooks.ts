@@ -222,8 +222,15 @@ export function useNextCase(currentRef: string) {
 export function useFlashToast(): [string | null, (message: string | null) => void] {
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
+    // The flash is a one-shot queue left by the screen that navigated here, so
+    // there is nothing to subscribe to: by the time this mounts the message is
+    // already sitting there and the only moment to read it is now. A lazy
+    // useState initializer would be the alternative, but it runs twice under
+    // StrictMode and the second read would come back empty.
     const flashed = takeFlash();
-    if (flashed) setToast(flashed);
+    if (!flashed) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setToast(flashed);
   }, []);
   return [toast, setToast];
 }
