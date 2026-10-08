@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PharmacyFilter } from "@/components/doctor/PharmacyFilter";
 import { PharmacyLabel } from "@/components/ui/PharmacyLabel";
-import { ScorePill } from "@/components/ui/StatusPill";
+import { RagPill, ScorePill } from "@/components/ui/StatusPill";
 import { useWaitClock } from "@/components/shared/boardClockHooks";
 import { WaitChip } from "@/components/shared/WaitFlag";
 import type { WaitFlag } from "@/lib/admin/queue-sla";
@@ -659,7 +659,9 @@ function ComplexRepeatsTab({ rows, ...s }: { rows: typeof COMPLEX_CASES } & Shar
 // ---- Escalated ------------------------------------------------------------
 
 function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
-  const cols = "grid-cols-[1.1fr_1.3fr_1.5fr_1.4fr_132px_170px] [&>*]:min-w-0";
+  // Actions is wider here than on the other tabs: it carries where the
+  // escalation has got to as well as the claim control
+  const cols = "grid-cols-[1.1fr_1.2fr_1.4fr_1.3fr_132px_200px] [&>*]:min-w-0";
   const visible = rows.filter((e) => !s.onlyMine || s.isAvailable(s.state(e.ref, "escalated", ESCALATION_RAG)));
   return (
     <TableCard>
@@ -680,8 +682,23 @@ function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
             <div className="px-4 py-4"><PharmacyLabel code={e.pharmacyCode} /></div>
             <MedCell med={e.med} dose={e.dose} />
             <div className="px-4 py-4 text-sm text-text-secondary">{e.reason}</div>
-            <div className="px-4 py-4"><span className="text-sm font-bold text-warning-dark">{e.status}</span></div>
-            <div className="px-4 py-4">
+            {/* the same two chips every other tab shows — an escalated case is
+                still a patient waiting, and the wait is the thing a prescriber
+                scans this column for */}
+            <div className="flex flex-col items-start gap-1.5 px-4 py-4">
+              <RagPill rag={ESCALATION_RAG} />
+              <WaitChipFor s={s} ref_={e.ref} />
+            </div>
+            <div className="flex flex-col items-start gap-2 px-4 py-4">
+              {/* awaiting means nobody has picked it up yet, so that is the
+                  one worth colouring */}
+              <span
+                className={`text-xs font-bold ${
+                  e.status === "Awaiting senior review" ? "text-warning-dark" : "text-text-secondary"
+                }`}
+              >
+                {e.status}
+              </span>
               <ClaimCell
                 state={st}
                 now={s.now}
