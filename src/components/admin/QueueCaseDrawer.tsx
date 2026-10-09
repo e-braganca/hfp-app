@@ -16,7 +16,6 @@ import {
 import { DecisionButtons, OrderRequestCard } from "@/components/doctor/caseParts";
 import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
-import { PresenceDot } from "@/components/admin/doctorBits";
 import { FileDrop, type Attachment } from "@/components/ui/FileDrop";
 import { Modal } from "@/components/ui/Modal";
 import { RagPill, ScorePill } from "@/components/ui/StatusPill";
@@ -31,10 +30,11 @@ import {
   pharmacyName,
 } from "@/lib/doctor/data";
 import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
-import { heldFor, type Hold } from "@/lib/doctor/queue-claims";
+import { WaitChip } from "@/components/shared/WaitFlag";
+import type { WaitFlag } from "@/lib/admin/queue-sla";
+import type { Hold } from "@/lib/doctor/queue-claims";
 import { ADMIN_SELF } from "@/lib/admin/data";
 import type { Rag } from "@/lib/doctor/types";
-import type { AdminDoctor } from "@/lib/admin/types";
 
 /* ============================================================================
    A live case, read from the admin side.
@@ -59,9 +59,9 @@ export function QueueCaseDrawer({
   category,
   rag,
   hold,
-  holder,
   mine,
-  now,
+  waitHours,
+  waitFlag,
   assignControl,
   onTakeIt,
   onUnassign,
@@ -72,10 +72,11 @@ export function QueueCaseDrawer({
   category: QueueCategory;
   rag: Rag;
   hold: Hold | null;
-  holder: AdminDoctor | undefined;
   /** the admin is the responsible clinician on this case */
   mine: boolean;
-  now: number;
+  /** how long the patient has waited, read off the shared clock */
+  waitHours: number;
+  waitFlag: WaitFlag;
   /** the platform select, passed in so the page keeps ownership of assignment */
   assignControl: ReactNode;
   onTakeIt: () => void;
@@ -111,9 +112,9 @@ export function QueueCaseDrawer({
           category={category}
           rag={rag}
           hold={hold}
-          holder={holder}
           mine={mine}
-          now={now}
+          waitHours={waitHours}
+          waitFlag={waitFlag}
           assignControl={assignControl}
           onTakeIt={onTakeIt}
           onUnassign={onUnassign}
@@ -132,9 +133,9 @@ function CaseBody({
   category,
   rag,
   hold,
-  holder,
   mine,
-  now,
+  waitHours,
+  waitFlag,
   assignControl,
   onTakeIt,
   onUnassign,
@@ -145,9 +146,9 @@ function CaseBody({
   category: QueueCategory;
   rag: Rag;
   hold: Hold | null;
-  holder: AdminDoctor | undefined;
   mine: boolean;
-  now: number;
+  waitHours: number;
+  waitFlag: WaitFlag;
   assignControl: ReactNode;
   onTakeIt: () => void;
   onUnassign?: () => void;
@@ -195,9 +196,6 @@ function CaseBody({
   const amended = !sameAsRecommended(rx, recommended);
   const needsReason = !!ai && !amendmentReady(rx, recommended);
   const patientName = order?.patientName ?? complex?.patientName ?? simple?.patientName ?? caseRef;
-
-  const headline =
-    order?.eligibility ?? escalated?.reason ?? complex?.flagReason ?? (simple ? `Last review ${simple.lastReview}` : "");
 
   const approve = () => {
     setDecision("issued");
@@ -368,29 +366,8 @@ function CaseBody({
           fills the rest and scrolls inside itself — switching to Patient
           answers should not move the case record out from under you. */}
       <div className="min-h-0 flex-1 overflow-y-auto p-6 lg:flex lg:flex-col lg:overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-background-paper p-5 shadow-card lg:shrink-0">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-text-primary">{headline}</p>
-            <p className="mt-0.5 text-sm text-text-secondary">
-              {mine ? (
-                "Yours — you're the responsible clinician on this case"
-              ) : hold && holder ? (
-                <span className="inline-flex items-center gap-1.5">
-                  Held by
-                  <PresenceDot online={holder.online} className="h-2 w-2 ring-0" />
-                  <span className="font-semibold text-text-primary">{holder.name}</span>
-                  {hold.kind === "reserved" ? " · reviewing now" : ` · ${heldFor(hold, now)}`}
-                </span>
-              ) : (
-                "On the shared board — no one has claimed it"
-              )}
-            </p>
-          </div>
-          <RagPill rag={rag} />
-        </div>
-
         {/* the prescriber's two-column reading */}
-        <div className="mt-6 grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(280px,340px)_1fr]">
+        <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(280px,340px)_1fr]">
           {/* negative margin + padding so the cards' shadows aren't clipped by
               the overflow box */}
           <div className="space-y-6 lg:-mx-1 lg:h-full lg:overflow-y-auto lg:px-1 lg:pb-1">
@@ -403,7 +380,12 @@ function CaseBody({
               ethnicity={answers.ethnicity}
               pharmacyCode={base.pharmacyCode}
               comorbidities={answers.conditions}
-              pill={score ? <ScorePill score={score} /> : <RagPill rag={rag} label="Escalated" />}
+              pill={
+                <>
+                  {score ? <ScorePill score={score} /> : <RagPill rag={rag} label="Escalated" />}
+                  <WaitChip hours={waitHours} flag={waitFlag} />
+                </>
+              }
             />
 
             {escalated && (

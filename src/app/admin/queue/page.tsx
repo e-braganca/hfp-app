@@ -101,7 +101,6 @@ function AdminQueueBoard() {
 
   const cases = useMemo(() => liveCases(), []);
   const clock = useWaitClock(cases);
-  const now = clock.now;
 
   const flagged = cases.filter((c) => clock.flagFor(c.ref) !== "none");
   const lateCount = flagged.length;
@@ -375,13 +374,9 @@ function AdminQueueBoard() {
         category={openCase?.category ?? "new"}
         rag={openCase?.rag ?? "green"}
         hold={openCase ? holdFor(claims, openCase.ref) : null}
-        holder={
-          openCase
-            ? ADMIN_DOCTORS.find((d) => d.name === holdFor(claims, openCase.ref)?.by)
-            : undefined
-        }
         mine={openCase ? holdFor(claims, openCase.ref)?.by === ADMIN_SELF.name : false}
-        now={now}
+        waitHours={openCase ? clock.hoursFor(openCase.ref) : 0}
+        waitFlag={openCase ? clock.flagFor(openCase.ref) : "none"}
         assignControl={
           openCase && (
             <AssignSelect

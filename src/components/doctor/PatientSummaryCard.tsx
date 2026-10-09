@@ -39,7 +39,9 @@ export function PatientSummaryCard({
           <p className="text-lg font-extrabold text-text-primary">{ref_}</p>
           <p className="font-mono text-xs text-text-secondary">NHS {nhs}</p>
         </div>
-        {pill}
+        {/* a column, so a case can carry its score and its wait the way the
+            queue row does without the two fighting for one line */}
+        <div className="flex shrink-0 flex-col items-end gap-1.5">{pill}</div>
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-4">
