@@ -103,7 +103,9 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
       sub: `${pharmacyName(c.pharmacyCode)} · ${c.med} ${c.dose}`,
       wait: { hours: clock.hoursFor(c.ref), flag },
       action: "Review" as const,
-      href: "/admin/queue",
+      // the ref travels with the link: "Review" that lands on a board of
+      // twenty-two rows has not reviewed anything
+      href: `/admin/queue?case=${c.ref}`,
     };
   });
 

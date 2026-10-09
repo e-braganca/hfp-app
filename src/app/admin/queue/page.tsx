@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PresenceDot } from "@/components/admin/doctorBits";
 import { QueueCaseDrawer } from "@/components/admin/QueueCaseDrawer";
 import { Select, type SelectOption } from "@/components/ui/Select";
@@ -77,7 +78,20 @@ function canBeAssigned(d: AdminDoctor, rag: Rag): { ok: boolean; why?: string } 
   return { ok: true };
 }
 
+/**
+ * Wrapped because the board reads `?case=` to open a drawer, and
+ * useSearchParams opts the subtree out of prerendering without a boundary.
+ */
 export default function AdminQueuePage() {
+  return (
+    <Suspense>
+      <AdminQueueBoard />
+    </Suspense>
+  );
+}
+
+function AdminQueueBoard() {
+  const params = useSearchParams();
   const claims = useClaims();
   const [tab, setTab] = useState<Tab>("new");
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
@@ -125,6 +139,26 @@ export default function AdminQueuePage() {
   const workingNow = new Set(
     Object.values(claims).filter((h) => holdFor(claims, h.ref)).map((h) => h.by),
   ).size;
+
+  /**
+   * Arriving from a link that names a case — "Review" on the oversight list —
+   * opens it, and moves to a tab it is actually in so the row behind the
+   * drawer is there to see. Running Late wins when the case is flagged, since
+   * that is the list the link was clicked from.
+   */
+  const wanted = params.get("case");
+  // Adjusted during render rather than in an effect, so the drawer is open on
+  // the first paint instead of flashing the bare board. Keyed on the ref we
+  // last acted on, so closing the drawer is never undone by a re-render.
+  const [actedOn, setActedOn] = useState<string | null>(null);
+  if (wanted !== actedOn) {
+    setActedOn(wanted);
+    const hit = wanted ? cases.find((c) => c.ref === wanted) : undefined;
+    if (hit) {
+      setOpenCase(hit);
+      setTab(clock.flagFor(hit.ref) !== "none" ? "late" : clock.parked(hit.ref) ? "info" : hit.category);
+    }
+  }
 
   const assign = (c: LiveCase, doctorName: string) => {
     if (!doctorName) return;
