@@ -125,7 +125,7 @@ export function QueueCaseDrawer({
   );
 }
 
-type Decision = null | "issued" | "info";
+type Decision = null | "issued" | "info" | "declined";
 
 function CaseBody({
   caseRef,
@@ -174,6 +174,7 @@ function CaseBody({
   const [decision, setDecision] = useState<Decision>(null);
   const [emailing, setEmailing] = useState(false);
   const [replying, setReplying] = useState(false);
+  const [declining, setDeclining] = useState(false);
 
   if (!base) return null;
 
@@ -207,6 +208,12 @@ function CaseBody({
     );
   };
 
+  const decline = () => {
+    setDeclining(false);
+    setDecision("declined");
+    onToast(`${caseRef} declined — the prescriber who raised it has been told`);
+  };
+
   const sendInfoRequest = (subject: string, items: string[], note?: string) => {
     setEmailing(false);
     setDecision("info");
@@ -231,6 +238,13 @@ function CaseBody({
               body={`${prescriptionLabel(rx)} issued to ${pharmacyName(base.pharmacyCode)}. Decision and the active SOP version recorded to the audit trail.`}
               onClose={onClose}
             />
+          ) : decision === "declined" ? (
+            <Outcome
+              tone="warning"
+              title="Order declined"
+              body="Recorded against the active SOP version and returned to the prescriber who escalated it."
+              onClose={onClose}
+            />
           ) : decision === "info" ? (
             <Outcome
               tone="warning"
@@ -249,13 +263,25 @@ function CaseBody({
                 onRequestInfo={() => setEmailing(true)}
                 extra={
                   escalated && (
-                    <button
-                      type="button"
-                      onClick={() => setReplying(true)}
-                      className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
-                    >
-                      Reply to escalation
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setReplying(true)}
+                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-warning px-4 py-3 text-sm font-bold text-warning-dark hover:bg-warning-lighter"
+                      >
+                        Reply to escalation
+                      </button>
+                      {/* the one screen a decline can happen on: a prescriber
+                          escalates rather than refuses, and this is who they
+                          escalate to */}
+                      <button
+                        type="button"
+                        onClick={() => setDeclining(true)}
+                        className="flex-1 basis-40 whitespace-nowrap rounded-lg border border-error px-4 py-3 text-sm font-bold text-error hover:bg-error-lighter"
+                      >
+                        Decline order
+                      </button>
+                    </>
                   )
                 }
               />
@@ -386,7 +412,9 @@ function CaseBody({
                   Why it was escalated
                 </p>
                 <p className="mt-2 text-base font-bold text-text-primary">{escalated.reason}</p>
-                <p className="text-sm text-text-secondary">{escalated.status}</p>
+                <p className="text-sm text-text-secondary">
+                  Raised by {escalated.escalatedBy} · {escalated.status.toLowerCase()}
+                </p>
               </div>
             )}
 
@@ -457,6 +485,42 @@ function CaseBody({
         senderName={ADMIN_SELF.name}
         senderRole={`Clinical Lead · GMC ${ADMIN_SELF.gmc}`}
       />
+
+      {escalated && (
+        <Modal
+          open={declining}
+          title="Decline this order"
+          subtitle={`${caseRef} · ${pharmacyName(base.pharmacyCode)} · escalated by ${escalated.escalatedBy}`}
+          onClose={() => setDeclining(false)}
+        >
+          <p className="text-sm text-text-secondary">
+            Nothing is issued. {escalated.escalatedBy} is told, the patient is written to, and the decision is recorded
+            against the active SOP version. A prescriber cannot do this — escalating to you is the whole of their way
+            out of a case they will not issue.
+          </p>
+          <textarea
+            rows={3}
+            placeholder="Clinical reason for declining…"
+            className="mt-3 w-full rounded-lg border border-[var(--divider)] p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-main-24"
+          />
+          <div className="mt-4 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setDeclining(false)}
+              className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-neutral"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={decline}
+              className="rounded-lg bg-error px-4 py-2.5 text-sm font-bold text-white hover:bg-error-dark"
+            >
+              Confirm decline
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {escalated && (
         <ReplyToEscalationModal

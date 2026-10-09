@@ -8,7 +8,7 @@ import { WaitChip } from "@/components/shared/WaitFlag";
 import { useClaims } from "@/components/doctor/queueHooks";
 import { holdFor } from "@/lib/doctor/queue-claims";
 import { useWaitClock } from "@/components/shared/boardClockHooks";
-import { pharmacyName } from "@/lib/doctor/data";
+import { ESCALATIONS, pharmacyName } from "@/lib/doctor/data";
 import type { AttentionKind, AttentionRow } from "@/lib/admin/types";
 
 /* ============================================================================
@@ -78,6 +78,30 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
    * it was appearing as two rows, which reads as two problems and gets counted
    * twice. One row, both badges.
    */
+  /**
+   * Escalations come off the board, not out of a hand-written list.
+   *
+   * There was a parallel ADMIN_ESCALATIONS with its own five rows, and it had
+   * drifted: two of its refs were not on the board at all, one was a complex
+   * repeat nobody had escalated, and PT-2071 was a different patient at a
+   * different pharmacy than the case of the same ref. Reading the real
+   * escalations means the list cannot describe a case that isn't there.
+   */
+  const escalations: Row[] = ESCALATIONS.map((e) => {
+    const flag = clock.flagFor(e.ref);
+    const late = flag !== "none";
+    if (late) lateByRef.delete(e.ref);
+    return {
+      key: `escalated-${e.ref}`,
+      kinds: late ? [flag === "red" ? ("critical" as const) : ("late" as const), "escalated" as const] : ["escalated" as const],
+      title: `${e.ref} — ${e.reason}`,
+      sub: `${e.escalatedBy} · ${pharmacyName(e.pharmacyCode)} · ${e.status.toLowerCase()}`,
+      wait: { hours: clock.hoursFor(e.ref), flag },
+      action: "Review" as const,
+      href: `/admin/queue?case=${e.ref}`,
+    };
+  });
+
   const merged: Row[] = seeded.map((r) => {
     const ref = refOf(r.title);
     const lateCase = ref ? lateByRef.get(ref) : undefined;
@@ -110,7 +134,7 @@ export function AttentionList({ seeded }: { seeded: AttentionRow[] }) {
   });
 
   const worst = (r: Row) => Math.min(...r.kinds.map((k) => KIND_RANK[k]));
-  const rows = [...lateOnly, ...merged].sort((a, b) => worst(a) - worst(b));
+  const rows = [...lateOnly, ...escalations, ...merged].sort((a, b) => worst(a) - worst(b));
   const waiting = late.length;
 
   return (

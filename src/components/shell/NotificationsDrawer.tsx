@@ -31,7 +31,7 @@ const BY_ROLE: Record<Role, Notification[]> = {
     { id: "d5", tone: "info", title: "Your SOP compliance is 99%", body: "Above the 90% target for the sixth month running.", when: "2 days ago", href: "/doctor/compliance" },
   ],
   admin: [
-    { id: "a1", tone: "urgent", title: "4 escalations waiting", body: "Longest has been open 1 day — PT-2043, no weight loss at 6 months.", when: "Now", href: "/admin/escalations" },
+    { id: "a1", tone: "urgent", title: "3 escalations waiting", body: "Longest has been open a day — PT-2071, dose escalation above SOP max.", when: "Now", href: "/admin/queue?case=PT-2071" },
     { id: "a2", tone: "urgent", title: "CarePoint Online at 83% compliance", body: "Below the 90% target — review overrides with the pharmacy.", when: "2 h ago", href: "/admin/pharmacies" },
     { id: "a3", tone: "action", title: "New pharmacy application", body: "A partner submitted their SOP for review.", when: "5 h ago", href: "/admin/pharmacies" },
     { id: "a4", tone: "action", title: "Dr. Hannah Cole finished onboarding", body: "Awaiting the certification exam before her queue opens.", when: "Yesterday", href: "/admin/doctors" },

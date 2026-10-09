@@ -14,7 +14,6 @@ import {
   ProtocolIcon,
   QueueIcon,
   StethoscopeIcon,
-  WarnIcon,
 } from "@/components/ui/icons";
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
@@ -107,7 +106,6 @@ export const ADMIN_NAV: NavConfig = {
       items: [
         { label: "Overview", href: "/admin/overview", icon: HomeIcon },
         { label: "Current queue", short: "Queue", href: "/admin/queue", icon: QueueIcon },
-        { label: "Escalations", href: "/admin/escalations", icon: WarnIcon, badge: "5" },
         { label: "Past requests", short: "History", href: "/admin/requests", icon: ProtocolIcon },
         { label: "Patients", href: "/admin/patients", icon: PatientsIcon },
         { label: "Doctors", href: "/admin/doctors", icon: StethoscopeIcon },

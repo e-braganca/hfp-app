@@ -161,7 +161,10 @@ export interface ComplexCase {
 
 export interface Escalation {
   ref: string;
+  patientName: string;
   nhs: string;
+  /** the prescriber who raised it — the senior's reply goes back to them */
+  escalatedBy: string;
   med: string;
   dose: string;
   reason: string;
