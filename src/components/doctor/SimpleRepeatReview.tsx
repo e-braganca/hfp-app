@@ -5,6 +5,7 @@ import { pharmacyName } from "@/lib/doctor/data";
 import type { SimpleRepeat } from "@/lib/doctor/types";
 import { AuditNote } from "./AiRecommendationCard";
 import { ReviewPanel } from "./ReviewPanel";
+import { readingOutcome } from "@/lib/doctor/reading-outcome";
 import {
   PrescriptionPicker,
   amendmentReady,
@@ -14,7 +15,7 @@ import {
   sameAsRecommended,
   type Prescription,
 } from "./PrescriptionPicker";
-import { DecisionButtons, EscalateModal, OrderRequestCard } from "./caseParts";
+import { DecisionButtons, EscalateModal, OrderRequestCard, SeniorOnlyNotice } from "./caseParts";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
 import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
 import { consultationFor } from "@/lib/doctor/consultation";
@@ -52,6 +53,13 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
   const [rx, setRx] = useState<Prescription>(() => recommended ?? fallbackFrom(repeat.med, repeat.dose));
   const amended = !sameAsRecommended(rx, recommended);
   const needsReason = !amendmentReady(rx, recommended);
+  /**
+   * A reading that ends in stopping — discontinue, hold, senior review — is a
+   * senior's decision, so the screen does not open on a drug picker loaded
+   * with whatever the patient asked for.
+   */
+  const outcome = readingOutcome(repeat.ai.recommendedRx);
+  const [issuing, setIssuing] = useState(outcome === "prescribe");
   const hold = useCaseHold(repeat.ref);
   const upNext = useNextCase(repeat.ref);
 
@@ -126,13 +134,22 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
             caseRef={repeat.ref}
             answers={answers}
             prescription={
-              <PrescriptionPicker
-                recommended={recommended}
-                recommendedText={repeat.ai.recommendedRx}
-                value={rx}
-                onChange={setRx}
-                disabled={!hold.claimed}
-              />
+              issuing ? (
+                <PrescriptionPicker
+                  recommended={recommended}
+                  recommendedText={repeat.ai.recommendedRx}
+                  value={rx}
+                  onChange={setRx}
+                  disabled={!hold.claimed}
+                />
+              ) : (
+                <SeniorOnlyNotice
+                  outcome={outcome}
+                  recommendedText={repeat.ai.recommendedRx}
+                  disabled={!hold.claimed}
+                  onIssueInstead={() => setIssuing(true)}
+                />
+              )
             }
             actions={
               decision === "approved" ? (
@@ -159,6 +176,7 @@ export function SimpleRepeatReview({ repeat }: { repeat: SimpleRepeat }) {
               ) : (
                 <>
                   <DecisionButtons
+                    escalateFirst={!issuing}
                     amended={amended}
                     disabled={!hold.claimed || needsReason}
                     onApprove={approve}

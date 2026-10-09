@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { OUTCOME_SUMMARY, type ReadingOutcome } from "@/lib/doctor/reading-outcome";
 
 /* ============================================================================
    The pieces every review surface repeats.
@@ -96,10 +97,65 @@ export function EscalateModal({
   );
 }
 
+/**
+ * Shown in the prescription's place when the reading does not end in one.
+ *
+ * Discontinuing, holding a cycle and sending a case to a senior all mean the
+ * patient does not get what they asked for, and that is a senior's call — a
+ * prescriber escalates instead. Before this the screen simply pre-selected
+ * whatever the patient had requested, so the reading's own outcome was the
+ * one thing nobody could choose, and prescribing against it was the path of
+ * least resistance.
+ */
+export function SeniorOnlyNotice({
+  outcome,
+  recommendedText,
+  disabled,
+  senior,
+  onIssueInstead,
+}: {
+  outcome: ReadingOutcome;
+  /** the AI's own words, so "act on what?" is answered on the screen */
+  recommendedText: string;
+  disabled?: boolean;
+  /** the reader can act on this reading themselves — no escalating to do */
+  senior?: boolean;
+  onIssueInstead: () => void;
+}) {
+  return (
+    <div className="rounded-lg bg-background-neutral px-4 py-4 ring-1 ring-[var(--divider)]">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Recommended action</p>
+      <p className="mt-2 text-base font-bold text-text-primary">{recommendedText}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-text-secondary">
+        {senior ? (
+          <>The reading is to {OUTCOME_SUMMARY[outcome] ?? "issue nothing"}. Acting on it is below.</>
+        ) : (
+          <>
+            The reading is to {OUTCOME_SUMMARY[outcome] ?? "issue nothing"}, which is a senior&rsquo;s decision, not
+            yours. Escalate it below — that is agreeing with the reading, not passing it on.
+          </>
+        )}
+      </p>
+      <button
+        type="button"
+        onClick={onIssueInstead}
+        disabled={disabled}
+        className="mt-3 rounded-lg border border-[var(--divider)] bg-background-paper px-4 py-2 text-sm font-bold text-text-primary hover:bg-background-neutral disabled:opacity-40"
+      >
+        Prescribe anyway
+      </button>
+      <p className="mt-1.5 text-xs text-text-secondary">
+        Issuing against the reading is yours to make — it asks for a reason and goes on the audit trail.
+      </p>
+    </div>
+  );
+}
+
 /** The three decision buttons, in the one order they appear in everywhere. */
 export function DecisionButtons({
   amended,
   disabled,
+  escalateFirst,
   onApprove,
   onRequestInfo,
   onEscalate,
@@ -107,6 +163,12 @@ export function DecisionButtons({
 }: {
   amended: boolean;
   disabled?: boolean;
+  /**
+   * The reading does not end in a prescription, so escalating is the agreeing
+   * answer and gets the weight. Nothing is selected to issue, so no issue
+   * button is offered until the prescriber asks for one.
+   */
+  escalateFirst?: boolean;
   onApprove: () => void;
   onRequestInfo: () => void;
   /** omitted where there is nobody to escalate to — the admin is the senior */
@@ -115,14 +177,25 @@ export function DecisionButtons({
 }) {
   return (
     <div className="flex flex-wrap gap-3">
-      <button
-        type="button"
-        onClick={onApprove}
-        disabled={disabled}
-        className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
-      >
-        {amended ? "Issue amended" : "Approve & issue"}
-      </button>
+      {!escalateFirst && (
+        <button
+          type="button"
+          onClick={onApprove}
+          disabled={disabled}
+          className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
+        >
+          {amended ? "Issue amended" : "Approve & issue"}
+        </button>
+      )}
+      {escalateFirst && onEscalate && (
+        <button
+          type="button"
+          onClick={onEscalate}
+          className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-warning-dark px-4 py-3 text-sm font-bold text-white hover:opacity-90"
+        >
+          Escalate to senior
+        </button>
+      )}
       <button
         type="button"
         onClick={onRequestInfo}
@@ -130,7 +203,7 @@ export function DecisionButtons({
       >
         Request more info
       </button>
-      {onEscalate && (
+      {!escalateFirst && onEscalate && (
         <button
           type="button"
           onClick={onEscalate}

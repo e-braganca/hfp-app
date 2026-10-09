@@ -13,7 +13,7 @@ import {
   sameAsRecommended,
   type Prescription,
 } from "@/components/doctor/PrescriptionPicker";
-import { DecisionButtons, OrderRequestCard } from "@/components/doctor/caseParts";
+import { DecisionButtons, OrderRequestCard, SeniorOnlyNotice } from "@/components/doctor/caseParts";
 import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
 import { FileDrop, type Attachment } from "@/components/ui/FileDrop";
@@ -30,6 +30,8 @@ import {
   pharmacyName,
 } from "@/lib/doctor/data";
 import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
+import { readingOutcome } from "@/lib/doctor/reading-outcome";
+import { Select } from "@/components/ui/Select";
 import { WaitChip } from "@/components/shared/WaitFlag";
 import type { WaitFlag } from "@/lib/admin/queue-sla";
 import type { Hold } from "@/lib/doctor/queue-claims";
@@ -126,7 +128,22 @@ export function QueueCaseDrawer({
   );
 }
 
-type Decision = null | "issued" | "info" | "declined";
+/**
+ * Where a discontinued patient is sent.
+ *
+ * Stopping treatment without saying what happens next is half a decision —
+ * the SOP's word for the other half is "signpost", and the reading asks for
+ * it by name.
+ */
+const SIGNPOSTS = [
+  "Back to their GP",
+  "Specialist weight-management service",
+  "Behavioural and lifestyle programme",
+  "Bariatric surgery assessment",
+  "No onward referral",
+];
+
+type Decision = null | "issued" | "info" | "declined" | "discontinued";
 
 function CaseBody({
   caseRef,
@@ -172,10 +189,18 @@ function CaseBody({
   const [rx, setRx] = useState<Prescription>(() =>
     recommended ?? fallbackFrom(base?.med ?? "Wegovy (semaglutide)", base?.dose ?? "0.25 mg"),
   );
+  /**
+   * A reading that ends in stopping. The prescriber could only escalate it;
+   * this is the screen they escalated to, so this is where it gets done.
+   */
+  const outcome = ai ? readingOutcome(ai.recommendedRx) : "prescribe";
+  const [issuing, setIssuing] = useState(outcome === "prescribe");
   const [decision, setDecision] = useState<Decision>(null);
   const [emailing, setEmailing] = useState(false);
   const [replying, setReplying] = useState(false);
   const [declining, setDeclining] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [pathway, setPathway] = useState(SIGNPOSTS[0]);
 
   if (!base) return null;
 
@@ -204,6 +229,12 @@ function CaseBody({
         ? `${prescriptionLabel(rx)} issued on ${caseRef} — amendment and reason audit-logged`
         : `${prescriptionLabel(rx)} issued on ${caseRef} & audit-logged`,
     );
+  };
+
+  const discontinue = () => {
+    setStopping(false);
+    setDecision("discontinued");
+    onToast(`${caseRef} discontinued — patient signposted to ${pathway.toLowerCase()}`);
   };
 
   const decline = () => {
@@ -236,6 +267,13 @@ function CaseBody({
               body={`${prescriptionLabel(rx)} issued to ${pharmacyName(base.pharmacyCode)}. Decision and the active SOP version recorded to the audit trail.`}
               onClose={onClose}
             />
+          ) : decision === "discontinued" ? (
+            <Outcome
+              tone="warning"
+              title="Treatment discontinued"
+              body={`Nothing issued. The patient has been written to and signposted to ${pathway.toLowerCase()}, recorded against the active SOP version.`}
+              onClose={onClose}
+            />
           ) : decision === "declined" ? (
             <Outcome
               tone="warning"
@@ -255,12 +293,23 @@ function CaseBody({
               {/* no Escalate: this is where cases escalate to. What the
                   admin owes an escalated case is an answer to it */}
               <DecisionButtons
+                escalateFirst={!issuing}
                 amended={amended}
                 disabled={needsReason}
                 onApprove={approve}
                 onRequestInfo={() => setEmailing(true)}
                 extra={
-                  escalated && (
+                  <>
+                    {outcome === "discontinue" && (
+                      <button
+                        type="button"
+                        onClick={() => setStopping(true)}
+                        className="flex-1 basis-40 whitespace-nowrap rounded-lg bg-warning-dark px-4 py-3 text-sm font-bold text-white hover:opacity-90"
+                      >
+                        Discontinue &amp; signpost
+                      </button>
+                    )}
+                    {escalated && (
                     <>
                       <button
                         type="button"
@@ -269,9 +318,9 @@ function CaseBody({
                       >
                         Reply to escalation
                       </button>
-                      {/* the one screen a decline can happen on: a prescriber
-                          escalates rather than refuses, and this is who they
-                          escalate to */}
+                      {/* the one screen a decline or a discontinuation can
+                          happen on: a prescriber escalates rather than stops,
+                          and this is who they escalate to */}
                       <button
                         type="button"
                         onClick={() => setDeclining(true)}
@@ -280,7 +329,8 @@ function CaseBody({
                         Decline order
                       </button>
                     </>
-                  )
+                    )}
+                  </>
                 }
               />
               <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[var(--divider)] pt-3">
@@ -435,13 +485,21 @@ function CaseBody({
               // the picker is on screen either way, so what would be issued is
               // visible before anyone takes the case; it only unlocks on taking
               prescription={
-                decision ? undefined : (
+                decision ? undefined : issuing ? (
                   <PrescriptionPicker
                     recommended={recommended}
                     recommendedText={ai?.recommendedRx ?? "no reading on this case"}
                     value={rx}
                     onChange={setRx}
                     disabled={!mine}
+                  />
+                ) : (
+                  <SeniorOnlyNotice
+                    senior
+                    outcome={outcome}
+                    recommendedText={ai?.recommendedRx ?? "no reading on this case"}
+                    disabled={!mine}
+                    onIssueInstead={() => setIssuing(true)}
                   />
                 )
               }
@@ -467,6 +525,58 @@ function CaseBody({
         senderName={ADMIN_SELF.name}
         senderRole={`Clinical Lead · GMC ${ADMIN_SELF.gmc}`}
       />
+
+      <Modal
+        open={stopping}
+        title="Discontinue treatment"
+        subtitle={`${caseRef} · ${pharmacyName(base.pharmacyCode)}`}
+        onClose={() => setStopping(false)}
+      >
+        <p className="text-sm leading-relaxed text-text-secondary">
+          Nothing further is issued and the course ends here. The patient is written to with the reason and the pathway
+          below, and the decision is recorded against the active SOP version.
+        </p>
+        {ai && (
+          <div className="mt-3 rounded-lg bg-background-neutral px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">The reading</p>
+            <p className="mt-1 text-sm font-semibold text-text-primary">{ai.recommendedRx}</p>
+          </div>
+        )}
+        <label className="mt-4 block">
+          <span className="mb-1.5 block text-xs font-bold text-text-secondary">Signpost the patient to</span>
+          <Select
+            value={pathway}
+            options={SIGNPOSTS.map((o) => ({ value: o, label: o }))}
+            onChange={setPathway}
+          />
+        </label>
+        <label className="mt-3 block">
+          <span className="mb-1.5 block text-xs font-bold text-text-secondary">
+            What the patient is told <span className="font-normal">(goes with the referral)</span>
+          </span>
+          <textarea
+            rows={3}
+            placeholder="e.g. weight loss at six months was 2.1%, below the 5% the protocol requires to continue…"
+            className="w-full rounded-lg border border-[var(--divider)] p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-main-24"
+          />
+        </label>
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setStopping(false)}
+            className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-neutral"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={discontinue}
+            className="rounded-lg bg-warning-dark px-4 py-2.5 text-sm font-bold text-white hover:opacity-90"
+          >
+            Discontinue &amp; notify
+          </button>
+        </div>
+      </Modal>
 
       {escalated && (
         <Modal

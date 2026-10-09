@@ -5,6 +5,7 @@ import { pharmacyName } from "@/lib/doctor/data";
 import type { ComplexCase } from "@/lib/doctor/types";
 import { AuditNote } from "./AiRecommendationCard";
 import { ReviewPanel } from "./ReviewPanel";
+import { readingOutcome } from "@/lib/doctor/reading-outcome";
 import {
   PrescriptionPicker,
   amendmentReady,
@@ -14,7 +15,7 @@ import {
   sameAsRecommended,
   type Prescription,
 } from "./PrescriptionPicker";
-import { DecisionButtons, EscalateModal, OrderRequestCard } from "./caseParts";
+import { DecisionButtons, EscalateModal, OrderRequestCard, SeniorOnlyNotice } from "./caseParts";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
 import { requestInfo as recordInfoRequest } from "@/lib/doctor/info-requests";
 import { consultationFor } from "@/lib/doctor/consultation";
@@ -45,6 +46,13 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
   const [rx, setRx] = useState<Prescription>(() => recommended ?? fallbackFrom(case_.med, case_.dose));
   const amended = !sameAsRecommended(rx, recommended);
   const needsReason = !amendmentReady(rx, recommended);
+  /**
+   * A reading that ends in stopping — discontinue, hold, senior review — is a
+   * senior's decision, so the screen does not open on a drug picker loaded
+   * with whatever the patient asked for.
+   */
+  const outcome = readingOutcome(case_.ai.recommendedRx);
+  const [issuing, setIssuing] = useState(outcome === "prescribe");
   const hold = useCaseHold(case_.ref);
   const upNext = useNextCase(case_.ref);
 
@@ -133,13 +141,22 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
               conditions: case_.comorbidities,
             })}
             prescription={
-              <PrescriptionPicker
-                recommended={recommended}
-                recommendedText={case_.ai.recommendedRx}
-                value={rx}
-                onChange={setRx}
-                disabled={!hold.claimed}
-              />
+              issuing ? (
+                <PrescriptionPicker
+                  recommended={recommended}
+                  recommendedText={case_.ai.recommendedRx}
+                  value={rx}
+                  onChange={setRx}
+                  disabled={!hold.claimed}
+                />
+              ) : (
+                <SeniorOnlyNotice
+                  outcome={outcome}
+                  recommendedText={case_.ai.recommendedRx}
+                  disabled={!hold.claimed}
+                  onIssueInstead={() => setIssuing(true)}
+                />
+              )
             }
             actions={
                 decision === "approved" ? (
@@ -167,6 +184,7 @@ export function CaseReview({ case_ }: { case_: ComplexCase }) {
                     {/* never "decline": a prescriber's only way out of a case
                         they won't issue is a senior, who can decline */}
                     <DecisionButtons
+                      escalateFirst={!issuing}
                       amended={amended}
                       disabled={!hold.claimed || needsReason}
                       onApprove={approve}
