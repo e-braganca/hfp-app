@@ -1,11 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Prescriptr — Doctor-led GLP-1 weight loss, prescribed properly",
-  description:
-    "Clinically-supervised Wegovy and Mounjaro from GPhC-registered UK prescribers. 5-minute assessment, prescriber review within 24h, no payment until approved.",
-};
+// The root layout's defaults are the landing page's — this is the page a
+// shared link lands on, so there is nothing here to override.
+export const metadata: Metadata = {};
 
 /* ============================================================================
    Landing page — patient acquisition front door (FC-01 → /onboarding).
