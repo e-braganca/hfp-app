@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     template: "%s — Prescriptr",
   },
   description:
-    "Wegovy and Mounjaro from GPhC-registered UK prescribers. Every order is screened against the pharmacy's clinical protocol, reviewed by a named clinician, and only charged once it's approved.",
+    "Clinically-led Wegovy and Mounjaro, prescribed by real UK doctors and delivered cold-chain to your door. Protocol-checked, never rubber-stamped — and nothing to pay until you're approved.",
   openGraph: {
     type: "website",
     siteName: "Prescriptr",
@@ -56,13 +56,13 @@ export const metadata: Metadata = {
     url: "/",
     title: "Prescriptr — Weight loss, prescribed properly.",
     description:
-      "Wegovy and Mounjaro from GPhC-registered UK prescribers. Every order is screened against the pharmacy's clinical protocol, reviewed by a named clinician, and only charged once it's approved.",
+      "Clinically-led Wegovy and Mounjaro, prescribed by real UK doctors and delivered cold-chain to your door. Protocol-checked, never rubber-stamped — and nothing to pay until you're approved.",
   },
   twitter: {
     card: "summary_large_image",
     title: "Prescriptr — Weight loss, prescribed properly.",
     description:
-      "Wegovy and Mounjaro from GPhC-registered UK prescribers. Screened against clinical protocol, reviewed by a named clinician, charged only on approval.",
+      "Wegovy and Mounjaro from real UK doctors, delivered to your door. Protocol-checked, never rubber-stamped — and nothing to pay until you're approved.",
   },
 };
 

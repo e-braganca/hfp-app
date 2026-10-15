@@ -61,15 +61,13 @@ export default async function OgImage() {
           {/* the warning-light underline the H1 carries on the page itself */}
           <div style={{ display: "flex", width: 560, height: 8, marginTop: 10, borderRadius: 4, background: "#f6c667" }} />
           <div style={{ display: "flex", marginTop: 30, fontSize: 30, lineHeight: 1.4, color: "rgba(255,255,255,0.78)", maxWidth: 900 }}>
-            Wegovy and Mounjaro from GPhC-registered UK prescribers — screened against clinical protocol, reviewed by a
-            named clinician.
+            Clinically-led Wegovy and Mounjaro from real UK doctors, delivered cold-chain to your door.
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 44, fontSize: 22, color: "rgba(255,255,255,0.65)" }}>
-          <div style={{ display: "flex" }}>5-minute assessment</div>
-          <div style={{ display: "flex" }}>Prescriber review under 24h</div>
-          <div style={{ display: "flex" }}>Only charged if approved</div>
+          <div style={{ display: "flex" }}>Protocol-checked, never rubber-stamped</div>
+          <div style={{ display: "flex" }}>Nothing to pay until you&rsquo;re approved</div>
         </div>
       </div>
     ),
