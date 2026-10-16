@@ -5,6 +5,7 @@ import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal
 import { RequestReviewDrawer } from "@/components/shared/RequestReviewDrawer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
+import { TabStrip } from "@/components/ui/TabStrip";
 import { ChevronRight } from "@/components/ui/icons";
 import { RAG_FILL, RAG_LABEL } from "@/lib/doctor/rag";
 import { pharmacyName } from "@/lib/doctor/data";
@@ -36,7 +37,8 @@ import {
 
 // Escalated cases aren't here — they're still live on the queue's Escalated
 // tab, and a case can't be both open and in the decision log.
-const OUTCOMES: (RequestOutcome | "all")[] = ["all", "approved", "declined", "info"];
+type OutcomeTab = RequestOutcome | "all";
+const OUTCOMES: OutcomeTab[] = ["all", "approved", "declined", "info"];
 const CATEGORIES = ["all", "New Order", "Simple Repeat", "Complex Repeat"] as const;
 
 /* Column tracks. Below lg (1200) the table keeps its natural width and the
@@ -63,7 +65,7 @@ export function RequestHistoryView({
   /** who signs a revision — the clinician themselves, or the admin on duty */
   actor: string;
 }) {
-  const [outcome, setOutcome] = useState<RequestOutcome | "all">("all");
+  const [outcome, setOutcome] = useState<OutcomeTab>("all");
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("all");
   const [query, setQuery] = useState("");
   const [reviewing, setReviewing] = useState<PastRequest | null>(null);
@@ -113,43 +115,37 @@ export function RequestHistoryView({
           <StatTile value={count("info")} label="Info requested" tone="muted" />
         </div>
 
-        <section className="rounded-lg bg-background-paper shadow-card">
-          {/* filters */}
-          <div className="flex flex-wrap items-center gap-3 border-b border-[var(--divider)] p-4">
+        {/* The same toolbar shape as the work queue: tabs with their counts
+            on the left, the filters that cut across them on the right, both
+            outside the card — the card is the table. */}
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <TabStrip
+            tabs={OUTCOMES}
+            active={outcome}
+            label={(o) => (o === "all" ? "All outcomes" : OUTCOME_META[o].label)}
+            count={(o) => (o === "all" ? scope.length : count(o))}
+            onPick={setOutcome}
+          />
+          <div className="flex flex-wrap items-end gap-3 pb-2">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search patient ref or name…"
-              className="h-9 w-56 rounded-lg border border-[var(--divider)] px-3 text-sm focus:border-primary focus:outline-none"
+              className="h-9 w-56 rounded-lg border border-[var(--divider)] bg-background-paper px-3 text-sm focus:border-primary focus:outline-none"
             />
-            <div className="flex flex-wrap gap-1">
-              {OUTCOMES.map((o) => (
-                <button
-                  key={o}
-                  type="button"
-                  onClick={() => setOutcome(o)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition-colors ${
-                    outcome === o
-                      ? "bg-primary text-white"
-                      : "bg-background-neutral text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  {o === "all" ? "All outcomes" : OUTCOME_META[o].label}
-                </button>
-              ))}
-            </div>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as (typeof CATEGORIES)[number])}
-              className="ml-auto h-9 rounded-lg border border-[var(--divider)] px-2.5 text-sm focus:border-primary focus:outline-none"
+              className="h-9 rounded-lg border border-[var(--divider)] bg-background-paper px-2.5 text-sm focus:border-primary focus:outline-none"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c === "all" ? "All categories" : c}</option>
               ))}
             </select>
           </div>
+        </div>
 
-          {/* table */}
+        <section className="overflow-hidden rounded-lg bg-background-paper shadow-card">
           <div className="overflow-x-auto lg:overflow-x-visible">
             <div className={onlyDoctor ? "min-w-[820px] lg:min-w-0" : "min-w-[980px] lg:min-w-0"}>
               <div
@@ -184,14 +180,16 @@ export function RequestHistoryView({
             </div>
           </div>
 
-          <p className="flex items-center gap-1.5 border-t border-[var(--divider)] px-4 py-3 text-xs text-text-secondary">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
-              <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" />
-            </svg>
-            Showing {rows.length} of {scope.length} — open a row to read the full record or overturn the decision. Revisions are appended, never overwritten.
-          </p>
         </section>
+
+        <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" />
+          </svg>
+          Showing {rows.length} of {scope.length} — open a row to read the full record or overturn the decision.
+          Revisions are appended, never overwritten.
+        </p>
       </div>
 
       <RequestReviewDrawer
