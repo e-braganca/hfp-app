@@ -68,7 +68,7 @@ export default function AdminDoctorsPage() {
     setToast(`${d.name} removed — access revoked, decisions stay on the audit trail`);
   };
 
-  const addDoctor = (name: string, granted: QueueBand[]) => {
+  const addDoctor = (name: string, granted: QueueBand[], email: string) => {
     const clean = name.trim();
     if (!clean) return;
     const full = clean.startsWith("Dr.") ? clean : `Dr. ${clean}`;
@@ -76,13 +76,13 @@ export default function AdminDoctorsPage() {
     setDoctors((ds) => [
       ...ds,
       {
-        name: full, initials, gmc: "pending", pct: null,
+        name: full, email, initials, gmc: "pending", pct: null,
         granted, access: granted.length === QUEUE_BANDS.length ? "all" : (granted[0] ?? "green"),
         status: "onboarding", online: false, lastSeen: "Never signed in", cases: [],
       },
     ]);
     setAddOpen(false);
-    setToast(`Account provisioned — invitation & certification exam sent to ${full}`);
+    setToast(`Account provisioned — invitation & certification exam sent to ${email}`);
   };
 
   const cols = "grid-cols-[1.6fr_1.1fr_0.9fr_0.5fr_200px] [&>*]:min-w-0";
@@ -190,7 +190,7 @@ export default function AdminDoctorsPage() {
         confirmLabel="Send invitation"
         withName
         onClose={() => setAddOpen(false)}
-        onSave={(name, granted) => addDoctor(name, granted)}
+        onSave={(name, granted, email) => addDoctor(name, granted, email)}
       />
 
       <ClearanceModal
@@ -292,15 +292,19 @@ function ClearanceModal({
   withName?: boolean;
   initial?: QueueBand[];
   onClose: () => void;
-  onSave: (name: string, granted: QueueBand[]) => void;
+  onSave: (name: string, granted: QueueBand[], email: string) => void;
 }) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [granted, setGranted] = useState<QueueBand[]>(initial);
 
   if (!open) return null;
   const toggle = (b: QueueBand) =>
     setGranted((g) => (g.includes(b) ? g.filter((x) => x !== b) : [...g, b]));
-  const valid = granted.length > 0 && (!withName || name.trim().length > 1);
+  // deliberately loose: a shape check, not a verdict on whether the address
+  // exists. The invitation bouncing is how you find that out.
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+  const valid = granted.length > 0 && (!withName || (name.trim().length > 1 && emailOk));
 
   return (
     <Modal open title={title} subtitle={subtitle} onClose={onClose}>
@@ -314,6 +318,30 @@ function ClearanceModal({
             placeholder="Dr. Amara Nwosu"
             className="mt-1.5 h-11 w-full rounded-lg border border-[var(--divider)] px-3 text-sm focus:border-primary focus:outline-none"
           />
+        </label>
+      )}
+
+      {/* the subtitle promises an invitation and a certification exam, and
+          there was nowhere to send either */}
+      {withName && (
+        <label className="mt-4 block">
+          <span className="text-sm font-semibold text-text-primary">Work email</span>
+          <input
+            type="email"
+            autoComplete="off"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="a.nwosu@nhs.net"
+            className="mt-1.5 h-11 w-full rounded-lg border border-[var(--divider)] px-3 text-sm focus:border-primary focus:outline-none"
+          />
+          <span className="mt-1 block text-xs text-text-secondary">
+            Where the invitation and the certification exam are sent. It is also how they sign in.
+          </span>
+          {email.trim().length > 0 && !emailOk && (
+            <span className="mt-1 block text-xs font-semibold text-error-dark">
+              That doesn&rsquo;t look like an email address.
+            </span>
+          )}
         </label>
       )}
 
@@ -363,7 +391,7 @@ function ClearanceModal({
         <button
           type="button"
           disabled={!valid}
-          onClick={() => onSave(name, granted)}
+          onClick={() => onSave(name, granted, email.trim())}
           className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-40"
         >
           {confirmLabel}

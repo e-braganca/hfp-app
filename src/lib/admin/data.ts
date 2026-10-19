@@ -45,36 +45,36 @@ const eleanorCases: AdminDoctor["cases"] = [
 ];
 
 export const ADMIN_DOCTORS: AdminDoctor[] = [
-  { name: "Dr. Eleanor Hart", initials: "EH", gmc: "7041182", pct: 99, granted: ["green", "amber", "red"], access: "all", status: "active", online: true, lastSeen: "now", cases: eleanorCases },
+  { name: "Dr. Eleanor Hart", email: "e.hart@prescriptr.co.uk", initials: "EH", gmc: "7041182", pct: 99, granted: ["green", "amber", "red"], access: "all", status: "active", online: true, lastSeen: "now", cases: eleanorCases },
   {
-    name: "Dr. Raymond Okafor", initials: "RO", gmc: "6893021", pct: 98, granted: ["green", "amber", "red"], access: "all", status: "active", online: true, lastSeen: "now",
+    name: "Dr. Raymond Okafor", email: "r.okafor@prescriptr.co.uk", initials: "RO", gmc: "6893021", pct: 98, granted: ["green", "amber", "red"], access: "all", status: "active", online: true, lastSeen: "now",
     cases: [
       { ref: "PT-4470", med: "Wegovy (semaglutide)", dose: "0.25 mg", cat: "New Order", rag: "green", pharmacy: "MedExpress UK" },
       { ref: "PT-2051", med: "Mounjaro (tirzepatide)", dose: "5.0 mg", cat: "Complex Repeat", rag: "amber", pharmacy: "PharmaDirect" },
     ],
   },
   {
-    name: "Dr. Sofia Patel", initials: "SP", gmc: "7455610", pct: 97, granted: ["green", "amber"], access: "amber", status: "active", online: false, lastSeen: "12 min ago",
+    name: "Dr. Sofia Patel", email: "s.patel@prescriptr.co.uk", initials: "SP", gmc: "7455610", pct: 97, granted: ["green", "amber"], access: "amber", status: "active", online: false, lastSeen: "12 min ago",
     cases: [
       { ref: "PT-4468", med: "Mounjaro (tirzepatide)", dose: "2.5 mg", cat: "New Order", rag: "amber", pharmacy: "PharmaDirect" },
       { ref: "PT-4461", med: "Wegovy (semaglutide)", dose: "0.25 mg", cat: "New Order", rag: "amber", pharmacy: "RightScript" },
     ],
   },
   {
-    name: "Dr. Julia Reyes", initials: "JR", gmc: "7788123", pct: 86, granted: ["green", "amber"], access: "all", status: "active", online: true, lastSeen: "now",
+    name: "Dr. Julia Reyes", email: "j.reyes@prescriptr.co.uk", initials: "JR", gmc: "7788123", pct: 86, granted: ["green", "amber"], access: "all", status: "active", online: true, lastSeen: "now",
     cases: [
       { ref: "PT-2071", med: "Wegovy (semaglutide)", dose: "2.4 mg", cat: "Complex Repeat", rag: "red", pharmacy: "MedExpress UK" },
       { ref: "PT-2059", med: "Mounjaro (tirzepatide)", dose: "10 mg", cat: "Complex Repeat", rag: "amber", pharmacy: "Willowbrook Pharmacy" },
     ],
   },
   {
-    name: "Dr. Tomas Bowen", initials: "TB", gmc: "8012456", pct: 80, granted: ["green"], access: "green", status: "active", online: false, lastSeen: "1 h ago",
+    name: "Dr. Tomas Bowen", email: "t.bowen@prescriptr.co.uk", initials: "TB", gmc: "8012456", pct: 80, granted: ["green"], access: "green", status: "active", online: false, lastSeen: "1 h ago",
     cases: [
       { ref: "PT-3120", med: "Wegovy (semaglutide)", dose: "1.0 mg", cat: "Simple Repeat", rag: "green", pharmacy: "Willowbrook Pharmacy" },
       { ref: "PT-3122", med: "Ozempic (semaglutide)", dose: "0.5 mg", cat: "Simple Repeat", rag: "green", pharmacy: "PharmaDirect" },
     ],
   },
-  { name: "Dr. Hannah Cole", initials: "HC", gmc: "pending", pct: null, granted: ["green"], access: "green", status: "onboarding", online: false, lastSeen: "Never signed in", cases: [] },
+  { name: "Dr. Hannah Cole", email: "h.cole@prescriptr.co.uk", initials: "HC", gmc: "pending", pct: null, granted: ["green"], access: "green", status: "onboarding", online: false, lastSeen: "Never signed in", cases: [] },
 ];
 
 /**

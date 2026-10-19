@@ -294,8 +294,16 @@ function AdminQueueBoard() {
                       <p className="truncate text-sm font-bold text-text-primary" title={c.med}>{c.med}</p>
                       <p className="truncate text-xs text-text-secondary">{c.dose}</p>
                     </div>
-                    <div className="px-4 py-3">
-                      <p className="line-clamp-2 text-sm text-text-secondary" title={c.detail}>{c.detail}</p>
+                    {/* overflow-hidden because the row is a fixed 84px: two
+                        clamped lines of note under two of detail would spill
+                        into the row below rather than being cut */}
+                    <div className="overflow-hidden px-4 py-3">
+                      <p
+                        className={`text-sm text-text-secondary ${c.note ? "line-clamp-1" : "line-clamp-2"}`}
+                        title={c.detail}
+                      >
+                        {c.detail}
+                      </p>
                       {/* the rule is the headline; the question underneath is
                           what a senior is actually deciding whether to take */}
                       {c.note && (
@@ -306,7 +314,9 @@ function AdminQueueBoard() {
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0" aria-hidden>
                             <path d="M4 5h16v11H8l-4 4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                           </svg>
-                          <span className="line-clamp-2">{c.note}</span>
+                          {/* min-w-0 or the clamp never bites: a flex child
+                              will not shrink below its content width without it */}
+                          <span className="line-clamp-2 min-w-0">{c.note}</span>
                         </p>
                       )}
                     </div>

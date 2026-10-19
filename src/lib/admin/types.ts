@@ -71,6 +71,8 @@ interface AssignedCase {
 
 export interface AdminDoctor {
   name: string;
+  /** where the invitation goes, and how they sign in */
+  email: string;
   initials: string;
   gmc: string; // "7041182" or "pending"
   /** compliance %, null while onboarding */
