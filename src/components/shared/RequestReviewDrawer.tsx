@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ConsultationAnswersCard } from "@/components/doctor/ConsultationAnswersCard";
+import { PatientSummaryCard } from "@/components/doctor/PatientSummaryCard";
+import { PrescriptionPicker, fallbackFrom, type Prescription } from "@/components/doctor/PrescriptionPicker";
+import { ReviewPanel } from "@/components/doctor/ReviewPanel";
+import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { RagPill } from "@/components/ui/StatusPill";
 import { consultationFor } from "@/lib/doctor/consultation";
 import { pharmacyName } from "@/lib/doctor/data";
+import { liveCases } from "@/lib/shared/live-cases";
 import {
   OUTCOME_META,
   type PastRequest,
@@ -13,12 +17,18 @@ import {
 import { addRevision, stampNow, type Revision } from "@/lib/shared/request-revisions";
 
 /* ============================================================================
-   A decided request, reopened. Same shape as the escalation drawer — record
-   on the left, decision in the footer — because it answers the same question:
-   was this call right, and does it still stand.
+   A decided request, reopened.
 
-   Escalations aren't in this log; they're still live on the queue's Escalated
-   tab, so the outcomes offered here are the three a closed case can move to.
+   Built on the same frame as the queue's case drawer — patient record down a
+   scrolling left rail, the three-tab panel filling the right, actions pinned
+   across the bottom — because it is the same case, read later. It used to be
+   its own layout, so moving between the live board and the log meant
+   relearning where the record lives.
+
+   What differs is the footer and the lock. The outcomes are the three a
+   closed case can move to, and the prescription opens read-only: this screen
+   exists to read a decision, and changing what was dispensed is a revision,
+   not a glance.
    ============================================================================ */
 
 const REVISABLE: RequestOutcome[] = ["approved", "declined", "info"];
@@ -52,6 +62,14 @@ export function RequestReviewDrawer({
   const [next, setNext] = useState<RequestOutcome | null>(null);
   const [reason, setReason] = useState("");
   const [saved, setSaved] = useState(false);
+  /**
+   * What was dispensed, editable only once a revision is under way. Reading a
+   * decision is the common case; changing the script is not something to be
+   * one stray click away from.
+   */
+  const [rx, setRx] = useState<Prescription>(() =>
+    fallbackFrom(request?.med ?? "Wegovy (semaglutide)", request?.dose ?? "0.25 mg"),
+  );
 
   useEffect(() => {
     if (!request) return;
@@ -77,19 +95,18 @@ export function RequestReviewDrawer({
     setSaved(true);
   };
 
-  return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <button
-        type="button"
-        aria-label="Close review"
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-primary-darker/40"
-      />
+  const answers = consultationFor(r.ref, { submittedAt: r.decidedOn });
+  // the NHS number lives on the live case, if this patient still has one on
+  // the board; a closed request does not carry it
+  const nhs = liveCases().find((c) => c.ref === r.patientRef)?.nhs;
+  const revising = next !== null;
 
+  return (
+    <div className="pointer-events-none fixed inset-0 z-40 flex justify-end">
       <aside
         role="dialog"
         aria-label={`Decision review ${r.ref}`}
-        className="relative flex h-full w-full max-w-[min(100vw,1100px)] flex-col bg-background-neutral shadow-dialog"
+        className="pointer-events-auto relative flex h-full w-full max-w-[min(100vw,1060px)] flex-col border-l border-[var(--divider)] bg-background-neutral shadow-dialog"
       >
         <header className="shrink-0 bg-gradient-to-r from-primary-darker via-primary-dark to-primary px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
@@ -117,53 +134,99 @@ export function RequestReviewDrawer({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          {/* the decision as it was taken */}
-          <div className="rounded-lg bg-background-paper p-5 shadow-card">
-            <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Decided by">{r.decidedBy}</Field>
-              <Field label="Decided on">{r.decidedOn}</Field>
-              <Field label="Pharmacy">{pharmacyName(r.pharmacyCode)}</Field>
-              <Field label="SOP in force">
-                <span className="font-mono">{r.sopVersion}</span>
-              </Field>
-            </dl>
-            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--divider)] pt-4">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                Original
-              </span>
-              <Pill outcome={r.outcome} />
-              <RagPill rag={r.rag} />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                Stands today
-              </span>
-              <Pill outcome={current} />
+        {/* the queue drawer's two columns: the rail scrolls, the panel fills
+            the rest and scrolls inside itself */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-6 lg:flex lg:flex-col lg:overflow-hidden">
+          <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(280px,340px)_1fr]">
+            <div className="space-y-6 lg:-mx-1 lg:h-full lg:overflow-y-auto lg:px-1 lg:pb-1">
+              <PatientSummaryCard
+                ref_={r.ref}
+                nhs={nhs ?? "—"}
+                age={answers.age}
+                sex={answers.sexAtBirth}
+                bmi={answers.bmi}
+                ethnicity={answers.ethnicity}
+                pharmacyCode={r.pharmacyCode}
+                comorbidities={answers.conditions}
+                pill={<RagPill rag={r.rag} label={`${OUTCOME_META[current].short} · ${r.rag === "green" ? "Green" : r.rag === "amber" ? "Amber" : "Red"}`} />}
+              />
+
+              {/* the decision as it was taken */}
+              <div className="rounded-lg bg-background-paper p-5 shadow-card">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">How it was decided</p>
+                <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                  <Field label="Decided by">{r.decidedBy}</Field>
+                  <Field label="Decided on">{r.decidedOn}</Field>
+                  <Field label="Pharmacy">{pharmacyName(r.pharmacyCode)}</Field>
+                  <Field label="SOP in force">
+                    <span className="font-mono">{r.sopVersion}</span>
+                  </Field>
+                </dl>
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--divider)] pt-4">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Original</span>
+                  <Pill outcome={r.outcome} />
+                  {current !== r.outcome && (
+                    <>
+                      <span className="text-text-disabled">&rarr;</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Today</span>
+                      <Pill outcome={current} />
+                    </>
+                  )}
+                </div>
+                {r.note && <p className="mt-3 text-sm italic text-text-secondary">&ldquo;{r.note}&rdquo;</p>}
+              </div>
+
+              {history.length > 0 && (
+                <ol className="space-y-3 rounded-lg bg-background-paper p-5 shadow-card">
+                  <p className="text-sm font-bold text-text-primary">Revision history</p>
+                  {history.map((h, i) => (
+                    <li key={i} className="border-l-2 border-[var(--divider)] pl-4 text-sm">
+                      <p className="text-text-primary">
+                        <span className="font-semibold">{OUTCOME_META[h.from].label}</span> &rarr;{" "}
+                        <span className="font-semibold">{OUTCOME_META[h.to].label}</span>
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {h.by} · {h.on}
+                      </p>
+                      <p className="mt-0.5 text-sm text-text-secondary">{h.reason}</p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <PatientMediaCard
+                caseRef={r.ref}
+                weightPhoto={`Uploaded ${r.decidedOn.split(" · ")[0]}`}
+                idDocument="Verified at sign-up"
+              />
             </div>
-            {r.note && (
-              <p className="mt-3 text-sm italic text-text-secondary">&ldquo;{r.note}&rdquo;</p>
-            )}
-          </div>
 
-          {history.length > 0 && (
-            <ol className="mt-6 space-y-3 rounded-lg bg-background-paper p-5 shadow-card">
-              <p className="text-sm font-bold text-text-primary">Revision history</p>
-              {history.map((h, i) => (
-                <li key={i} className="border-l-2 border-[var(--divider)] pl-4 text-sm">
-                  <p className="text-text-primary">
-                    <span className="font-semibold">{OUTCOME_META[h.from].label}</span> →{" "}
-                    <span className="font-semibold">{OUTCOME_META[h.to].label}</span>
-                  </p>
-                  <p className="text-xs text-text-secondary">
-                    {h.by} · {h.on}
-                  </p>
-                  <p className="mt-0.5 text-sm text-text-secondary">{h.reason}</p>
-                </li>
-              ))}
-            </ol>
-          )}
-
-          <div className="mt-6">
-            <ConsultationAnswersCard defaultOpen answers={consultationFor(r.ref, { submittedAt: r.decidedOn })} />
+            <div className="lg:h-full lg:min-h-0">
+              <ReviewPanel
+                ai={null}
+                noReadingTitle="The reading is not kept with a closed decision"
+                noReadingBody="What stands on the record is the outcome, who signed it and the SOP version in force — all on the left. The prescription below is what was dispensed."
+                caseRef={r.ref}
+                answers={answers}
+                prescription={
+                  <>
+                    <PrescriptionPicker
+                      recommended={null}
+                      recommendedText={`${r.med} ${r.dose}`}
+                      value={rx}
+                      onChange={setRx}
+                      disabled={!revising}
+                    />
+                    {!revising && (
+                      <p className="mt-2 text-xs text-text-secondary">
+                        Read-only. Pick an outcome under <span className="font-semibold">Revise to</span> to change what
+                        was dispensed.
+                      </p>
+                    )}
+                  </>
+                }
+              />
+            </div>
           </div>
         </div>
 

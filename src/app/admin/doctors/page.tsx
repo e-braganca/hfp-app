@@ -41,9 +41,24 @@ export default function AdminDoctorsPage() {
   const patch = (name: string, next: Partial<AdminDoctor>) =>
     setDoctors((ds) => ds.map((d) => (d.name === name ? { ...d, ...next } : d)));
 
+  /**
+   * Asked for, not applied. Changing the band a clinician works moves live
+   * cases in and out of their reach — a dropdown that does that on the way
+   * past is a mis-click with a queue behind it.
+   */
+  const [accessChange, setAccessChange] = useState<{ doctor: AdminDoctor; to: QueueAccess } | null>(null);
+
   const setAccess = (d: AdminDoctor, access: QueueAccess) => {
-    patch(d.name, { access });
-    setToast(`${d.name} now working ${ACCESS_LABEL[access].toLowerCase()} — audit-logged`);
+    if (access === d.access) return;
+    setAccessChange({ doctor: d, to: access });
+  };
+
+  const confirmAccess = () => {
+    if (!accessChange) return;
+    const { doctor, to } = accessChange;
+    patch(doctor.name, { access: to });
+    setAccessChange(null);
+    setToast(`${doctor.name} now working ${ACCESS_LABEL[to].toLowerCase()} — audit-logged`);
   };
 
   const toggleSuspend = (d: AdminDoctor) => {
@@ -203,6 +218,46 @@ export default function AdminDoctorsPage() {
         onClose={() => setEditing(null)}
         onSave={(_, granted) => editing && saveEdit(editing.name, granted)}
       />
+
+      <Modal
+        open={accessChange !== null}
+        title="Change working band?"
+        subtitle={accessChange?.doctor.name ?? ""}
+        onClose={() => setAccessChange(null)}
+      >
+        {accessChange && (
+          <>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg bg-background-neutral px-4 py-3">
+              <span className="text-sm font-semibold text-text-secondary">
+                {ACCESS_LABEL[accessChange.doctor.access]}
+              </span>
+              <span className="text-text-disabled">&rarr;</span>
+              <span className="text-sm font-bold text-text-primary">{ACCESS_LABEL[accessChange.to]}</span>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+              This is the band they work day to day, not what they are licensed for — their clearance is unchanged and
+              this can be moved back. Cases outside the new band leave their queue immediately; anything they are
+              already holding stays with them until they decide it.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setAccessChange(null)}
+                className="rounded-lg border border-[var(--divider)] px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-background-neutral"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmAccess}
+                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
+              >
+                Change band
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
 
       <Modal
         open={deleting !== null}
