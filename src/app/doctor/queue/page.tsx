@@ -751,7 +751,19 @@ function EscalatedTab({ rows, ...s }: { rows: typeof ESCALATIONS } & Shared) {
             <PatientCell ref_={e.ref} nhs={e.nhs} />
             <div className="px-4 py-4"><PharmacyLabel code={e.pharmacyCode} /></div>
             <MedCell med={e.med} dose={e.dose} />
-            <div className="px-4 py-4 text-sm text-text-secondary">{e.reason}</div>
+            <div className="px-4 py-4">
+              <p className="text-sm text-text-secondary">{e.reason}</p>
+              {/* the rule is the headline; the question underneath is what the
+                  senior was actually asked, and why the case left the board */}
+              {e.note && (
+                <p className="mt-1 flex items-start gap-1.5 text-xs italic text-text-disabled" title={e.note}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0" aria-hidden>
+                    <path d="M4 5h16v11H8l-4 4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
+                  <span className="line-clamp-2">{e.note}</span>
+                </p>
+              )}
+            </div>
             {/* the same two chips every other tab shows — an escalated case is
                 still a patient waiting, and the wait is the thing a prescriber
                 scans this column for */}

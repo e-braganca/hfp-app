@@ -296,6 +296,19 @@ function AdminQueueBoard() {
                     </div>
                     <div className="px-4 py-3">
                       <p className="line-clamp-2 text-sm text-text-secondary" title={c.detail}>{c.detail}</p>
+                      {/* the rule is the headline; the question underneath is
+                          what a senior is actually deciding whether to take */}
+                      {c.note && (
+                        <p
+                          className="mt-1 flex items-start gap-1.5 text-xs italic text-text-disabled"
+                          title={c.note}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0" aria-hidden>
+                            <path d="M4 5h16v11H8l-4 4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                          </svg>
+                          <span className="line-clamp-2">{c.note}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col items-start gap-1.5 px-4 py-3">
                       <RagPill rag={c.rag} />

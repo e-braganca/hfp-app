@@ -23,6 +23,12 @@ export interface LiveCase {
   dose: string;
   pharmacyCode: string;
   detail: string;
+  /**
+   * The prescriber's own question, on an escalated case. `detail` says which
+   * rule caught it; this says what they could not resolve about it, and it is
+   * the thing a senior scanning the board is deciding whether to pick up.
+   */
+  note?: string;
   href?: string;
 }
 
@@ -47,7 +53,7 @@ export function liveCases(): LiveCase[] {
     })),
     ...ESCALATIONS.map((e) => ({
       ref: e.ref, category: "escalated" as QueueCategory, rag: ESCALATION_RAG, nhs: e.nhs, med: e.med, dose: e.dose,
-      pharmacyCode: e.pharmacyCode, detail: e.reason, href: `/doctor/escalations/${e.ref}`,
+      pharmacyCode: e.pharmacyCode, detail: e.reason, note: e.note, href: `/doctor/escalations/${e.ref}`,
     })),
   ];
 }
