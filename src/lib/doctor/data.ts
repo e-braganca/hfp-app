@@ -423,9 +423,9 @@ export const complexCaseByRef = (ref: string) =>
 // ---- Escalated requests (read-only for the doctor) -------------------------
 
 export const ESCALATIONS: Escalation[] = [
-  { ref: "PT-2071", patientName: "Harold Ayeni", escalatedBy: "Dr. Julia Reyes", nhs: "218 905 6634", med: "Wegovy (semaglutide)", dose: "2.5 mg", reason: "Dose escalation above SOP max", status: "Awaiting senior review", pharmacyCode: "MX" },
-  { ref: "PT-2123", patientName: "Gordon Mackay", escalatedBy: "Dr. Liam Chen", nhs: "678 901 4567", med: "Wegovy (semaglutide)", dose: "1.7 mg", reason: "No weight loss at 6 months", status: "Awaiting senior review", pharmacyCode: "CP" },
-  { ref: "PT-2087", patientName: "James Mitchell", escalatedBy: "Dr. Tomas Bowen", nhs: "943 476 5919", med: "Mounjaro (tirzepatide)", dose: "7.5 mg", reason: "7-week treatment gap", status: "In senior review", pharmacyCode: "WB" },
+  { ref: "PT-2071", patientName: "Harold Ayeni", escalatedBy: "Dr. Julia Reyes", nhs: "218 905 6634", med: "Wegovy (semaglutide)", dose: "2.5 mg", reason: "Dose escalation above SOP max", status: "Awaiting senior review", note: "Patient tolerating 2.4 mg and still losing. Sign off the step up, or hold here?", pharmacyCode: "MX" },
+  { ref: "PT-2123", patientName: "Gordon Mackay", escalatedBy: "Dr. Liam Chen", nhs: "678 901 4567", med: "Wegovy (semaglutide)", dose: "1.7 mg", reason: "No weight loss at 6 months", status: "Awaiting senior review", note: "Patient adamant it works — SOP 6.2 says discontinue below 5%. Second opinion?", pharmacyCode: "CP" },
+  { ref: "PT-2087", patientName: "James Mitchell", escalatedBy: "Dr. Tomas Bowen", nhs: "943 476 5919", med: "Mounjaro (tirzepatide)", dose: "7.5 mg", reason: "7-week treatment gap", status: "In senior review", note: "Gap was due to a supply issue. Is re-titration still mandatory?", pharmacyCode: "WB" },
 ];
 
 export const escalationByRef = (ref: string) =>

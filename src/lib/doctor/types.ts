@@ -165,6 +165,12 @@ export interface Escalation {
   nhs: string;
   /** the prescriber who raised it — the senior's reply goes back to them */
   escalatedBy: string;
+  /**
+   * What they actually asked. The reason says which rule caught the case; the
+   * note says what the prescriber could not resolve about it, and that is the
+   * question the senior is answering.
+   */
+  note?: string;
   med: string;
   dose: string;
   reason: string;

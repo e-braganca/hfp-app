@@ -7,6 +7,7 @@ import { consultationFor } from "@/lib/doctor/consultation";
 import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { PatientSummaryCard } from "./PatientSummaryCard";
 import { ReviewShell } from "./ReviewShell";
+import { EscalationReasonCard } from "./caseParts";
 import { RagPill } from "@/components/ui/StatusPill";
 import { ESCALATION_RAG } from "@/lib/shared/live-cases";
 
@@ -58,14 +59,12 @@ export function EscalationView({ escalation }: { escalation: Escalation }) {
             pill={<RagPill rag={ESCALATION_RAG} label="Escalated" />}
           />
 
-          <div className="rounded-lg bg-background-paper p-5 shadow-card">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Why it was escalated</p>
-            <p className="mt-2 text-base font-bold text-text-primary">{e.reason}</p>
-            <p className="text-sm text-text-secondary">
-              {e.med} · {e.dose}
-            </p>
-            <p className="mt-1 text-sm text-text-secondary">{pharmacyName(e.pharmacyCode)}</p>
-          </div>
+          <EscalationReasonCard
+            reason={e.reason}
+            escalatedBy={e.escalatedBy}
+            status={e.status}
+            note={e.note}
+          />
 
           <PatientMediaCard
             caseRef={e.ref}

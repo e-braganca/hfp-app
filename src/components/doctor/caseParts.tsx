@@ -98,6 +98,47 @@ export function EscalateModal({
 }
 
 /**
+ * Why a case is with a senior, and what they were actually asked.
+ *
+ * The reason says which rule caught it; the note is the prescriber's own
+ * question, and it is the thing the senior is there to answer. Losing the
+ * question with the escalations page would have left the senior reading a
+ * rule citation and guessing what the doubt was.
+ */
+export function EscalationReasonCard({
+  reason,
+  escalatedBy,
+  status,
+  note,
+}: {
+  reason: string;
+  escalatedBy: string;
+  status: string;
+  note?: string;
+}) {
+  return (
+    <div className="rounded-lg bg-background-paper p-5 shadow-card">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Why it was escalated</p>
+      <p className="mt-2 text-base font-bold text-text-primary">{reason}</p>
+      <p className="text-sm text-text-secondary">
+        Raised by {escalatedBy} · {status.toLowerCase()}
+      </p>
+      {note && (
+        <div className="mt-3 flex gap-2.5 rounded-lg bg-background-neutral px-4 py-3 text-sm text-text-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0 text-text-disabled" aria-hidden>
+            <path d="M4 5h16v11H8l-4 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          </svg>
+          <span>
+            <span className="font-semibold">Question from the prescriber: </span>
+            {note}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Shown in the prescription's place when the reading does not end in one.
  *
  * Discontinuing, holding a cycle and sending a case to a senior all mean the

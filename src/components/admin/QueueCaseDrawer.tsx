@@ -13,7 +13,12 @@ import {
   sameAsRecommended,
   type Prescription,
 } from "@/components/doctor/PrescriptionPicker";
-import { DecisionButtons, OrderRequestCard, SeniorOnlyNotice } from "@/components/doctor/caseParts";
+import {
+  DecisionButtons,
+  EscalationReasonCard,
+  OrderRequestCard,
+  SeniorOnlyNotice,
+} from "@/components/doctor/caseParts";
 import { PatientMediaCard } from "@/components/shared/PatientMedia";
 import { RequestInfoEmailModal } from "@/components/shared/RequestInfoEmailModal";
 import { FileDrop, type Attachment } from "@/components/ui/FileDrop";
@@ -439,15 +444,12 @@ function CaseBody({
             />
 
             {escalated && (
-              <div className="rounded-lg bg-background-paper p-5 shadow-card">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                  Why it was escalated
-                </p>
-                <p className="mt-2 text-base font-bold text-text-primary">{escalated.reason}</p>
-                <p className="text-sm text-text-secondary">
-                  Raised by {escalated.escalatedBy} · {escalated.status.toLowerCase()}
-                </p>
-              </div>
+              <EscalationReasonCard
+                reason={escalated.reason}
+                escalatedBy={escalated.escalatedBy}
+                status={escalated.status}
+                note={escalated.note}
+              />
             )}
 
             <PatientMediaCard
